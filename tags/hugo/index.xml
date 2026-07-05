@@ -6,8 +6,15 @@
     <description>Recent content in Hugo on Timmoc&#39;s Blog</description>
     <generator>Hugo</generator>
     <language>zh-cn</language>
-    <lastBuildDate>Sun, 05 Jul 2026 16:45:00 +0800</lastBuildDate>
+    <lastBuildDate>Sun, 05 Jul 2026 18:45:00 +0800</lastBuildDate>
     <atom:link href="https://t1mmoc.github.io/tags/hugo/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>【AIGC】GitHub Pages 全绿却 404？一次离谱的部署 Debug 实录</title>
+      <link>https://t1mmoc.github.io/posts/github-pages-404-debug/</link>
+      <pubDate>Sun, 05 Jul 2026 18:45:00 +0800</pubDate>
+      <guid>https://t1mmoc.github.io/posts/github-pages-404-debug/</guid>
+      <description>Actions 全部 Success，站点却一直 404。从 .nojekyll 到 deploy-pages 环境问题，记录这次绕了一大圈的排查过程</description>
+    </item>
     <item>
       <title>【AIGC】Hugo &#43; PaperMod &#43; GitHub Pages 搭建踩坑全记录</title>
       <link>https://t1mmoc.github.io/posts/hugo-papermod-pitfalls/</link>

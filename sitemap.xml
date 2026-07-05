@@ -2,28 +2,37 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
+    <loc>https://t1mmoc.github.io/posts/github-pages-404-debug/</loc>
+    <lastmod>2026-07-05T18:45:00+08:00</lastmod>
+  </url><url>
+    <loc>https://t1mmoc.github.io/tags/aigc/</loc>
+    <lastmod>2026-07-05T18:45:00+08:00</lastmod>
+  </url><url>
+    <loc>https://t1mmoc.github.io/tags/debug/</loc>
+    <lastmod>2026-07-05T18:45:00+08:00</lastmod>
+  </url><url>
+    <loc>https://t1mmoc.github.io/tags/github-actions/</loc>
+    <lastmod>2026-07-05T18:45:00+08:00</lastmod>
+  </url><url>
+    <loc>https://t1mmoc.github.io/tags/github-pages/</loc>
+    <lastmod>2026-07-05T18:45:00+08:00</lastmod>
+  </url><url>
+    <loc>https://t1mmoc.github.io/tags/hugo/</loc>
+    <lastmod>2026-07-05T18:45:00+08:00</lastmod>
+  </url><url>
+    <loc>https://t1mmoc.github.io/posts/</loc>
+    <lastmod>2026-07-05T18:45:00+08:00</lastmod>
+  </url><url>
+    <loc>https://t1mmoc.github.io/tags/</loc>
+    <lastmod>2026-07-05T18:45:00+08:00</lastmod>
+  </url><url>
+    <loc>https://t1mmoc.github.io/</loc>
+    <lastmod>2026-07-05T18:45:00+08:00</lastmod>
+  </url><url>
     <loc>https://t1mmoc.github.io/posts/hugo-papermod-pitfalls/</loc>
     <lastmod>2026-07-05T16:45:00+08:00</lastmod>
   </url><url>
-    <loc>https://t1mmoc.github.io/tags/aigc/</loc>
-    <lastmod>2026-07-05T16:45:00+08:00</lastmod>
-  </url><url>
-    <loc>https://t1mmoc.github.io/tags/github-pages/</loc>
-    <lastmod>2026-07-05T16:45:00+08:00</lastmod>
-  </url><url>
-    <loc>https://t1mmoc.github.io/tags/hugo/</loc>
-    <lastmod>2026-07-05T16:45:00+08:00</lastmod>
-  </url><url>
     <loc>https://t1mmoc.github.io/tags/papermod/</loc>
-    <lastmod>2026-07-05T16:45:00+08:00</lastmod>
-  </url><url>
-    <loc>https://t1mmoc.github.io/posts/</loc>
-    <lastmod>2026-07-05T16:45:00+08:00</lastmod>
-  </url><url>
-    <loc>https://t1mmoc.github.io/tags/</loc>
-    <lastmod>2026-07-05T16:45:00+08:00</lastmod>
-  </url><url>
-    <loc>https://t1mmoc.github.io/</loc>
     <lastmod>2026-07-05T16:45:00+08:00</lastmod>
   </url><url>
     <loc>https://t1mmoc.github.io/tags/%E5%8D%9A%E5%AE%A2/</loc>
