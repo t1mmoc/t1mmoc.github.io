@@ -1,0 +1,69 @@
+baseURL = 'https://t1mmoc.github.io/'
+locale = 'zh-cn'
+title = "Timmoc's Blog"
+theme = 'PaperMod'
+
+enableEmoji = true
+enableRobotsTXT = true
+
+paginate = 10
+mainsections = ['posts']
+
+[outputs]
+  home = ['HTML', 'RSS', 'JSON']
+
+[minify]
+  disableXML = true
+
+[params]
+  ShowReadingTime = true
+  ShowShareButtons = true
+  ShowPostNavLinks = true
+  ShowBreadCrumbs = true
+  ShowCodeCopyButtons = true
+  ShowToc = true
+  TocOpen = false
+  ShowRssButtonInSectionTermList = true
+
+  # 社交链接
+  [[params.socialIcons]]
+    name = 'github'
+    url = 'https://github.com/t1mmoc'
+
+  # 首页欢迎信息
+  [params.homeInfoParams]
+    Title = "嗨，我是 Timmoc 👋"
+    Content = "这里记录技术笔记和日常思考。欢迎常来逛逛。"
+
+  # 编辑链接
+  [params.editPost]
+    URL = 'https://github.com/t1mmoc/t1mmoc.github.io/tree/main/content'
+    Text = '编辑此页'
+    appendFilePath = true
+
+  [params.assets]
+    disableHLJS = true
+
+[menu]
+  [[menu.main]]
+    identifier = 'posts'
+    name = '文章'
+    url = '/posts/'
+    weight = 10
+  [[menu.main]]
+    identifier = 'tags'
+    name = '标签'
+    url = '/tags/'
+    weight = 20
+  [[menu.main]]
+    identifier = 'search'
+    name = '搜索'
+    url = '/search/'
+    weight = 30
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+  [markup.highlight]
+    noClasses = false
