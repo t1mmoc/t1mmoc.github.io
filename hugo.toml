@@ -6,7 +6,8 @@ theme = 'PaperMod'
 enableEmoji = true
 enableRobotsTXT = true
 
-paginate = 10
+[pagination]
+  pagerSize = 10
 mainsections = ['posts']
 
 [outputs]
