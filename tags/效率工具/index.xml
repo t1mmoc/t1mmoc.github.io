@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>效率工具 on Timmoc&#39;s Blog</title>
+    <link>https://t1mmoc.github.io/tags/%E6%95%88%E7%8E%87%E5%B7%A5%E5%85%B7/</link>
+    <description>Recent content in 效率工具 on Timmoc&#39;s Blog</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sun, 27 Apr 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://t1mmoc.github.io/tags/%E6%95%88%E7%8E%87%E5%B7%A5%E5%85%B7/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>【效率工具】日程管理的最优选</title>
+      <link>https://t1mmoc.github.io/posts/18849497/</link>
+      <pubDate>Sun, 27 Apr 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18849497/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;经常做日程管理的朋友们都知道，日程管理不是什么好活&lt;br&gt;
+最近我也是弄起来这个东西了。&lt;/p&gt;
+&lt;h1 id=&#34;要求&#34;&gt;要求&lt;/h1&gt;
+&lt;ul&gt;
+&lt;li&gt;能够支持手机与电脑同步日程管理&lt;/li&gt;
+&lt;li&gt;能够使用原生手机日历的提醒&lt;/li&gt;
+&lt;li&gt;电脑同样能够有一点提醒，最好也用Windows原生的提醒。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h1 id=&#34;寻觅&#34;&gt;寻觅&lt;/h1&gt;
+&lt;p&gt;先找了一个&lt;code&gt;企业微信&lt;/code&gt;和&lt;code&gt;钉钉&lt;/code&gt;，这俩都差不多，没怎么碰，因为企业因素比较高，而且只能从系统日历同步到他们自己的日历不符合我使用系统原生日历的需要。&lt;br&gt;
+&lt;strong&gt;注：两个软件都给了&lt;code&gt;ex方法&lt;/code&gt;同步到系统日历，但是这样和邮箱提供的就没有区别了&lt;/strong&gt;&lt;/p&gt;
+&lt;h1 id=&#34;发现&#34;&gt;发现&lt;/h1&gt;
+&lt;p&gt;接下来找邮箱，&lt;code&gt;gmail&lt;/code&gt;首先排除，墙壁的原因。&lt;br&gt;
+&lt;code&gt;outlook&lt;/code&gt;是我第一个考虑的，毕竟微软出品，而且&lt;strong&gt;有逼格&lt;/strong&gt;，而且据说非常注重日程管理，邮箱似乎还没有他日程管理的重要。&lt;/p&gt;
+&lt;h3 id=&#34;outlook之旅&#34;&gt;outlook之旅&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;缺点：&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;同样是墙壁原因，但这是弱墙，下载超慢，还是能连，概率断线&lt;/li&gt;
+&lt;li&gt;软件启动速度超慢&lt;/li&gt;
+&lt;li&gt;别用qq.com直接注册微软账号，不然有的你哭，现在还在用qq.com的，趁着没买东西赶紧去重新注册一个outlook.com，微软的兼容性真的没话说，如兼。&lt;/li&gt;
+&lt;li&gt;用outlook.com注册的新微软账号被限制使用了两次，两次都是需要我用手机重新验证，还好不像腾讯那样要签莫须有的保证书&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;优点：&lt;/strong&gt;&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

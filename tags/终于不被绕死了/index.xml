@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>终于不被绕死了 on Timmoc&#39;s Blog</title>
+    <link>https://t1mmoc.github.io/tags/%E7%BB%88%E4%BA%8E%E4%B8%8D%E8%A2%AB%E7%BB%95%E6%AD%BB%E4%BA%86/</link>
+    <description>Recent content in 终于不被绕死了 on Timmoc&#39;s Blog</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Tue, 03 Jun 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://t1mmoc.github.io/tags/%E7%BB%88%E4%BA%8E%E4%B8%8D%E8%A2%AB%E7%BB%95%E6%AD%BB%E4%BA%86/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>【终于不被绕死了】Gradle 换源 kts</title>
+      <link>https://t1mmoc.github.io/posts/18907958/</link>
+      <pubDate>Tue, 03 Jun 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18907958/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;我现在随便一找项目，全在推荐Gradle的导入方法。&lt;br&gt;
+Gradle这么火吗，凭什么？&lt;br&gt;
+每次配置项目都要该一大堆东西的Gradle为什么会火？&lt;br&gt;
+但是既然是主流，那就跟随主流。起码也要读懂主流。&lt;/p&gt;
+&lt;h1 id=&#34;jdk不匹配&#34;&gt;jdk不匹配&lt;/h1&gt;
+&lt;blockquote&gt;
+&lt;p&gt;JDK 23.0.1 与 Gradle 8.14 不兼容。 请修正 JAVA_HOME 环境变量。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;jdk版本太高了，构建的时候gradle不支持，对此不想动gradle，降级一下jdk吧&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18907958/3336551-20250603085117237-1438624016.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18907958/3336551-20250603085127885-297244227.jpg&#34;&gt;&lt;br&gt;
+项目结构-&amp;gt;SDK-&amp;gt;24改成21（别管我为啥用24）&lt;/p&gt;
+&lt;h1 id=&#34;换源&#34;&gt;换源&lt;/h1&gt;
+&lt;h3 id=&#34;全局换源&#34;&gt;全局换源&lt;/h3&gt;
+&lt;p&gt;我知道从maven转过来的每个人都想搞个gradle全局换源，但至今为止我尝试过的每个gradle全局换源都&lt;strong&gt;不靠谱&lt;/strong&gt;&lt;br&gt;
+但还是贴一个全局换源方案吧（&lt;strong&gt;不靠谱&lt;/strong&gt;）：&lt;br&gt;
+在用户目录-&amp;gt;.gradle目录下，新建或覆盖init.gradle&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

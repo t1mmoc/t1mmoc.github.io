@@ -22,5 +22,2060 @@
       <guid>https://t1mmoc.github.io/posts/hugo-papermod-pitfalls/</guid>
       <description>从零搭建 Hugo 博客到 GitHub Pages，PaperMod v8 配置兼容、部署方案选型等踩坑实录</description>
     </item>
+    <item>
+      <title>【AIGC】Hermes Agent 飞书 Bot 部署经验总结</title>
+      <link>https://t1mmoc.github.io/posts/21137621/</link>
+      <pubDate>Sun, 05 Jul 2026 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/21137621/</guid>
+      <description>&lt;h1 id=&#34;hermes-agent-飞书-bot-部署经验总结&#34;&gt;Hermes Agent 飞书 Bot 部署经验总结&lt;/h1&gt;
+&lt;blockquote&gt;
+&lt;p&gt;记录在 Ubuntu 24.04 虚拟机上从零部署 Hermes Agent（NousResearch/hermes-agent），&lt;br&gt;
+接入智谱 bigmodel 作为 LLM 后端，并打通飞书 WebSocket 双向消息的完整流程与踩坑点。&lt;br&gt;
+时间：2026-07-05&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;0-准备清单&#34;&gt;0. 准备清单&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;项目&lt;/th&gt;
+					&lt;th&gt;说明&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;宿主机&lt;/td&gt;
+					&lt;td&gt;Windows 11 + PowerShell 5.1&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;虚拟机&lt;/td&gt;
+					&lt;td&gt;Ubuntu 24.04.3 LTS，VMWare Workstation，1 个 NAT 网络&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;VM IP&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;192.168.111.0/24&lt;/code&gt; 网段（按需替换）&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;VM 用户&lt;/td&gt;
+					&lt;td&gt;普通用户 &lt;code&gt;vmuser&lt;/code&gt;（sudo 组）+ root（密码登录 + SSH key）&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;工具链&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;paramiko&lt;/code&gt;（Windows 端 SSH）、&lt;code&gt;lark-oapi&lt;/code&gt;（飞书 SDK，hermes 依赖）、&lt;code&gt;Python 3.12&lt;/code&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;飞书账号&lt;/td&gt;
+					&lt;td&gt;已创建企业自建应用，&lt;strong&gt;开启了机器人能力&lt;/strong&gt;，获得 App ID / App Secret&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;LLM 凭据&lt;/td&gt;
+					&lt;td&gt;智谱 bigmodel &lt;code&gt;GLM_API_KEY&lt;/code&gt;（实名认证后免费档可用）&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;1-虚拟机初始化&#34;&gt;1. 虚拟机初始化&lt;/h2&gt;
+&lt;h3 id=&#34;11-ssh-key--root-登录&#34;&gt;1.1 SSH key + root 登录&lt;/h3&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;# 宿主机生成 ed25519 key
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;通过 paramiko 远程执行（避免在 VM 控制台操作）：&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>【AIGC】如何让AI找出偷偷藏在系统中偷吃内存的元凶</title>
+      <link>https://t1mmoc.github.io/posts/21126386/</link>
+      <pubDate>Sat, 04 Jul 2026 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/21126386/</guid>
+      <description>&lt;h1 id=&#34;如何让-ai-找出偷偷藏在系统中偷吃内存的元凶&#34;&gt;如何让 AI 找出偷偷藏在系统中偷吃内存的&amp;quot;元凶&amp;quot;&lt;/h1&gt;
+&lt;blockquote&gt;
+&lt;p&gt;当你打开任务管理器，发现&amp;quot;使用中&amp;quot;内存比所有进程加起来多出好几个 GB，却找不到去哪了——这篇文章就是写给你的。更关键的是：&lt;strong&gt;这种枯燥到让人抓狂的&amp;quot;挨个查每个进程是干什么的&amp;quot;活儿，正好是 AI 的强项。&lt;/strong&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2 id=&#34;背景一个让人抓狂的痛点&#34;&gt;背景：一个让人抓狂的痛点&lt;/h2&gt;
+&lt;p&gt;排查 Windows 内存占用时，几乎所有人都会遇到这个场景：&lt;/p&gt;
+&lt;p&gt;任务管理器显示&amp;quot;使用中 13 GB&amp;quot;，但把所有进程的内存加起来，只有 9 GB 左右。&lt;strong&gt;差了将近 4 GB，去哪了？&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;更让人崩溃的是：&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>【模拟器抓包】再来一次，完整版</title>
+      <link>https://t1mmoc.github.io/posts/19618653/</link>
+      <pubDate>Sun, 15 Feb 2026 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/19618653/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;因为模拟器发生了一些奇怪的事情（关不掉代理了），所以重新来一遍。&lt;/p&gt;
+&lt;h1 id=&#34;ca证书&#34;&gt;CA证书&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;http://burp&lt;/code&gt;&lt;br&gt;
+不多说&lt;/p&gt;
+&lt;h2 id=&#34;der转0证书&#34;&gt;der转.0证书&lt;/h2&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;# 步骤1: 将DER格式转换为PEM格式
+openssl x509 -inform DER -in cacert.der -out cacert.pem
+
+# 步骤2: 计算证书的旧版subject hash（Android系统使用）
+openssl x509 -inform PEM -subject_hash_old -in cacert.pem | head -1
+# 输出示例: 9a5ba575
+
+# 步骤3: 将PEM证书重命名为 &amp;lt;hash&amp;gt;.0 格式
+mv cacert.pem 9a5ba575.0
+&lt;/code&gt;&lt;/pre&gt;&lt;h1 id=&#34;安装证书&#34;&gt;安装证书&lt;/h1&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;adb root
+adb shell mount -o rw,remount /system
+adb push 9a5ba575.0 /system/etc/security/cacerts/
+adb shell chmod 644 /system/etc/security/cacerts/9a5ba575.0
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;如果你也和我一样push了以后找不到，那就在shell里面&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>ST-LINK转gnuk！年轻人的第一款低成本gunk</title>
+      <link>https://t1mmoc.github.io/posts/19362681/</link>
+      <pubDate>Wed, 17 Dec 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/19362681/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;Gnuk做出来了，但是，用处呢？&lt;br&gt;
+事实是，Gnuk、PKCS#11、FIDO，三家完全不互通&lt;br&gt;
+而且opengpg的市面上使用率实在是低。&lt;/p&gt;
+&lt;p&gt;致谢 - 主要文章：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;https://www.cnblogs.com/tibrella/p/17816505.html#fn2&#34;&gt;https://www.cnblogs.com/tibrella/p/17816505.html#fn2&lt;/a&gt;&lt;br&gt;
+看到的第一篇文章，也是兴趣的起源，但可惜我没有也不打算为了这个弄一个arch&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://tccmu.com/2024/08/05/gnuk/#Gnuk%E9%87%8D%E6%96%B0%E5%86%99%E5%85%A5&#34;&gt;https://tccmu.com/2024/08/05/gnuk/#Gnuk重新写入&lt;/a&gt;&lt;br&gt;
+ubuntu上进行的文章，流程非常、非常舒适，每一步我都能看懂，大赞。&lt;br&gt;
+（小声：除了./configure &amp;ndash;vidpid=234b:0000 以外，但我丢给ai问了一下，似乎不是很重要的部分，跳过。）&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://nx3d.org/gnuk-st-link-v2/&#34;&gt;https://nx3d.org/gnuk-st-link-v2/&lt;/a&gt;&lt;br&gt;
+重刷的部分，感谢博主提供的短接方法。&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;致谢 - 其他文章：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;https://docs.nitrokey.com/zh_CN/nitrokeys/start/setting-kdf-do&#34;&gt;https://docs.nitrokey.com/zh_CN/nitrokeys/start/setting-kdf-do&lt;/a&gt;&lt;br&gt;
+我当时kdf出现问题，查阅这篇文章后才知道什么是kdf，然后毫不犹豫的关闭了kdf功能。&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h1 id=&#34;成本与需求&#34;&gt;成本与需求&lt;/h1&gt;
+&lt;ol&gt;
+&lt;li&gt;一台windows电脑&lt;/li&gt;
+&lt;li&gt;vmware + 一台debian虚拟机，我这里使用kali（可选，或者可以直接用我编译好的固件，当然，最好还是自己编译，博主不对此负责。）&lt;/li&gt;
+&lt;li&gt;网络环境，windows和kali都要下载东西。&lt;/li&gt;
+&lt;li&gt;耐心&lt;/li&gt;
+&lt;li&gt;6.40 + 9.80 + 7.70 = 23.9元 （ 6.40的电线建议换成别的，用第二篇引用文章上提到的杜邦线最好，这个面包板电线贼软，一掰就弯，但还好不需要太用力）&lt;/li&gt;
+&lt;li&gt;一把螺丝刀，一字的，ST-LINK的外壳贼硬。&lt;br&gt;
+&lt;img alt=&#34;PixPin_2025-12-17_14-45-18&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/19362681/3336551-20251217144526823-1002822818.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;PixPin_2025-12-17_14-45-41&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/19362681/3336551-20251217144546493-1803961584.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;PixPin_2025-12-17_14-45-51&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/19362681/3336551-20251217144555398-172657880.jpg&#34;&gt;&lt;br&gt;
+【时间：2025-12-17。仅代表这段时间的商品价格】&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;其实这里9.8的进口芯片完全可以用国产芯片，我目前没发现任何区别，但毕竟是第一次买，也是第一次刷，还是第一次接触这类东西，buff叠满了，所以看到推荐进口芯片想着多几块钱多一份保险吧。&lt;br&gt;
+（仅代表我自己的情况，两个都没踩坑）&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>imm docker 备份/迁移</title>
+      <link>https://t1mmoc.github.io/posts/19226580/</link>
+      <pubDate>Sun, 16 Nov 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/19226580/</guid>
+      <description>&lt;h1 id=&#34;备份篇&#34;&gt;备份篇&lt;/h1&gt;
+&lt;h2 id=&#34;可选备份镜像大小1gb但是docker-pull一万年所以最好备份一下&#34;&gt;可选，备份镜像，大小1GB，但是docker pull一万年，所以最好备份一下。&lt;/h2&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;# 创建镜像导出脚本
+cat &amp;gt; export-images.sh &amp;lt;&amp;lt; &amp;#39;EOF&amp;#39;
+#!/bin/bash
+IMAGES=(
+  &amp;#34;ghcr.io/immich-app/immich-server:v2&amp;#34;
+  &amp;#34;ghcr.io/immich-app/immich-machine-learning:v2&amp;#34;
+  &amp;#34;docker.io/valkey/valkey:8@sha256:81db6d39e1bba3b3ff32bd3a1b19a6d69690f94a3954ec131277b9a26b95b3aa&amp;#34;
+  &amp;#34;ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23&amp;#34;
+)
+
+# echo &amp;#34;正在拉取最新镜像...&amp;#34;
+# docker compose pull
+
+echo &amp;#34;正在导出镜像（约需几分钟）...&amp;#34;
+docker save &amp;#34;${IMAGES[@]}&amp;#34; | gzip &amp;gt; immich-images.tar.gz
+
+echo &amp;#34;镜像导出完成！大小：&amp;#34;
+ls -lh immich-images.tar.gz
+EOF
+
+# 运行脚本
+chmod +x export-images.sh
+./export-images.sh
+&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&#34;备份数据库&#34;&gt;备份数据库：&lt;/h2&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;# Replace &amp;lt;DB_USERNAME&amp;gt; with the database username - usually postgres unless you have changed it.
+docker exec -t immich_postgres pg_dumpall --clean --if-exists --username=&amp;lt;DB_USERNAME&amp;gt; | gzip &amp;gt; &amp;#34;/path/to/backup/dump.sql.gz&amp;#34;
+&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&#34;备份另外两个文件夹这里跳过&#34;&gt;备份另外两个文件夹。这里跳过&lt;/h2&gt;
+&lt;h1 id=&#34;恢复篇&#34;&gt;恢复篇&lt;/h1&gt;
+&lt;h2 id=&#34;恢复镜像&#34;&gt;恢复镜像&lt;/h2&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;cd ~/imm
+
+# 导入镜像（约需几分钟）
+docker load -i /tmp/immich-images.tar.gz
+
+# 验证导入
+docker images | grep immich
+&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&#34;恢复两个文件夹&#34;&gt;恢复两个文件夹&lt;/h2&gt;
+&lt;h2 id=&#34;恢复数据库&#34;&gt;恢复数据库&lt;/h2&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;docker compose down -v  # CAUTION! Deletes all Immich data to start from scratch
+## Uncomment the next line and replace DB_DATA_LOCATION with your Postgres path to permanently reset the Postgres database
+# rm -rf DB_DATA_LOCATION # CAUTION! Deletes all Immich data to start from scratch
+docker compose pull             # Update to latest version of Immich (if desired)
+docker compose create           # Create Docker containers for Immich apps without running them
+docker start immich_postgres    # Start Postgres server
+sleep 10                        # Wait for Postgres server to start up
+# Check the database user if you deviated from the default
+# Replace &amp;lt;DB_USERNAME&amp;gt; with the database username - usually postgres unless you have changed it.
+gunzip --stdout &amp;#34;/path/to/backup/dump.sql.gz&amp;#34; \
+| sed &amp;#34;s/SELECT pg_catalog.set_config(&amp;#39;search_path&amp;#39;, &amp;#39;&amp;#39;, false);/SELECT pg_catalog.set_config(&amp;#39;search_path&amp;#39;, &amp;#39;public, pg_catalog&amp;#39;, true);/g&amp;#34; \
+| docker exec -i immich_postgres psql --dbname=postgres --username=&amp;lt;DB_USERNAME&amp;gt;  # Restore Backup
+docker compose up -d            # Start remainder of Immich apps
+&lt;/code&gt;&lt;/pre&gt;</description>
+    </item>
+    <item>
+      <title>tabby 如何检测工作目录</title>
+      <link>https://t1mmoc.github.io/posts/19224667/</link>
+      <pubDate>Sat, 15 Nov 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/19224667/</guid>
+      <description>&lt;h1 id=&#34;用来留给自己的避免每次都连那半天转不上的github&#34;&gt;用来留给自己的，避免每次都连那半天转不上的github&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;export PS1=&amp;quot;$PS1\[\e]1337;CurrentDir=&amp;quot;&#39;$(pwd)\a\]&#39;&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;precmd () { echo -n &amp;quot;\x1b]1337;CurrentDir=$(pwd)\x07&amp;quot; }&lt;/code&gt;&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;    echo -en &amp;#34;\e]1337;CurrentDir=$PWD\x7&amp;#34;
+end
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;一般就第一条就行。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>【kali 抓包】全部流量流经kali，劫持到burp</title>
+      <link>https://t1mmoc.github.io/posts/19067511/</link>
+      <pubDate>Mon, 01 Sep 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/19067511/</guid>
+      <description>&lt;p&gt;&lt;strong&gt;受够了有数据包遗漏了吗？没错，来加入kali抓包大家庭吧&lt;/strong&gt;&lt;/p&gt;
+&lt;h1 id=&#34;思路&#34;&gt;思路&lt;/h1&gt;
+&lt;p&gt;本机设置kali为网关，kali全部FORWARD劫持到8080&lt;/p&gt;
+&lt;h1 id=&#34;命令&#34;&gt;命令&lt;/h1&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;# 开启 IP 转发
+echo 1 | tee /proc/sys/net/ipv4/ip_forward
+
+# 允许本机以非本地 IP 发包
+sysctl -w net.ipv4.conf.all.route_localnet=1
+
+# 转发，不多说
+iptables -t nat -A PREROUTING -i eth0 -p tcp -m multiport --dports 80,443 -j REDIRECT --to-port 8080
+
+如果想抓特别的可以把 -m multiport --dports 80,443 删掉
+
+# 两张网卡，eth1是外网时转发
+iptables -t nat -A POSTROUTING -o eth1 -j MASQUERADE
+&lt;/code&gt;&lt;/pre&gt;</description>
+    </item>
+    <item>
+      <title>【模拟器抓包】标签就是标题</title>
+      <link>https://t1mmoc.github.io/posts/19067212/</link>
+      <pubDate>Sun, 31 Aug 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/19067212/</guid>
+      <description>&lt;h1 id=&#34;ca证书&#34;&gt;CA证书&lt;/h1&gt;
+&lt;p&gt;CA证书折腾了很久，最后发现fiddler的不行，burp的行，不知道原因&lt;br&gt;
+这部分已经做过了懒得再做一遍，有心者去看看网上的教程吧很详细了。&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;a href=&#34;https://blog.csdn.net/weixin_43391813/article/details/130850778&#34;&gt;https://blog.csdn.net/weixin_43391813/article/details/130850778&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h1 id=&#34;代理&#34;&gt;代理&lt;/h1&gt;
+&lt;h3 id=&#34;方法1&#34;&gt;方法1：&lt;/h3&gt;
+&lt;p&gt;adb.exe shell settings put global http_proxy 10.0.2.2:8080&lt;/p&gt;
+&lt;h3 id=&#34;方法2&#34;&gt;方法2：&lt;/h3&gt;
+&lt;p&gt;iptables -t nat -A OUTPUT -p tcp -j DNAT &amp;ndash;to-destination 127.0.0.1:8080&lt;br&gt;
+adb reverse tcp:8080 tcp:8080&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>【Onebots】开局踩坑</title>
+      <link>https://t1mmoc.github.io/posts/18967201/</link>
+      <pubDate>Sat, 05 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18967201/</guid>
+      <description>&lt;blockquote&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/lc-cn/onebots&#34;&gt;https://github.com/lc-cn/onebots&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h1 id=&#34;谁写的文档&#34;&gt;谁写的文档&lt;/h1&gt;
+&lt;p&gt;可能是我看不懂吧，反正来讲几点重要的地方。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18967201/3336551-20250705140222636-514829766.jpg&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;解决方法&#34;&gt;解决方法&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18967201/3336551-20250705140339691-579779257.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18967201/3336551-20250705140417148-2015430598.jpg&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;解决方法的来源&#34;&gt;解决方法的来源&lt;/h1&gt;
+&lt;p&gt;翻源代码翻的我好苦啊，我服气了。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18967201/3336551-20250705140447820-1754401637.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;已经被作者这个开局配置弄得心累了，也是因为我不接触nodejs和npm、npx的原因吧，翻来覆去找AI找网站没一个讲怎么调试的，作者就给了一条npx就跑起来了，然后报mode不存在知道有多烦吗&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18967201/3336551-20250705140618142-1358916348.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18967201/3336551-20250705140624451-1739055114.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18967201/3336551-20250705140721606-924975961.jpg&#34;&gt;&lt;br&gt;
+如上图所示，这里加入的是&lt;strong&gt;protocol&lt;/strong&gt;，也就代表着只加入&lt;strong&gt;protocol&lt;/strong&gt;下的内容。&lt;br&gt;
+所以mode要卸载&lt;strong&gt;protocol&lt;/strong&gt;里面。&lt;/p&gt;
+&lt;p&gt;问我为什么不去看文档的话：&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18967201/3336551-20250705140818153-1439747826.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;就这样说吧，我就没见作者的文档打开得起来过。&lt;/p&gt;
+&lt;h1 id=&#34;onebot-任重道远&#34;&gt;onebot 任重道远&lt;/h1&gt;
+&lt;p&gt;事实是onebot12基本没人用，也就找到这个包了才看看，这个，没话讲。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>【5G究竟是给谁用的】吐槽一下5G</title>
+      <link>https://t1mmoc.github.io/posts/18926069/</link>
+      <pubDate>Thu, 12 Jun 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18926069/</guid>
+      <description>&lt;h1 id=&#34;重要提醒&#34;&gt;重要提醒&lt;/h1&gt;
+&lt;p&gt;后来查了一下，好像在5g&lt;strong&gt;覆盖区边缘&lt;/strong&gt;&lt;br&gt;
+所以仅供参考，因为地图会暴露位置就不放了。&lt;br&gt;
+其实还是对目前5g在&lt;strong&gt;个人，个别，幸存者偏差&lt;/strong&gt;情况下的使用情况&lt;br&gt;
+叠甲成这样了应该可以了吧&lt;/p&gt;
+&lt;h1 id=&#34;正文&#34;&gt;正文&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18926069/3336551-20250612195917348-65182206.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;steam测速器你值得拥有。&lt;br&gt;
+开了5g直接掉速，关了5g立刻恢复。&lt;/p&gt;
+&lt;p&gt;我在想是不是接入了4g基站的问题，开关飞行模式切换一下试试&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18926069/3336551-20250612195958900-1873246387.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;甚至发现电话卡（不用流量的那张）开5g都能掉速，就离谱。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18926069/3336551-20250612200025017-1001601620.jpg&#34;&gt;&lt;br&gt;
+上图是后续&lt;br&gt;
+还有关闭5g的情况：&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18926069/3336551-20250612200036074-1969555366.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18926069/3336551-20250612200038894-976336650.jpg&#34;&gt;&lt;br&gt;
+最后用4g下完了，5g还是留给别人用吧，就这样。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>【终于不被绕死了】Gradle 换源 kts</title>
+      <link>https://t1mmoc.github.io/posts/18907958/</link>
+      <pubDate>Tue, 03 Jun 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18907958/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;我现在随便一找项目，全在推荐Gradle的导入方法。&lt;br&gt;
+Gradle这么火吗，凭什么？&lt;br&gt;
+每次配置项目都要该一大堆东西的Gradle为什么会火？&lt;br&gt;
+但是既然是主流，那就跟随主流。起码也要读懂主流。&lt;/p&gt;
+&lt;h1 id=&#34;jdk不匹配&#34;&gt;jdk不匹配&lt;/h1&gt;
+&lt;blockquote&gt;
+&lt;p&gt;JDK 23.0.1 与 Gradle 8.14 不兼容。 请修正 JAVA_HOME 环境变量。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;jdk版本太高了，构建的时候gradle不支持，对此不想动gradle，降级一下jdk吧&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18907958/3336551-20250603085117237-1438624016.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18907958/3336551-20250603085127885-297244227.jpg&#34;&gt;&lt;br&gt;
+项目结构-&amp;gt;SDK-&amp;gt;24改成21（别管我为啥用24）&lt;/p&gt;
+&lt;h1 id=&#34;换源&#34;&gt;换源&lt;/h1&gt;
+&lt;h3 id=&#34;全局换源&#34;&gt;全局换源&lt;/h3&gt;
+&lt;p&gt;我知道从maven转过来的每个人都想搞个gradle全局换源，但至今为止我尝试过的每个gradle全局换源都&lt;strong&gt;不靠谱&lt;/strong&gt;&lt;br&gt;
+但还是贴一个全局换源方案吧（&lt;strong&gt;不靠谱&lt;/strong&gt;）：&lt;br&gt;
+在用户目录-&amp;gt;.gradle目录下，新建或覆盖init.gradle&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>新服务器配置（二） acme.sh</title>
+      <link>https://t1mmoc.github.io/posts/18890588/</link>
+      <pubDate>Thu, 29 May 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18890588/</guid>
+      <description>&lt;h1 id=&#34;书接上文&#34;&gt;书接上文&lt;/h1&gt;
+&lt;p&gt;原来京东云给了我ssh密钥的快速配置方案。但是，管他呢&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18890588/3336551-20250522103753025-1220380337.jpg&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;接下来该干的事&#34;&gt;接下来该干的事&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18890588/3336551-20250522105711071-1547352933.jpg&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;由于ohttps存在问题因此选择加入acmesh大家庭&#34;&gt;由于Ohttps存在问题，因此选择加入acme.sh大家庭&lt;/h1&gt;
+&lt;p&gt;最后还是选择了让nginx反代alist，为什么都这么干呢？&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;配置 Nginx
+安装 Nginx ：若服务器上未安装 Nginx，可使用系统包管理器进行安装，如 Debian/Ubuntu 系统可运行sudo apt install nginx命令，CentOS/RHEL 系统可运行sudo yum install nginx命令。
+启动 Nginx ：安装完成后启动 Nginx 服务，命令为sudo systemctl start nginx，并设置开机自启，命令为sudo systemctl enable nginx。
+配置 HTTP 服务 ：配置 Nginx 在 80 端口对外提供 HTTP 服务，以便让 CA 能正常下载 HTTP-01 Token。创建或编辑 Nginx 配置文件，如/etc/nginx/conf.d/your_domain.conf，添加以下内容：
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;卸载conf.d里面：acme.conf，用于提供默认的80环境以申请证书&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>【寻觅真相】有关河南骨粉事件的真相寻觅，同时有关AI时代的遐想。</title>
+      <link>https://t1mmoc.github.io/posts/18884797/</link>
+      <pubDate>Mon, 19 May 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18884797/</guid>
+      <description>&lt;h1 id=&#34;n手信息前言引入&#34;&gt;N手信息，前言引入&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18884797/3336551-20250519193002024-1835812115.jpg&#34;&gt;&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;a href=&#34;https://www.bilibili.com/video/BV1pSEQz1EuG&#34;&gt;https://www.bilibili.com/video/BV1pSEQz1EuG&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18884797/3336551-20250519192950072-1134097619.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;视频底下的评论&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18884797/3336551-20250519192838818-2129598860.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18884797/3336551-20250519192859457-1460845990.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18884797/3336551-20250519192921484-274693613.png&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;寻找网站&#34;&gt;寻找网站&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18884797/3336551-20250519193036206-873151033.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18884797/3336551-20250519193048812-1540865657.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18884797/3336551-20250519193242019-1105165556.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;究竟是不是删掉了呢？&lt;br&gt;
+有时候是这样的，造谣一个F12就好了，辟谣的人要跑来跑去收集原始信息。&lt;br&gt;
+或者，只需要&lt;strong&gt;一个网站上证明有骨粉&lt;/strong&gt;，就会被证实。&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18884797/3336551-20250519193411757-992894087.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18884797/3336551-20250519193423606-973446727.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18884797/3336551-20250519193446131-1063723478.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;目前只在知网上找到了该文章，其他大型中立数据库查无此文。&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18884797/3336551-20250519193841269-38765232.jpg&#34;&gt;&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Shamir 秘密共享方案</title>
+      <link>https://t1mmoc.github.io/posts/18876032/</link>
+      <pubDate>Wed, 14 May 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18876032/</guid>
+      <description>&lt;h1 id=&#34;shamir-秘密共享方案&#34;&gt;Shamir 秘密共享方案&lt;/h1&gt;
+&lt;p&gt;这是个好玩的东西。简单的讲，就是某个数字例如K=77，可以分成5个，只有3个人都选择恢复这个数字才能恢复这个数字。&lt;br&gt;
+这能干的事情就很多了。&lt;br&gt;
+至于详细地说。。。看下面：&lt;/p&gt;
+&lt;h2 id=&#34;基本原理&#34;&gt;基本原理&lt;/h2&gt;
+&lt;p&gt;Shamir 秘密共享方案是一种基于多项式插值原理的密码学技术，由 Adi Shamir 在 20 世纪 70 年代提出。其核心思想是将一个秘密数据分割成多个份额，只有当足够数量的参与者（达到一个预设的阈值）将他们的份额组合在一起时，才能重建出原始秘密。&lt;/p&gt;
+&lt;h2 id=&#34;详细步骤&#34;&gt;详细步骤&lt;/h2&gt;
+&lt;h3 id=&#34;构造多项式&#34;&gt;构造多项式&lt;/h3&gt;
+&lt;ol&gt;
+&lt;li&gt;选择一个有限域 GF(q)，其中 q 是一个素数，且要大于最大的秘密值和参与者的数量。&lt;/li&gt;
+&lt;li&gt;构造一个 k−1 次多项式 f(x)=a₀+a₁x+a₂x²+…+a_{k−1}x^{k−1}，其中 a₀ 为秘密，a₁,a₂,…,a_{k−1} 是在有限域内随机选择的系数。&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3 id=&#34;生成份额&#34;&gt;生成份额&lt;/h3&gt;
+&lt;p&gt;对于每个参与者 i（1≤i≤n），计算该多项式在 x=i 处的值，即份额 s_i=f(i)，然后将这些份额分发给各个参与者。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>新服务器配置</title>
+      <link>https://t1mmoc.github.io/posts/18876382/</link>
+      <pubDate>Wed, 14 May 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18876382/</guid>
+      <description>&lt;h1 id=&#34;拿到一台服务器应该要做什么&#34;&gt;拿到一台服务器应该要做什么&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18876382/3336551-20250514173857424-1891485474.jpg&#34;&gt;&lt;br&gt;
+去京东云那边抢了一台活动服务器。&lt;br&gt;
+啧，京东这边我还错怪他了，原来这能抢到啊？&lt;br&gt;
+也可能是因为看我连续访问了好N次网站都不下单，偷偷给我改有存货了。&lt;br&gt;
+管他呢，反正抢到了就是抢到了。&lt;br&gt;
+CPU：有就行&lt;br&gt;
+内存：有就行&lt;br&gt;
+网络：有就行（点名阿里云的活动扣扣嗖嗖的，网络还要单独买，其他送网络的要么就是要加钱要么就是三个月，要不然就是99同价不允许叠加其他折扣，懒得喷）&lt;/p&gt;
+&lt;h1 id=&#34;配置&#34;&gt;配置！&lt;/h1&gt;
+&lt;p&gt;首先应该根据我这篇文章所述，配置一下服务器仅ssh私钥登录。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18876382/3336551-20250514174342765-2101985562.jpg&#34;&gt;&lt;br&gt;
+如果懒得看文章也可以看这张图，反正都是老操作了。&lt;/p&gt;
+&lt;p&gt;将原本服务器的alist整个文件夹丢进/opt/alist/&lt;br&gt;
+然后将alist.service丢进/etc/systemd/system/&lt;br&gt;
+啧，你知道吗，备份就是这么爽。&lt;br&gt;
+太爽了。&lt;br&gt;
+如果用docker感觉会更爽。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18876382/3336551-20250514175348956-108194210.jpg&#34;&gt;&lt;br&gt;
+systemctl的三条命令，太熟悉了。&lt;br&gt;
+查看状态-&amp;gt;启动-&amp;gt;设置开机自启动&lt;br&gt;
+虽然我不觉得我的服务器会关机。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18876382/3336551-20250514175438257-340239898.jpg&#34;&gt;&lt;br&gt;
+好叭。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18876382/3336551-20250514175501678-1733800375.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18876382/3336551-20250514175527279-1692537092.jpg&#34;&gt;&lt;br&gt;
+&lt;strong&gt;EZZZZZ&lt;/strong&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18876382/3336551-20250514175825147-1202728580.jpg&#34;&gt;&lt;br&gt;
+差点忘了，还有这两&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18876382/3336551-20250514175910051-1113075823.jpg&#34;&gt;&lt;br&gt;
+&lt;strong&gt;？&lt;/strong&gt;&lt;br&gt;
+不是，我虽然上面说的是，“网络：有就行”&lt;br&gt;
+但是这转圈速度，认真的？&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18876382/3336551-20250514180140996-967592878.jpg&#34;&gt;&lt;br&gt;
+&lt;strong&gt;？&lt;/strong&gt;&lt;br&gt;
+&lt;strong&gt;？？？&lt;/strong&gt;&lt;br&gt;
+京东你这样我要转黑了。&lt;br&gt;
+要知道alist只是个索引，数据本身不保存在alist上。&lt;br&gt;
+查索引的速度都能这么慢。。。&lt;br&gt;
+啧，算了。&lt;br&gt;
+《买都买了》《它还只是个孩子》&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>【RSA交换律】基于RSA的智力扑克游戏</title>
+      <link>https://t1mmoc.github.io/posts/18870826/</link>
+      <pubDate>Sun, 11 May 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18870826/</guid>
+      <description>&lt;h1 id=&#34;前排提醒&#34;&gt;前排提醒&lt;/h1&gt;
+&lt;p&gt;&lt;strong&gt;陷阱&lt;/strong&gt;，别来。&lt;br&gt;
+什么RSA智力扑克&lt;br&gt;
+都是陷阱。&lt;/p&gt;
+&lt;h1 id=&#34;初次尝试&#34;&gt;初次尝试&lt;/h1&gt;
+&lt;p&gt;据说RSA的加解密是具备&lt;strong&gt;交换律&lt;/strong&gt;的（注：后来发现不完全是这样）&lt;br&gt;
+也就是这样子：&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18870826/3336551-20250511151458470-1622554513.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18870826/3336551-20250511151433699-1258628173.jpg&#34;&gt;&lt;br&gt;
+神奇吧？A加密某个数据，随后B加密该数据，此时本来要解密的话是先B解密然后A解密的。&lt;br&gt;
+但是想不到吧，A是可以先解密，随后B解密的。&lt;/p&gt;
+&lt;p&gt;就因为看到这个&lt;strong&gt;神奇的操作&lt;/strong&gt;，我开始了苦逼的尝试之旅。&lt;br&gt;
+&lt;strong&gt;读者看到这里有福了，因为可以不用自己去尝试了&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;这个标题是初次尝试，不过初次尝试的代码已经被我迭代掉了。&lt;br&gt;
+一开始肯定是使用第三方库来的舒服对吧。&lt;/p&gt;
+&lt;p&gt;点击查看图片&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18870826/3336551-20250511151736610-1982396813.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;有cryptography库干嘛不用呢？
+然后就是这样的：&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18870826/3336551-20250511151857886-1770026394.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;第二次加密出错了，没错，A加密，B加密。。。B加密直接出错了。&lt;br&gt;
+问AI，AI说填充的问题，叫我改成NoPadding，然后我改了，发现没有NoPadding这个选项。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>【效率工具】日程管理的最优选</title>
+      <link>https://t1mmoc.github.io/posts/18849497/</link>
+      <pubDate>Sun, 27 Apr 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18849497/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;经常做日程管理的朋友们都知道，日程管理不是什么好活&lt;br&gt;
+最近我也是弄起来这个东西了。&lt;/p&gt;
+&lt;h1 id=&#34;要求&#34;&gt;要求&lt;/h1&gt;
+&lt;ul&gt;
+&lt;li&gt;能够支持手机与电脑同步日程管理&lt;/li&gt;
+&lt;li&gt;能够使用原生手机日历的提醒&lt;/li&gt;
+&lt;li&gt;电脑同样能够有一点提醒，最好也用Windows原生的提醒。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h1 id=&#34;寻觅&#34;&gt;寻觅&lt;/h1&gt;
+&lt;p&gt;先找了一个&lt;code&gt;企业微信&lt;/code&gt;和&lt;code&gt;钉钉&lt;/code&gt;，这俩都差不多，没怎么碰，因为企业因素比较高，而且只能从系统日历同步到他们自己的日历不符合我使用系统原生日历的需要。&lt;br&gt;
+&lt;strong&gt;注：两个软件都给了&lt;code&gt;ex方法&lt;/code&gt;同步到系统日历，但是这样和邮箱提供的就没有区别了&lt;/strong&gt;&lt;/p&gt;
+&lt;h1 id=&#34;发现&#34;&gt;发现&lt;/h1&gt;
+&lt;p&gt;接下来找邮箱，&lt;code&gt;gmail&lt;/code&gt;首先排除，墙壁的原因。&lt;br&gt;
+&lt;code&gt;outlook&lt;/code&gt;是我第一个考虑的，毕竟微软出品，而且&lt;strong&gt;有逼格&lt;/strong&gt;，而且据说非常注重日程管理，邮箱似乎还没有他日程管理的重要。&lt;/p&gt;
+&lt;h3 id=&#34;outlook之旅&#34;&gt;outlook之旅&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;缺点：&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;同样是墙壁原因，但这是弱墙，下载超慢，还是能连，概率断线&lt;/li&gt;
+&lt;li&gt;软件启动速度超慢&lt;/li&gt;
+&lt;li&gt;别用qq.com直接注册微软账号，不然有的你哭，现在还在用qq.com的，趁着没买东西赶紧去重新注册一个outlook.com，微软的兼容性真的没话说，如兼。&lt;/li&gt;
+&lt;li&gt;用outlook.com注册的新微软账号被限制使用了两次，两次都是需要我用手机重新验证，还好不像腾讯那样要签莫须有的保证书&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;优点：&lt;/strong&gt;&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>【流量预警】装了UU远程/GameViewer的小心了</title>
+      <link>https://t1mmoc.github.io/posts/18799833/</link>
+      <pubDate>Sat, 29 Mar 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18799833/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;月末了，没流量了，不过我今天怎么跑了4个G的流量？&lt;br&gt;
+我倒要看看是谁干的好事。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18799833/3336551-20250329195847653-1875540781.jpg&#34;&gt;&lt;br&gt;
+热点跑的？但是我一整天都挂着手机连电脑没动啊，最多也就偶尔用了一下。&lt;/p&gt;
+&lt;h1 id=&#34;别让我找到是谁偷跑我流量跑这么多&#34;&gt;别让我找到是谁偷跑我流量跑这么多&lt;/h1&gt;
+&lt;p&gt;好啊好，UU远程，得，你清高，你偷偷上传我电脑数据是吧。虽说没抓到现行也只能怀疑而已，但我磁盘空间哪里够他一天占3个G？&lt;br&gt;
+更重要的是，我【一天内从来没有使用过它】，我挂着它开机自启动【只是为了在我需要用到的时候使用】&lt;br&gt;
+那么问题来了，一个我没有用到的软件，凭什么和我用的其他软件排在一起？&lt;br&gt;
+英伟达也是，不过这个不敢卸载，留着算了。浏览器、oopz、雷神我今天确实用过，放过他们了。&lt;br&gt;
+sunshine好像用了一次，在内网环境下的，那200MB内网的话就无所谓了。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18799833/3336551-20250329195720585-1774057098.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18799833/3336551-20250329200016774-168797912.jpg&#34;&gt;&lt;br&gt;
+往下翻了翻，更好笑了，ToDesk我【刚刚才使用过】，跑了45MB的流量。&lt;br&gt;
+那UU远程，你在干什么呢？&lt;br&gt;
+不会是拿我有ipv6的电脑跑节点吧。&lt;br&gt;
+比如其他用户的屏幕、操作数据，加密以后【经过我这台电脑中继】&lt;br&gt;
+这就是低延迟的理由吗&lt;/p&gt;
+&lt;h1 id=&#34;结语&#34;&gt;结语&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18799833/3336551-20250329200632433-1995766672.jpg&#34;&gt;&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Tailscale subnet-on-android</title>
+      <link>https://t1mmoc.github.io/posts/18775026/</link>
+      <pubDate>Sun, 16 Mar 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18775026/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18775026/3336551-20250316142009788-383510280.jpg&#34;&gt;&lt;br&gt;
+啊哈，前段时间提了个issue，然后开发者那边回复了&lt;br&gt;
+再过了一段事件，合并了。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18775026/3336551-20250316142119824-147077608.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18775026/3336551-20250316142132183-657734243.jpg&#34;&gt;&lt;br&gt;
+Jan 17合并的，Feb 4发布的，那我倒要看看有没有新东西。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18775026/3336551-20250316142211414-518448891.jpg&#34;&gt;&lt;br&gt;
+不错不错，新功能加上了。&lt;/p&gt;
+&lt;h1 id=&#34;subnet有什么用&#34;&gt;subnet有什么用&lt;/h1&gt;
+&lt;p&gt;有人要问了，你安卓又不是路由器，搞个subnet干啥？&lt;br&gt;
+但是安卓可以开热点啊，尤其是在外面的网络，搞个subnet，可以让tail内东西访问到外面，让外面访问到tail内&lt;br&gt;
+带着一个手机就能让任何设备链接到tail内，那岂不是美哉哉？&lt;/p&gt;
+&lt;h1 id=&#34;开始&#34;&gt;开始&lt;/h1&gt;
+&lt;p&gt;好了，先开一个热点，然后进行一个链接。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18775026/3336551-20250316142535779-571271983.jpg&#34;&gt;&lt;br&gt;
+这里有个槽点，这个routes需要手动填，而手机没有办法指定和知道热点开出来是多少，还得去电脑上查了填&lt;br&gt;
+也可能是tail无法获取到这个信息。&lt;br&gt;
+随后需要在管理员界面批准这个subnet申请&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18775026/3336551-20250316142715948-244950808.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18775026/3336551-20250316142809183-1999603259.jpg&#34;&gt;&lt;br&gt;
+249是那个“存在于subnet下”的电脑，tailscale内部网络对外发送数据非常完美。&lt;br&gt;
+以防不好理解，画个图在这里&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18775026/3336551-20250316143147539-1697243746.jpg&#34;&gt;&lt;br&gt;
+另外，图里面没有的tail的ip在这里有：&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18775026/3336551-20250316143417015-1547955322.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18775026/3336551-20250316143404690-1264207920.jpg&#34;&gt;&lt;br&gt;
+奇怪，ping不到内部吗，只能从内部出外面？&lt;br&gt;
+翻翻文档。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18775026/3336551-20250316144041153-235414388.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18775026/3336551-20250316144101014-2039001128.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18775026/3336551-20250316144219715-435392381.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18775026/3336551-20250316144226816-1614744162.jpg&#34;&gt;&lt;br&gt;
+100亿%的人都选择考虑从tail内访问tail外的子网。&lt;br&gt;
+怎么没人考虑过从tail外的子网访问tail内的功能呢，如果实现的话，家里NAS开着tail，然后在外带着一个手机，就可以经过手机访问NAS。。。。。&lt;br&gt;
+因为流量消耗的问题？&lt;br&gt;
+算了，翻不到解决方法，略微有些失望，但是也算是一半一半能访问吧。&lt;br&gt;
+不对，有没有可能，在linux上，就算不设置subnet，流量经过linux并且允许转发的话，自动就会链接到tail内，所以subnet只是为了让tail内识别tail外才用到的？&lt;br&gt;
+而安卓因为没有root，所以无法实现这一点？&lt;br&gt;
+有可能，但是不确定。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>服务器SSH 仅密钥登录</title>
+      <link>https://t1mmoc.github.io/posts/18773483/</link>
+      <pubDate>Sat, 15 Mar 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18773483/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;随着我服务器上Alist资源的增多，服务器【本身】这个存放着Alist内所有密码（虽然都是随机生成的）的存在就显得非常的脆弱。&lt;br&gt;
+尽管我的ssh密码选择了随机生成并交给电脑记住，但是服务器被攻破导致全部密码我都得改一遍的后果我承担不起。&lt;br&gt;
+另注：因为上传到云盘的重要资料我都进行了加密上传，因此我倒不是很担心云盘内的资料泄露，只是改密码太&lt;strong&gt;麻烦&lt;/strong&gt;了而已。&lt;/p&gt;
+&lt;h1 id=&#34;ssh仅密钥登录设置&#34;&gt;SSH仅密钥登录设置&lt;/h1&gt;
+&lt;p&gt;对于windows来说，没有ssh-copy-id这个工具。&lt;br&gt;
+但是没关系，git bash有啊。&lt;br&gt;
+复制粘贴文件还是太麻烦了，有工具用工具，这才是人类啊（雾）&lt;br&gt;
+玩git的应该都不缺一个ssh公私钥对，但是为了博客完整，还是将代码贴在这里吧：&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;# 生成
+ssh-keygen -t rsa -b 4096
+
+# 复制公私钥
+ssh-copy-id -i ~/.ssh/id_rsa.pub username@server_ip
+
+# 修改配置项，命令下面四行是配置内容。
+sudo nano /etc/ssh/sshd_config
+
+# ===== 配置内容 =====
+# 禁用密码登录
+PasswordAuthentication no
+# 禁用 root 用户直接登录（可选，但推荐）
+PermitRootLogin no
+# 确保以下选项已设置
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+# ===== 配置内容 =====
+
+# 重启
+sudo systemctl restart sshd
+
+# 测试
+ssh username@server_ip
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;如果只是想要代码，上面已经是完整的代码了，拿去就可以用。&lt;br&gt;
+如果想要接着看配置步骤，就接着往下读：&lt;br&gt;
+在哪里打开bash都无所谓&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18773483/3336551-20250315123451969-1043966148.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18773483/3336551-20250315123742164-1369995908.jpg&#34;&gt;&lt;br&gt;
+涂得糊的看不清了，不过也没办法，总之就是这样，理论上说这里应该需要输入一次密码，但是自动跳过了，看来我之前已经做过了这一步，上传过公钥认证了。&lt;br&gt;
+那么接下来应该关闭密码认证就好了。&lt;br&gt;
+拉到最底下就能看到了&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18773483/3336551-20250315124055285-1882721211.jpg&#34;&gt;&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Wamp SSL配置</title>
+      <link>https://t1mmoc.github.io/posts/18765053/</link>
+      <pubDate>Tue, 11 Mar 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18765053/</guid>
+      <description>&lt;h1 id=&#34;生成自签名证书略过了&#34;&gt;生成自签名证书略过了&lt;/h1&gt;
+&lt;h1 id=&#34;直接开始&#34;&gt;直接开始&lt;/h1&gt;
+&lt;ol start=&#34;3&#34;&gt;
+&lt;li&gt;配置 Apache&lt;br&gt;
+编辑 httpd.conf 文件：&lt;br&gt;
+打开 WampServer 安装目录下的 bin/apache/apache版本号/conf/httpd.conf 文件。&lt;br&gt;
+取消以下行的注释（删除行首的 #）：&lt;/li&gt;
+&lt;/ol&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;LoadModule ssl_module modules/mod_ssl.so
+Include conf/extra/httpd-ssl.conf
+LoadModule socache_shmcb_module modules/mod_socache_shmcb.so
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;编辑 httpd-ssl.conf 文件：&lt;br&gt;
+打开 conf/extra/httpd-ssl.conf 文件。&lt;br&gt;
+修改以下参数以指向您生成的证书文件：&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Windbg初见</title>
+      <link>https://t1mmoc.github.io/posts/18761810/</link>
+      <pubDate>Mon, 10 Mar 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18761810/</guid>
+      <description>&lt;h1 id=&#34;下载与安装&#34;&gt;下载与安装&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18761810/3336551-20250310082848021-56218967.jpg&#34;&gt;&lt;br&gt;
+在微软商店中找到Windbg即可。&lt;br&gt;
+这里是拼网速的时间，校园网可能有帮助。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18761810/3336551-20250310083718581-549290175.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18761810/3336551-20250310083746779-1630021066.jpg&#34;&gt;&lt;br&gt;
+在等下载的这段时间里面我也看了一些博客，大概了解了一下windbg的用法。&lt;br&gt;
+不过怎么说还是得在虚拟机也下载一个，总是不能在实体机调试的。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18761810/3336551-20250310084733801-770712849.jpg&#34;&gt;&lt;br&gt;
+在Layout里面修改为Disassembly，这下有点od的样子了。&lt;br&gt;
+不过快捷键有点出入，还需要学习一下。&lt;br&gt;
+F5：运行&lt;br&gt;
+F11：步入&lt;br&gt;
+F10：步过&lt;br&gt;
+Shift+F11：执行到返回&lt;br&gt;
+F9: 下断&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18761810/3336551-20250310085159346-1093803121.jpg&#34;&gt;&lt;br&gt;
+设置内可以修改为暗色模式，不过暗色模式总感觉什么配色都不太舒服。&lt;/p&gt;
+&lt;h1 id=&#34;并不重要的碎碎念&#34;&gt;并不重要的碎碎念&lt;/h1&gt;
+&lt;p&gt;除了自带快照和&lt;a href=&#34;https://learn.microsoft.com/zh-cn/windows-hardware/drivers/debuggercmds/time-travel-debugging-overview&#34;&gt;TTD&lt;/a&gt;以外，倒没有给我特别大的惊喜，调试内核程序大概是目前最好的，只不过目前我也没有什么需要调试的内核样本，以后再玩吧。&lt;/p&gt;
+&lt;p&gt;不过接下来。。。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18761810/3336551-20250310085438356-1199730184.jpg&#34;&gt;&lt;br&gt;
+进虚拟机玩玩。&lt;/p&gt;
+&lt;h1 id=&#34;hello-world&#34;&gt;Hello world&lt;/h1&gt;
+&lt;p&gt;在虚拟机的下载有点太久了，还是回到实体机调试一下helloworld试试。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Windows内核学习笔记（五）</title>
+      <link>https://t1mmoc.github.io/posts/18760694/</link>
+      <pubDate>Sun, 09 Mar 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18760694/</guid>
+      <description>&lt;h1 id=&#34;一点定义&#34;&gt;一点定义&lt;/h1&gt;
+&lt;p&gt;&lt;strong&gt;作业（job）&lt;/strong&gt; 是由执行体支持的一种内核对象，它能够将一个或多个进程视为一个整体来进行管理和控制。管理程序借助 Windows API，能够对作业所使用的系统资源（包括 CPU 或内存）的诸多限制进行控制，比如用户模式 CPU 时间的限制、进程的处理器亲和性、工作集的最大值与最小值、虚拟内存的使用限制等。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;迁程（fiber）&lt;/strong&gt; 是一种用户线程，对于内核来说是不可见的，是由 kernel32.dll 来实现的。应用程序可以在一个线程环境中创建多个迁程，并且可以手动控制这些迁程的执行。迁程不会自动执行，应用程序需要明确地选择某个迁程来执行。一旦迁程开始运行，它会一直运行，直到它退出，或者它显式地切换到另一个迁程。&lt;/p&gt;
+&lt;p&gt;目前没有看到这俩的用处，先记录下来，像这种定义却没有实际接触的东西可不好背，记下来方便以后回顾&lt;/p&gt;
+&lt;h1 id=&#34;同步自旋锁&#34;&gt;同步、自旋锁&lt;/h1&gt;
+&lt;p&gt;Windows根据执行环境中的IRQL大于APC_LEVEL 或者等于PASSIVE_LEVEL，将同步机制分为“不依赖线程调度的同步机制”和“基于线程调度的同步机制”。&lt;/p&gt;
+&lt;p&gt;不依赖线程调度的同步机制主要是在IRQL的高优先级下执行的，通常用于中断处理程序和内核模式代码中，以确保在处理中断或执行关键内核代码时，不会被其他线程打断。常见的不依赖线程调度的同步机制包括：&lt;/p&gt;
+&lt;p&gt;自旋锁（Spin Lock）：自旋锁用于在多个线程之间互斥的访问共享资源，本质上是一种忙等待（busy-wait），意思是线程会一直自旋（忙等待）直到锁可用为止，而不会被挂起等待。常使用在高IRQL下，因为此时是不允许切换线程的，使用自旋锁可以确保关键代码不会被其他线程打断。一些自旋锁扩展：执行体自旋锁（支持共享和独占的语义）、排队自旋锁（queued spin lock）和栈内排队自旋锁（in-stack queued spin lock）。&lt;br&gt;
+中断服务例程（ISR）：ISR用于响应硬件中断，当硬件设备触发中断时，操作系统会立即执行ISR来处理中断。ISR运行在IRQL的高优先级下，不允许进行线程调度，以确保快速响应中断。&lt;br&gt;
+延迟过程调用（Deferred Procedure Call，DPC）：DPC用于延迟执行一些代码块或处理程序，常与中断处理有关。当硬件设备触发中断时，操作系统会将&lt;strong&gt;中断服务例程（ISR）&lt;/strong&gt; 用于快速响应中断，但有时需要执行一些耗时的操作，例如数据传输或资源释放，这时就会使用DPC来延迟执行这些操作。&lt;br&gt;
+另一种基于线程调度的同步机制：当一个线程的执行条件不满足时，该线程进入等待状态，系统将控制权交由其他满足执行条件但没有得到处理器资源的线程；以后，当该线程的执行条件满足时，它又有机会继续执行。这里的执行条件正是Windows提供的线程同步机制中的语义。Windows定义了统一的机制来支持各种线程同步原语：分发器对象（dispatcher object），其数据结构头部为DISAPATCH_HEADER。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Windows内核学习笔记（六）</title>
+      <link>https://t1mmoc.github.io/posts/18760808/</link>
+      <pubDate>Sun, 09 Mar 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18760808/</guid>
+      <description>&lt;h1 id=&#34;常见的分发器对象&#34;&gt;常见的分发器对象&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;事件（event）&lt;/code&gt;：用于&lt;code&gt;线程&lt;/code&gt;之间的通信和同步，它有俩种状态：&lt;code&gt;已触发&lt;/code&gt;和&lt;code&gt;未触发&lt;/code&gt;。事件可以用于线程等待某个事件发生，或者通知其他线程事件的发生。&lt;br&gt;
+&lt;code&gt;互斥量（Mutex）（或互斥锁）&lt;/code&gt;：互斥量用于确保在同一时刻只有一个线程能够访问共享资源。它允许线程请求锁定，当一个线程获得锁定时，其他线程必须等待，直到锁被释放。&lt;br&gt;
+&lt;code&gt;信号量（Semaphore）&lt;/code&gt;：用于控制对共享资源的并发访问。它维护一个计数器，允许指定数量的线程同时访问资源。&lt;br&gt;
+&lt;code&gt;条件变量（Condition Variable）&lt;/code&gt;：条件变量用于线程之间传递信号和等待特定条件的发生。通常与互斥量一起使用，用于等待某个条件满足后执行操作。&lt;br&gt;
+&lt;code&gt;读写锁（Read-Write Locks）&lt;/code&gt;：读写锁用于控制对共享资源的读和写，它允许多个线程同时读取资源，但只允许一个线程写入资源。&lt;br&gt;
+&lt;code&gt;计数器对象（Counting Semaphore）&lt;/code&gt;：一种特殊的信号量，它可以增加和减少计数器的值，通常用于跟踪资源的可用性或完成的任务数量。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;关于互斥锁和自旋锁&lt;/strong&gt;：互斥锁基于线程调度，而自旋锁不依赖线程调度；还有一个区别是线程尝试获取锁时，如果该锁被占用，线程是被挂起还是一直自旋；互斥锁适用于长时间的临界区和资源竞争激烈的情况，而自旋锁适用于非常短暂的临界区。&lt;/p&gt;
+&lt;p&gt;Windows在上述基础上，实现了同步语义更为丰富的一些同步机制，包括：快速互斥体（fast mutex）、守护互斥体（guarded mutex）、执行体资源（executive resource）和推锁（push lock）。&lt;/p&gt;
+&lt;p&gt;一听又是历史，见过fastcall的都知道。&lt;/p&gt;
+&lt;h1 id=&#34;ssdt&#34;&gt;SSDT&lt;/h1&gt;
+&lt;p&gt;**系统服务描述表（System Services Descriptor Table，SSDT）**其在内核中的实际名称是 “KeServiceDescriptorTable”。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>再战博客园美化（十一）</title>
+      <link>https://t1mmoc.github.io/posts/18759449/</link>
+      <pubDate>Sat, 08 Mar 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18759449/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;因为有个（五）被我漏掉了，所以这个再战系列跳过了十&lt;br&gt;
+对了，这是我修改后的vue项目：git@gitcode.com:Timmoc/goodvue.git&lt;br&gt;
+不建议直接克隆使用，因为有很多硬编码。但如果我的项目能帮助到各位就最好了。&lt;/p&gt;
+&lt;h1 id=&#34;起因&#34;&gt;起因&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18759449/3336551-20250308150618888-1814907057.jpg&#34;&gt;&lt;br&gt;
+我的页面居然只有两页？&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18759449/3336551-20250308150635720-1850062821.jpg&#34;&gt;&lt;br&gt;
+切换到页面二以后才正常。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18759449/3336551-20250308150717127-1215927435.jpg&#34;&gt;&lt;br&gt;
+重新切回页面一，注意到也正常。&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18759449/3336551-20250308150735766-2063971305.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18759449/3336551-20250308150738258-790272669.jpg&#34;&gt;&lt;br&gt;
+注意到两个url不一致。&lt;br&gt;
+好，行动，怎么能让我的主页只能看到两页呢？&lt;/p&gt;
+&lt;h1 id=&#34;行动&#34;&gt;行动&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18759449/3336551-20250308154552852-323678950.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18759449/3336551-20250308154608638-847980631.jpg&#34;&gt;&lt;br&gt;
+好像有点不对&lt;br&gt;
+页面加载不完整。&lt;br&gt;
+哦，不对，我想起来我调试的方法了。&lt;/p&gt;
+&lt;h1 id=&#34;博客园特有的调试方法&#34;&gt;博客园特有的调试方法。&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18759449/3336551-20250308154718825-1126961825.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18759449/3336551-20250308154803281-390732201.jpg&#34;&gt;&lt;br&gt;
+好的哥，等我。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18759449/3336551-20250308154845368-2066503682.jpg&#34;&gt;&lt;br&gt;
+再复制过来。&lt;br&gt;
+等会，复制到哪里？&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>记一次HTTPS server.key私钥泄露事件</title>
+      <link>https://t1mmoc.github.io/posts/18759516/</link>
+      <pubDate>Sat, 08 Mar 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18759516/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;在准备进行博客园美化的时候，发现自己的Alist Server.key泄露了。&lt;br&gt;
+虽然配套泄露的Server.crt已经过期了，但是我续期的那个Server.crt可以直接访问我的本机获取到&lt;br&gt;
+这对我的电脑（和其他信任了TD根证书的电脑与手机）造成了很严重的中间人攻击风险。&lt;br&gt;
+&lt;strong&gt;因此需要吊销证书&lt;/strong&gt;&lt;/p&gt;
+&lt;h1 id=&#34;禁止进一步的泄露&#34;&gt;禁止进一步的泄露&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18759516/3336551-20250308161722379-1231641530.jpg&#34;&gt;&lt;br&gt;
+将git仓库设置为私有&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18759516/3336551-20250308161814950-1835464945.jpg&#34;&gt;&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;git filter-branch --force --index-filter \
+  &amp;#34;git rm --cached --ignore-unmatch PATH-TO-YOUR-FILE-WITH-SENSITIVE-DATA&amp;#34; \
+  --prune-empty --tag-name-filter cat -- --all
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;清除历史中数据&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18759516/3336551-20250308161749174-11766215.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18759516/3336551-20250308161803702-1025145210.jpg&#34;&gt;&lt;br&gt;
+我注意到，仍然可以访问，只是哈希不同了而已。&lt;br&gt;
+这是新建了一个哈希分支。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>【测试】钩子测试</title>
+      <link>https://t1mmoc.github.io/posts/18755991/</link>
+      <pubDate>Thu, 06 Mar 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18755991/</guid>
+      <description>&lt;h1 id=&#34;图片钩子测试&#34;&gt;图片钩子测试&lt;/h1&gt;
+&lt;p&gt;&lt;strong&gt;仅收集了访问数据，未使用任何js信息，未窃取任何cookie&lt;/strong&gt;&lt;br&gt;
+只用于匿名数据收集，以及，好玩。&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://td-s.cn/post18755991&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18755991/3336551-20250306173714724-1445867419.png&#34;&gt;&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Windows内核学习笔记（四）</title>
+      <link>https://t1mmoc.github.io/posts/18747525/</link>
+      <pubDate>Mon, 03 Mar 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18747525/</guid>
+      <description>&lt;h1 id=&#34;杂项&#34;&gt;杂项&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;特权模式&lt;/code&gt;和&lt;code&gt;内核模式&lt;/code&gt;相同&lt;/p&gt;
+&lt;h1 id=&#34;系统进程&#34;&gt;系统进程&lt;/h1&gt;
+&lt;p&gt;笔者学习到此处的时候开始怀疑原作者是否有自己看过他写的文章。（错别字）&lt;br&gt;
+我要不要换一篇文章阅读。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;系统空闲进程（Idle）：该进程的PID为0，其中每个处理器或核对应有一个线程。&lt;/li&gt;
+&lt;li&gt;System 进程：这是操作系统的核心进程，PID为4。它负责管理内核模式下线程、设备驱动程序、中断处理和其他核心事件。&lt;/li&gt;
+&lt;li&gt;会话管理器（smss.exe）：Windows系统中创建的第一个用户模式进程，在Windows启动过程中创建环境变量，（启动了子系统进程csrss.exe和登录进程winlogon.exe）。另外，它还负责创建新的终端服务器会话，包括建立会话空间的数据结构，为新建的终端服务器加载子系统。&lt;/li&gt;
+&lt;li&gt;登录进程（winlogon.exe）：负责处理交互用户的登录和注销。&lt;/li&gt;
+&lt;li&gt;Windows子系统进程（csrss.exe）：负责为用户提供一个子系统环境。&lt;/li&gt;
+&lt;li&gt;本地安全权威子系统进程（lsass.exe）：负责本地系统安全策略。&lt;/li&gt;
+&lt;li&gt;Shell进程（explorer.exe）：Windows的默认Shell，它提供了系统与用户打交道的各种界面，包括开始菜单、任务栏、资源管理窗口等几乎所有Windows用户都熟悉的界面。&lt;/li&gt;
+&lt;li&gt;服务控制管理器（services.exe）：负责Windows的系统服务，指一些特殊的进程。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;services比较常见，会启动注册为服务并且选择开机自启的一些特殊dll，或者在手动模式下被管理员权限的程序要求启动一些服务。&lt;br&gt;
+对于病毒来说是其中一个藏身地。另外一个藏身地是任务计划程序。&lt;br&gt;
+某些“病毒”会藏身于其中，并且不将自己注册为开机自启，而是每一个小时启动一次，这样可以逃避部分检查开机自启的程序。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18747525/3336551-20250308105555090-849521297.png&#34;&gt;&lt;br&gt;
+只能说，非常天才，不愧是国产，脑子转得就是快。&lt;br&gt;
+既然它这样恶心我了，那我也只能把它装进沙盒里面了。&lt;br&gt;
+不过沙盒里面它也依旧能恶心我：&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18747525/3336551-20250308105810524-1059901052.jpg&#34;&gt;&lt;br&gt;
+在思考他的云同步功能到底有没有那么重要，要不要换office。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Sunshine Moonlight 串流 再玩一把</title>
+      <link>https://t1mmoc.github.io/posts/18746405/</link>
+      <pubDate>Sun, 02 Mar 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18746405/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;其实我已经配置好了，目前的配置是&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746405/3336551-20250302163251769-772554031.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746405/3336551-20250302163303438-1634704763.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746405/3336551-20250302163236811-983303746.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;不过我额外安装vdd是因为基地版自带的那个显示屏有点问题。&lt;br&gt;
+只不过我自己也忘了有什么问题了。&lt;br&gt;
+但是现在&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746405/3336551-20250302163414817-1184547651.png&#34;&gt;&lt;br&gt;
+什么？有更新？&lt;br&gt;
+更新来玩玩。&lt;br&gt;
+&lt;strong&gt;博主能这样随便更新，是因为这个软件不怎么用，而且喜欢折腾才这样做的，如果经常需要使用建议是稳定就不更新了&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746405/3336551-20250302163925103-1876365977.png&#34;&gt;&lt;br&gt;
+啥意思，以前本机外可以直接访问WEBUI吗，这太离谱。&lt;br&gt;
+感觉更应该是以前不监听本机外IP&lt;/p&gt;
+&lt;h1 id=&#34;卸载&#34;&gt;卸载&lt;/h1&gt;
+&lt;p&gt;按照提示卸载即可&lt;/p&gt;
+&lt;h1 id=&#34;安装&#34;&gt;安装&lt;/h1&gt;
+&lt;p&gt;直接下一步就完事&lt;/p&gt;
+&lt;h1 id=&#34;修bug&#34;&gt;修bug&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746405/3336551-20250302165324268-352461817.jpg&#34;&gt;&lt;br&gt;
+出现了，逃不掉的。&lt;br&gt;
+用新的东西以后开始出bug，看不懂，更新一下先&lt;/p&gt;
+&lt;h1 id=&#34;再次卸载&#34;&gt;再次卸载&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746405/3336551-20250302165917786-1047678304.png&#34;&gt;&lt;br&gt;
+看不懂报错原因，卸载了再说&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746405/3336551-20250302170035763-1499600406.jpg&#34;&gt;&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Windows 剪贴板 编程原理学习</title>
+      <link>https://t1mmoc.github.io/posts/18746299/</link>
+      <pubDate>Sun, 02 Mar 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18746299/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;好累，终于码完一篇字了。&lt;br&gt;
+进入正题吧&lt;/p&gt;
+&lt;h1 id=&#34;与ai对话&#34;&gt;与AI对话&lt;/h1&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;a href=&#34;https://learn.microsoft.com/zh-cn/windows/win32/dataxchg/standard-clipboard-formats&#34;&gt;https://learn.microsoft.com/zh-cn/windows/win32/dataxchg/standard-clipboard-formats&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;提问是个好习惯，询问AI可以快速得到回答。&lt;/p&gt;
+&lt;h2 id=&#34;gdi-对象是什么什么是-gdi-对象&#34;&gt;GDI 对象是什么，什么是 GDI 对象？&lt;/h2&gt;
+&lt;p&gt;GDI（Graphics Device Interface，图形设备接口）对象是 Windows 操作系统中用于管理和操作图形资源的基本实体。GDI 是 Windows 提供的一组 API（应用程序编程接口），用于在屏幕上绘制图形、文本和图像，同时也用于打印和显示设备的交互。GDI 对象是这些图形操作的核心组成部分。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Windows 剪贴板 编程原理引入</title>
+      <link>https://t1mmoc.github.io/posts/18746236/</link>
+      <pubDate>Sun, 02 Mar 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18746236/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;不得不说&lt;strong&gt;上三休四&lt;/strong&gt;的生活就是舒服，我都有精力提升自己了。&lt;br&gt;
+本文将基于自己在生活中遇到的现象进行探索，因此问题引入对自己较为重要，读者可以跳过。&lt;br&gt;
+文章主要探讨剪贴板格式问题，即下面的链接。&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;a href=&#34;https://learn.microsoft.com/zh-cn/windows/win32/dataxchg/standard-clipboard-formats&#34;&gt;https://learn.microsoft.com/zh-cn/windows/win32/dataxchg/standard-clipboard-formats&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h1 id=&#34;续前言&#34;&gt;续前言&lt;/h1&gt;
+&lt;p&gt;我逐渐发现这篇文章越写愈多了，因此编程原理的学习将会另开一篇。&lt;br&gt;
+本篇文章是指我在遇到剪贴板在生活中的现象。&lt;/p&gt;
+&lt;h1 id=&#34;问题引入&#34;&gt;问题引入&lt;/h1&gt;
+&lt;h3 id=&#34;情境一&#34;&gt;情境一&lt;/h3&gt;
+&lt;p&gt;从一个复杂格式的软件复制文本到QQ的文本框，复杂格式会被自动清除，但是基本内容仍然保留&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746236/3336551-20250302130833789-1044433296.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746236/3336551-20250302130846467-158119179.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746236/3336551-20250302131557486-1119533663.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;不过我认为windows自带的这个才是真正的复制结果。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746236/3336551-20250302131640684-1790858305.png&#34;&gt;&lt;br&gt;
+QQ把这个小圆点作为空格复制过去了。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746236/3336551-20250302131727299-763111085.png&#34;&gt;&lt;br&gt;
+奇怪的地方在于复制回来会。。。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746236/3336551-20250302131810793-1705441512.png&#34;&gt;&lt;br&gt;
+如果在本软件复制本软件的，当然会正常，毕竟内容是html格式。&lt;/p&gt;
+&lt;h3 id=&#34;情境二&#34;&gt;情境二&lt;/h3&gt;
+&lt;p&gt;使用&lt;strong&gt;sn&lt;/strong&gt;（忘名了）或者&lt;strong&gt;pixpin&lt;/strong&gt;的人可能看到过这个“复制图像为文件”的选项&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746236/3336551-20250302132109988-1694575079.png&#34;&gt;&lt;br&gt;
+在不勾选它的情况下，截图，复制。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746236/3336551-20250302132232457-916844750.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746236/3336551-20250302132303120-18485165.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746236/3336551-20250302132336688-1940436656.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;可以在QQ中正常粘贴，但是如果尝试粘贴到文件系统会被拒绝。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746236/3336551-20250302132359237-126795188.jpg&#34;&gt;&lt;br&gt;
+此时勾选这个剪贴板内容后，再试一次。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746236/3336551-20250302132455764-547936742.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746236/3336551-20250302132446994-1010023021.jpg&#34;&gt;&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>寻觅Notepad2e</title>
+      <link>https://t1mmoc.github.io/posts/18746046/</link>
+      <pubDate>Sun, 02 Mar 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18746046/</guid>
+      <description>&lt;h1 id=&#34;起因&#34;&gt;起因&lt;/h1&gt;
+&lt;p&gt;这天，正当我兴致勃勃地编写新的博客时，想要打开windows的notepad，结果居然发现有个奇怪的东西，还占在最优匹配上，还好我看了一眼名字没有回车直接打开&lt;br&gt;
+我倒要看看是哪个国产流氓软件（注：刻板印象）给我偷偷装上的新notepad。&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746046/3336551-20250302131055691-1075672637.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746046/3336551-20250302130946903-812227523.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746046/3336551-20250302131304852-263218889.png&#34;&gt;&lt;br&gt;
+哦，原来是&lt;strong&gt;TortoiseGit&lt;/strong&gt;啊，误会国产软件了。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746046/3336551-20250302131345833-1922851005.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18746046/3336551-20250302131408770-907615179.png&#34;&gt;&lt;br&gt;
+不过我有个问题，你Notepad 2e x64 [ZH]&lt;br&gt;
+这个 &lt;strong&gt;[ZH]&lt;/strong&gt; 是否有点自欺欺人了？&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Windows内核学习笔记（一）</title>
+      <link>https://t1mmoc.github.io/posts/18736681/</link>
+      <pubDate>Tue, 25 Feb 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18736681/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;此随笔为本人笔记，并非系统学习应当使用&lt;/p&gt;
+&lt;h1 id=&#34;内核&#34;&gt;内核&lt;/h1&gt;
+&lt;p&gt;&lt;strong&gt;ntoskrnl.exe&lt;/strong&gt; 是 Windows 操作系统的核心内核程序文件，全称为 Windows NT Operating System Kernel。它是 Windows 操作系统正常运行的基础&lt;/p&gt;
+&lt;h1 id=&#34;内核层级&#34;&gt;内核层级&lt;/h1&gt;
+&lt;p&gt;R0是内核层，R3是应用层，而R1、R2不使用&lt;br&gt;
+这样就解决了我之前不理解R1、R2是什么应用的问题&lt;/p&gt;
+&lt;p&gt;Windows内核中主要可以分成三层：&lt;strong&gt;硬件抽象层&lt;/strong&gt;（HAL），&lt;strong&gt;内核层&lt;/strong&gt;（也称微内核micro-kernel），&lt;strong&gt;执行体层&lt;/strong&gt;。&lt;/p&gt;
+&lt;h1 id=&#34;ntdlldll的功能&#34;&gt;Ntdll.dll的功能&lt;/h1&gt;
+&lt;ul&gt;
+&lt;li&gt;作为桥梁：Ntdll.dll是用户模式代码和内核模式系统服务之间的连接纽带。它使得用户模式的应用程序能够方便地调用内核提供的系统服务，而无需直接与内核进行交互，从而保证了系统的稳定性和安全性。&lt;/li&gt;
+&lt;li&gt;提供存根函数：对于内核提供的每一个系统服务，Ntdll.dll都对应提供一个存根函数。这些存根函数的名称以“Nt”作为前缀，例如NtCreateProcess（用于创建进程）、NtOpenFile（用于打开文件）等。存根函数的作用是为用户模式代码提供一个接口，当用户模式代码调用这些存根函数时，Ntdll.dll会将调用请求转发给相应的内核模式系统服务。&lt;/li&gt;
+&lt;li&gt;提供系统级支持函数：除了存根函数，Ntdll.dll还提供了许多系统级的支持函数，用于实现各种系统功能。这些支持函数按照功能不同有不同的前缀，例如：&lt;/li&gt;
+&lt;li&gt;映像加载器函数（以“Ldr”为前缀）：用于加载和管理程序的映像文件，例如LdrLoadDll（加载动态链接库）等。&lt;/li&gt;
+&lt;li&gt;系统时间函数（以“Etw”为前缀）：用于与系统时间相关的操作，例如EtwStartTrace（开始跟踪事件）等。&lt;/li&gt;
+&lt;li&gt;一般的运行支持函数（以“Rtl”为前缀）：提供各种运行时支持功能，例如RtlAllocateHeap（分配堆内存）等。&lt;/li&gt;
+&lt;li&gt;字符串支持函数：用于字符串操作，例如RtlCompareString（比较字符串）等。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h1 id=&#34;中断请求级别&#34;&gt;中断请求级别&lt;/h1&gt;
+&lt;p&gt;在Windows操作系统中调用内核函数时，必须关注中断请求级别（IRQL，Interrupt Request Level），原因如下：&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Windows内核学习笔记（三）</title>
+      <link>https://t1mmoc.github.io/posts/18737052/</link>
+      <pubDate>Tue, 25 Feb 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18737052/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;本篇并非内核学习，但有点相关，是本人看了内核区域后的遐想。&lt;br&gt;
+AI是一个思考的好工具，但是具体的验证还得亲为。&lt;br&gt;
+这样的问题我曾经也思考过，但是由于编写代码过于麻烦，而现在也该给自己一个答案了。&lt;/p&gt;
+&lt;p&gt;**图片太长，点击展开**&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18737052/3336551-20250225172907861-126349978.png&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;尝试编码&#34;&gt;尝试编码&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18737052/3336551-20250225173206197-89734721.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18737052/3336551-20250225173305759-98452787.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;项目结构：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;TestDll：被修改的Dll&lt;/li&gt;
+&lt;li&gt;TestRunner： 运行者，旁观者&lt;/li&gt;
+&lt;li&gt;DllMemoryInjectTest：修改者，管理员权限&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;由于已知内核代码是不能修改的，但是同一个dll在代码中的情况，windows会选择隔离进程吗？&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18737052/3336551-20250225174036259-691100929.png&#34;&gt;&lt;br&gt;
+此处省略处理代码异常过程……&lt;br&gt;
+最后会给出代码&lt;/p&gt;
+&lt;h1 id=&#34;结果&#34;&gt;结果&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18737052/3336551-20250226091423575-1520665169.png&#34;&gt;&lt;br&gt;
+不同程序加载相同dll，其中一个程序修改它自身内存中dll后，另一个程序&lt;strong&gt;不会&lt;/strong&gt;同步修改。&lt;br&gt;
+当我发现修改保护不需要管理员权限时，其实就已经不抱有太大希望了&lt;br&gt;
+但为了完成整个程序，还是写到了最后。&lt;br&gt;
+dll难道都类似于include一样，每一个exe都复制自己的dll吗&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18737052/3336551-20250226091806144-1735326950.png&#34;&gt;&lt;br&gt;
+哎，有个问题。&lt;br&gt;
+系统dll也适用这个条件吗？&lt;br&gt;
+这里的基地址完全一样。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18737052/3336551-20250226092439558-350337592.png&#34;&gt;&lt;br&gt;
+注意到，用户模块的基地址也完全一样&lt;br&gt;
+感觉不抱希望。&lt;br&gt;
+不如直接用xdbg修改试试，没必要写软件了。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18737052/3336551-20250226092553080-1270040428.png&#34;&gt;&lt;br&gt;
+随便改了一个字节，没有同步。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Windows内核学习笔记（二）</title>
+      <link>https://t1mmoc.github.io/posts/18736797/</link>
+      <pubDate>Tue, 25 Feb 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18736797/</guid>
+      <description>&lt;h1 id=&#34;windows内核执行体组件概述&#34;&gt;Windows内核执行体组件概述&lt;/h1&gt;
+&lt;p&gt;看看就好，反正也记不住，以后再回头看。&lt;br&gt;
+Windows内核执行体（Executive）是Windows操作系统的核心组件之一，它提供了系统运行所需的各种高级服务和管理功能。执行体中除了函数组成，还包含了以下多个重要的组件：&lt;/p&gt;
+&lt;h3 id=&#34;1-内存管理器&#34;&gt;1. 内存管理器&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;功能&lt;/strong&gt;：实现虚拟内存管理，负责系统地址空间的内存管理，并为每个进程提供一个私有的地址空间。同时支持进程之间的内存共享，并为缓存管理器提供底层支持。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;相关知识&lt;/strong&gt;：Windows的内存管理器通过分页机制和段页式管理，优化了内存的使用效率，减少了内存碎片。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;2-缓存管理器&#34;&gt;2. 缓存管理器&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;功能&lt;/strong&gt;：为文件系统提供统一的数据缓存支持，允许文件系统驱动程序将磁盘上的数据映射到内存中，并通过内存管理器协调物理内存的分配。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;相关知识&lt;/strong&gt;：缓存管理器通过LRU（最近最少使用）算法优化缓存数据的淘汰策略，提高系统的读写性能。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;3-文件系统&#34;&gt;3. 文件系统&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;功能&lt;/strong&gt;：管理文件和目录的创建、读写和组织，提供文件存储的逻辑结构和物理结构。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;相关知识&lt;/strong&gt;：常见的Windows文件系统包括NTFS、FAT32等，其中NTFS支持高级特性如文件加密、压缩和事务处理。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;4-进程和线程管理器&#34;&gt;4. 进程和线程管理器&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;功能&lt;/strong&gt;：负责进程和线程的创建、调度和终止。在Windows中，内核层提供了底层支持，执行体在此基础上增加了语义和功能。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;相关知识&lt;/strong&gt;：线程是进程内的最小执行单元，多个线程可以共享进程的资源，但线程切换的开销比进程小。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;5-即插即用管理器&#34;&gt;5. 即插即用管理器&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;功能&lt;/strong&gt;：负责列举设备，加载并初始化设备所需的驱动程序，检测系统中的设备变化。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;相关知识&lt;/strong&gt;：即插即用管理器能够动态分配硬件资源，并在设备插入或拔出时自动调整资源分配。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;6-安全引用监视器srm&#34;&gt;6. 安全引用监视器（SRM）&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;功能&lt;/strong&gt;：强制在本地计算机上实施安全策略，守护操作系统的资源，执行对象的保护和审计。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;相关知识&lt;/strong&gt;：SRM通过访问控制列表（ACL）和安全描述符（Security Descriptor）来管理对象的安全性。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;7-配置管理器&#34;&gt;7. 配置管理器&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;功能&lt;/strong&gt;：管理系统注册表，提供系统配置和启动信息。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;相关知识&lt;/strong&gt;：注册表是Windows系统的核心配置数据库，存储了系统和应用程序的设置信息。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;8-io管理器&#34;&gt;8. I/O管理器&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;功能&lt;/strong&gt;：实现与设备无关的输入和输出功能，负责将I/O请求分发给正确的设备驱动程序。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;相关知识&lt;/strong&gt;：I/O管理器通过设备驱动程序与硬件设备交互，支持同步和异步I/O操作。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;9-对象管理器&#34;&gt;9. 对象管理器&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;功能&lt;/strong&gt;：负责创建、管理和删除Windows执行体对象，以及用于表达操作系统资源的抽象数据类型。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;相关知识&lt;/strong&gt;：对象管理器通过对象命名空间和目录结构来组织和管理对象，支持对象的安全性和访问控制。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;10-局域网管理器本地过程调用lpc&#34;&gt;10. 局域网管理器（本地过程调用，LPC）&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;功能&lt;/strong&gt;：负责处理进程之间的通信，管理消息传递和远程过程调用。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;相关知识&lt;/strong&gt;：LPC通过消息队列和通信端口实现进程间的高效通信，支持同步和异步通信模式。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;这些组件共同构成了Windows内核执行体的核心部分，它们相互协作，确保操作系统能够高效、稳定地运行，为用户提供强大的功能和良好的用户体验。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>【草稿】图片上传2</title>
+      <link>https://t1mmoc.github.io/posts/18733453/</link>
+      <pubDate>Mon, 24 Feb 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18733453/</guid>
+      <description>&lt;h1 id=&#34;本随笔用于上传图片&#34;&gt;本随笔用于上传图片&lt;/h1&gt;
+&lt;p&gt;博客园居然不压缩图片，有点太良心了，我还得手动去压缩一遍。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733453/3336551-20250224101149294-230368914.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733453/3336551-20250224101500166-731070857.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;PixPin_2025-12-17_19-39-12&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733453/3336551-20251217194241542-351916117.webp&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;PixPin_2025-12-17_22-27-05&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733453/3336551-20251217222741862-1591038795.webp&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;PixPin_2025-12-17_22-27-05 (2)&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733453/3336551-20251217223722570-1037710524.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image_373454482862724&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733453/3336551-20260702202124508-1104320525.webp&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image_373454482862724&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733453/3336551-20260702202132616-1397500069.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image_261652385363621 (2)&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733453/3336551-20260702202553256-644130879.webp&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image_254443589572843&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733453/3336551-20260702202930108-862627915.webp&#34;&gt;&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>PECMD的解包</title>
+      <link>https://t1mmoc.github.io/posts/18733511/</link>
+      <pubDate>Mon, 24 Feb 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18733511/</guid>
+      <description>&lt;h1 id=&#34;新脚本&#34;&gt;新脚本&lt;/h1&gt;
+&lt;p&gt;F12检查到一个管道，别的虽然也挺令人在意，但还没有什么实际能看出来的。&lt;/p&gt;
+&lt;p&gt;老规矩，先断LoadResource。&lt;/p&gt;
+&lt;p&gt;堆栈跟踪到sub_472E88&lt;/p&gt;
+&lt;p&gt;调试的时候跑飞了，没想到这样本还怪好的，还提醒我反反调试没做好：&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733511/3336551-20250224103350469-1894277757.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733511/3336551-20250224103405749-476546823.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;其中msdge拥有一个有效的数字签名，查询发现是一款杀软，看这形式猜测是用了这个杀软的某个漏洞提权，并且数字签名免杀。&lt;/p&gt;
+&lt;p&gt;本来是杀软，却被病毒用来提权，实在有点感慨。当然，这还只是猜测，还得继续验证&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733511/3336551-20250224164013127-1223506506.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;翻找temp目录总能有新的发现，比如这个7z带密码的压缩包：&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733511/3336551-20250224164039990-2094940561.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;发现和前面的几个文件相对应，看来这就是要提取的文件了。&lt;/p&gt;
+&lt;p&gt;检查日志，查看是否有遗漏的目标：&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733511/3336551-20250224164058875-621388276.png&#34;&gt;&lt;br&gt;
+自身不滞留在后台，是好消息。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733511/3336551-20250224164103391-490642986.png&#34;&gt;&lt;br&gt;
+谁家写入分块分512的？不过有个好处：必定存在一个超大的循环，单步肯定跑不完的那种&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733511/3336551-20250224164113406-492345485.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;可能是作者后门（纯猜测），检查到这个文件/文件夹后不执行病毒之类的。&lt;/p&gt;
+&lt;p&gt;在上述排查中，和逆向分析得到的结果一样，只发现那三个文件（或者说，一个7z文件）&lt;/p&gt;
+&lt;p&gt;那么现在的首要任务：&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>vite build 打包的文件取消hash码</title>
+      <link>https://t1mmoc.github.io/posts/18733488/</link>
+      <pubDate>Mon, 24 Feb 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18733488/</guid>
+      <description>&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18733488/3336551-20250224102445740-374336597.png&#34;&gt;&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;build: {
+    rollupOptions: {
+      output: {
+        entryFileNames: `assets/[name].js`, // 打包后的入口文件名
+        chunkFileNames: `assets/[name].js`, // 打包后的代码块文件名
+        assetFileNames: `assets/[name].[ext]`, // 打包后的静态资源文件名
+      },
+    },
+  },
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;增加这段代码即可，加的位置需要注意。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>再战博客园美化（真正的五）——实际发布</title>
+      <link>https://t1mmoc.github.io/posts/18632676/</link>
+      <pubDate>Mon, 24 Feb 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18632676/</guid>
+      <description>&lt;h1 id=&#34;25-02-24-补充&#34;&gt;25-02-24 补充&lt;/h1&gt;
+&lt;p&gt;这一篇偶然在我的草稿箱里面被发现。&lt;br&gt;
+也就是说，从五开始，少了一篇，而我却没有发现&lt;br&gt;
+迭代太快了。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;以下是原始文章&lt;/strong&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h1 id=&#34;我不免想到一个问题如果我弄了这么多以后发现根本不能用那咋办&#34;&gt;我不免想到一个问题——如果我弄了这么多以后，发现根本不能用，那咋办？&lt;/h1&gt;
+&lt;p&gt;所以我必须先&lt;strong&gt;尝试发布&lt;/strong&gt;一次，得在博客园上实际看到效果。&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632676/3336551-20241226135034715-2077559104.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632676/3336551-20241226135111994-1052284128.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632676/3336551-20241226135131801-1995484654.png&#34;&gt;&lt;br&gt;
+有一个文件上MB了，可能是ElementUI我全部引入导致的，不过没关系，先提交！&lt;/p&gt;
+&lt;h1 id=&#34;打包完成&#34;&gt;打包完成&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632676/3336551-20241226135306074-1121434747.png&#34;&gt;&lt;br&gt;
+一个html是不需要的，一个js，一个css，一个jpg。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632676/3336551-20241226135455926-1971966057.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632676/3336551-20241226135715660-694934995.png&#34;&gt;&lt;br&gt;
+得益于博客园没有自动边缘换行策略，我可以直接粘贴在最顶上，这样也方便我后面打包新的css以后直接替换。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632676/3336551-20241226135827933-1503065002.png&#34;&gt;&lt;br&gt;
+js的话就用script包起来。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632676/3336551-20241226135913652-1375437356.png&#34;&gt;&lt;br&gt;
+寄咯，要是用文件的话那我怎么快速调整呢（思索）&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632676/3336551-20241226140121158-1226978601.png&#34;&gt;&lt;br&gt;
+算了，css没超过大小，js用文件试试看，先整出效果后面在调整。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632676/3336551-20241226140150278-1354610795.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632676/3336551-20241226140241359-882975080.png&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;自然地没有任何反应&#34;&gt;自然地，没有任何反应。&lt;/h1&gt;
+&lt;p&gt;因为这里不是vue环境，没有app这个元素。&lt;br&gt;
+那怎么办，当然是新增一个app元素！&lt;br&gt;
+好吧我乱说的，不妨看看这个：&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632676/3336551-20241226140431229-9346506.png&#34;&gt;&lt;br&gt;
+什么是app？不过是一个div罢了。&lt;br&gt;
+对了。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632676/3336551-20241226140612652-320702210.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632676/3336551-20241226140618407-1952574493.png&#34;&gt;&lt;br&gt;
+before也是不需要的。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632676/3336551-20241226140637382-1400904688.png&#34;&gt;&lt;br&gt;
+这样整个html只需要一个script引入即可。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>挑战用AI生成勒索病毒</title>
+      <link>https://t1mmoc.github.io/posts/18734504/</link>
+      <pubDate>Mon, 24 Feb 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18734504/</guid>
+      <description>&lt;h1 id=&#34;免责声明随笔内容仅供安全学习使用本随笔进行的所有操作均在授权或虚拟环境下进行任何读者利用随笔中技术进行违法行为本作者不承担任何责任&#34;&gt;免责声明：随笔内容仅供安全学习使用，本随笔进行的所有操作均在授权或虚拟环境下进行。任何读者利用随笔中技术进行违法行为，本作者不承担任何责任。&lt;/h1&gt;
+&lt;h1 id=&#34;本随笔不提供相关代码只提供思路&#34;&gt;本随笔不提供相关代码，只提供思路。&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18734504/3336551-20250224170137312-197937868.png&#34;&gt;&lt;br&gt;
+代码就这么多&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18734504/3336551-20250224170157378-1487378851.png&#34;&gt;&lt;br&gt;
+非常简洁。&lt;/p&gt;
+&lt;h1 id=&#34;运行效果&#34;&gt;运行效果&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18734504/3336551-20250224170342123-1893055235.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18734504/3336551-20250224170435942-508270731.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18734504/3336551-20250224170502707-911123299.png&#34;&gt;&lt;br&gt;
+&lt;strong&gt;有的人看到这张图已经开始直呼诈骗了吧，而有的人还在默默的看&lt;/strong&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18734504/3336551-20250224170626577-1404052217.png&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;原理&#34;&gt;原理&lt;/h1&gt;
+&lt;p&gt;向ai提问，使用openGPG python 加密文件 即可。&lt;br&gt;
+根据非对称加密原理，使用这种方法加密的文件，只有程序制作者可以解密&lt;br&gt;
+即使整个程序被破解了，也依旧没辙。&lt;/p&gt;
+&lt;h1 id=&#34;弊端&#34;&gt;弊端&lt;/h1&gt;
+&lt;p&gt;该笑还是要笑的，这里有个很大的弊端，那就是用户必须拥有gpg环境，可以调用gpg命令行&lt;br&gt;
+另外gpg使用的压缩算法压缩数据非常久，因此完全不适合分秒必争的勒索病毒，而勒索病毒完全不关心用户的磁盘容量。&lt;br&gt;
+所以说，这只是一种非常 简单 的编写方式&lt;br&gt;
+本来是想贴代码的，但是我已经被删过一篇随笔了，还是算了&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>TDChat - TDL测试</title>
+      <link>https://t1mmoc.github.io/posts/18688734/</link>
+      <pubDate>Thu, 23 Jan 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18688734/</guid>
+      <description>&lt;p&gt;ni你能看得见这些东西吗？&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>再战博客园美化（九）——背景问题</title>
+      <link>https://t1mmoc.github.io/posts/18639698/</link>
+      <pubDate>Sun, 29 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18639698/</guid>
+      <description>&lt;h1 id=&#34;被拉回来赶工了&#34;&gt;被拉回来赶工了&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229221213761-959042974.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229221225235-1980657367.png&#34;&gt;&lt;br&gt;
+我圆角没了，不过更烦的是里面的forFlow没有背景难受。&lt;/p&gt;
+&lt;h1 id=&#34;圆角&#34;&gt;圆角&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229221404662-1866975665.png&#34;&gt;&lt;br&gt;
+改下顺序就好了。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229221624909-732097669.png&#34;&gt;&lt;br&gt;
+好吧不行，用了第一个!important&lt;/p&gt;
+&lt;h1 id=&#34;forflow背景&#34;&gt;forFlow背景&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229221712310-1568493866.png&#34;&gt;&lt;br&gt;
+待我去小窝吸一下配色。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229221808718-485359686.png&#34;&gt;&lt;br&gt;
+哎不是，最丑的一集。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229221831378-731537111.png&#34;&gt;&lt;br&gt;
+但是里面不错。&lt;br&gt;
+再去看看两位佬怎么做的&lt;br&gt;
+emm，看懂了，有卡片不弄forFlow，里面才弄forFlow。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229222026135-10723105.png&#34;&gt;&lt;br&gt;
+改成post应该好了。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229222100040-24675821.png&#34;&gt;&lt;br&gt;
+加入小透明全家桶。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229222153397-1886974070.png&#34;&gt;&lt;br&gt;
+再拿个白色的颜料。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229222215251-1288783009.png&#34;&gt;&lt;br&gt;
+啊不是你真纯白啊，怪不得我不喜欢用白色，刺眼。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229222312695-618463349.png&#34;&gt;&lt;br&gt;
+算了，自己手调一个颜色好了，是幸运颜色~&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229222415852-2104092200.png&#34;&gt;&lt;br&gt;
+太灰了再调一下&lt;br&gt;
+……一万年后&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229222449709-679408380.png&#34;&gt;&lt;br&gt;
+有没有可能#ffffff 和0.86透明度就很好了？&lt;br&gt;
+乐了，我没话说。&lt;br&gt;
+而且文章也一起透明了这很不好&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229222626562-785732790.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229222949358-1110930989.png&#34;&gt;&lt;br&gt;
+大小问题。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229223124778-1470462245.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229223356657-1444748654.png&#34;&gt;&lt;br&gt;
+被挤下去了&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229223509053-783777903.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229223515719-374530221.png&#34;&gt;&lt;br&gt;
+完事儿。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229223526150-83756373.png&#34;&gt;&lt;br&gt;
+漂亮&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229223537013-821398813.png&#34;&gt;&lt;br&gt;
+等会这是什么，az&lt;br&gt;
+看来还没完。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639698/3336551-20241229224350392-1124640613.png&#34;&gt;&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>再战博客园美化（八）</title>
+      <link>https://t1mmoc.github.io/posts/18639559/</link>
+      <pubDate>Sun, 29 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18639559/</guid>
+      <description>&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229201608407-808179578.png&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;今天玩翻页功能&#34;&gt;今天玩翻页功能&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229201634373-628856415.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229203827021-1305376936.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229203831918-979311882.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229204714073-250117260.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229204724601-1428413472.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229204720800-1892865240.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;debug还是得人来啊，这gpt也不管用。&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229205743233-1848074130.png&#34;&gt;&lt;br&gt;
+但是有些我不会的玩意找一下还不错。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229205758157-1835019636.png&#34;&gt;&lt;br&gt;
+同步一下进度。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229210924385-1170661320.png&#34;&gt;&lt;br&gt;
+想不明白为什么这个不生效，先无视了，先弄页面功能。&lt;/p&gt;
+&lt;h1 id=&#34;完事&#34;&gt;完事&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229212058632-1839073253.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229212121009-1308481978.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229212135151-1107598882.png&#34;&gt;&lt;br&gt;
+不错，有模有样。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229212201618-1350386186.png&#34;&gt;&lt;br&gt;
+白天丑死了，急需白天壁纸。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229212258795-493638099.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229212354031-220094126.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229212651789-566035772.png&#34;&gt;&lt;br&gt;
+不对啊我传完了才想起来我干嘛不用博客园的图床，傻了说是。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229212733469-1777826734.png&#34;&gt;&lt;br&gt;
+等会？你说这是什么玩意儿？&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229214719215-150764097.png&#34;&gt;&lt;br&gt;
+乐了，这是什么，::before.dark？&lt;br&gt;
+好吧没学过前端是这样的。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229214801551-957213124.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229214808439-1302250587.png&#34;&gt;&lt;br&gt;
+这样就好了吧。&lt;br&gt;
+好吧不行，问问gpt&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229214944565-803822247.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229215251936-1162609542.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18639559/3336551-20241229215303943-842338549.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;哦哦，这样可以了&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>再战博客园美化（七）</title>
+      <link>https://t1mmoc.github.io/posts/18637737/</link>
+      <pubDate>Sat, 28 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18637737/</guid>
+      <description>&lt;h1 id=&#34;上回说到&#34;&gt;上回说到。。。&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228170559953-1207772749.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228170703036-90896050.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228170816673-1339571278.png&#34;&gt;&lt;br&gt;
+我的博客总算有了一个亮色一个暗色主题可以切换了&lt;/p&gt;
+&lt;h1 id=&#34;里面也有一个forflow&#34;&gt;里面也有一个forFlow？&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228170652914-1484668097.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228170724646-93724635.png&#34;&gt;&lt;br&gt;
+找不到文章列表，没有进行替换。&lt;br&gt;
+也行吧，以后再修，先埋雷先，反正我不是专业前端。（能跑不动原则）&lt;/p&gt;
+&lt;h1 id=&#34;今天玩背景图&#34;&gt;今天玩——背景图！&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228170935150-403800654.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228170940975-1456626480.png&#34;&gt;&lt;br&gt;
+欧，不，丑死了。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;白天黑夜的图片需要不同&lt;/li&gt;
+&lt;li&gt;卡片半透明磨砂&lt;/li&gt;
+&lt;li&gt;标头、页码按钮问题&lt;/li&gt;
+&lt;li&gt;文章不透明问题&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;第一个先不管了，反正我默认黑夜模式（没有那么多图来换）&lt;br&gt;
+先从卡片半透明磨砂开始。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228171344325-1035975244.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228171356795-459008740.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228171402968-779484019.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228171807232-173864584.png&#34;&gt;&lt;br&gt;
+我有一个看到px就会死的病（夸张手法），看到了就小改一下。&lt;br&gt;
+没看到就不管了（）&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228171932543-330016736.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228171937319-1570142667.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228172012700-1544722783.png&#34;&gt;&lt;br&gt;
+什么动静？&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228173400365-1153076182.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228173430418-1059201789.png&#34;&gt;&lt;br&gt;
+你知道吗，你要是玩这种格式不标准，还不喜欢搞id的话，我就只能全部替换了。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228173750011-708689851.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228173755351-187990373.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637737/3336551-20241228174959635-665083115.png&#34;&gt;&lt;br&gt;
+先code这么多，等会还要dowhile，不过现在，开溜。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>再战博客园美化（六）</title>
+      <link>https://t1mmoc.github.io/posts/18637602/</link>
+      <pubDate>Sat, 28 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18637602/</guid>
+      <description>&lt;h1 id=&#34;连续剧更新了&#34;&gt;连续剧更新了&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228161738498-1712554699.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228161645844-798715363.png&#34;&gt;&lt;br&gt;
+佬提了一嘴，于是我发现我替换没替换完，现在好了。&lt;/p&gt;
+&lt;h1 id=&#34;这是什么bug&#34;&gt;这是什么bug&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228163528633-1825458858.png&#34;&gt;&lt;br&gt;
+明明存在forFlow，但是不让我查询？&lt;br&gt;
+弄错了，用.就好&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228163620561-276851736.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228164044693-1729457809.png&#34;&gt;&lt;br&gt;
+light dark回来了，vue没有检查我默认有没有赋值，他只会自己贴一个上去。&lt;br&gt;
+算了，那就用vue的切换！&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228164202249-2112878337.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228164210972-184173830.png&#34;&gt;&lt;br&gt;
+不会吧。&lt;/p&gt;
+&lt;h1 id=&#34;在call后出现已被定义有问题被重复引入了但是是哪里&#34;&gt;在call后出现已被定义，有问题。被重复引入了，但是是哪里？&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228164920341-1660057488.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228165018664-1209625053.png&#34;&gt;&lt;br&gt;
+你的意思是&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228165030336-878232300.png&#34;&gt;&lt;br&gt;
+我两个debugger没断到调用者？&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228165310802-339708150.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228165323037-104172968.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228165331799-1032324648.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228165336654-1336604034.png&#34;&gt;&lt;br&gt;
+点了一下重启，然后加了个module，debugger删了，dark切换暂时注释，好了&lt;br&gt;
+是哪一步解决的？我不知道。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228165708872-1013490974.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228165714286-1783482316.png&#34;&gt;&lt;br&gt;
+都不行，麻了。&lt;/p&gt;
+&lt;h1 id=&#34;不要vue了&#34;&gt;不要vue了&lt;/h1&gt;
+&lt;p&gt;vue适合从头开始，但是我要配合原有的按钮，懒人不想重新弄个按钮&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228170442921-1554732727.png&#34;&gt;&lt;br&gt;
+其实非常简单，把ElementUI的暗色css留下，vue的切换功能删掉。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18637602/3336551-20241228170416984-1377186309.png&#34;&gt;&lt;br&gt;
+完事，忙活我那么久。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>再战博客园美化（五）</title>
+      <link>https://t1mmoc.github.io/posts/18635211/</link>
+      <pubDate>Fri, 27 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18635211/</guid>
+      <description>&lt;h1 id=&#34;再战系列更新到几来着&#34;&gt;再战系列更新到几来着。。。&lt;/h1&gt;
+&lt;p&gt;（看一眼）哦，原来更新到五了！&lt;br&gt;
+这一次，我直接来个连接到本机，在线调试！&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18635211/3336551-20241227111515845-1879678246.png&#34;&gt;&lt;br&gt;
+好了，似了。&lt;br&gt;
+https是什么东西，我有吗？&lt;/p&gt;
+&lt;h1 id=&#34;csdn启动&#34;&gt;csdn启动&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18635211/3336551-20241227105948533-1053980097.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18635211/3336551-20241227110039033-1592654939.png&#34;&gt;&lt;br&gt;
+真的假的，自签名还能过系统，这是拿了管理员权限？&lt;br&gt;
+&lt;a href=&#34;https://xiaoshen.blog.csdn.net/article/details/135893188&#34;&gt;https://xiaoshen.blog.csdn.net/article/details/135893188&lt;/a&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18635211/3336551-20241227110107223-1872411879.png&#34;&gt;&lt;br&gt;
+我就知道。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18635211/3336551-20241227110136795-2001102850.png&#34;&gt;&lt;br&gt;
+但是有点香啊，能直接这么简单的生成自签名证书&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18635211/3336551-20241227110305289-729834346.png&#34;&gt;&lt;br&gt;
+思索，只需要证书，vite本身支持https&lt;br&gt;
+（灵光一现）我本来不就有一个证书吗，整上！&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18635211/3336551-20241227110400011-1708279762.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18635211/3336551-20241227110414993-1511507760.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18635211/3336551-20241227110419657-677934273.png&#34;&gt;&lt;br&gt;
+小窝的证书拿来给小屋用也是河里的对吧。&lt;br&gt;
+不过这有效期好短，或者说，一年过得好快，一下子就到了要续的时间了。&lt;br&gt;
+不过不知道不信任的证书夹在js加载里面，浏览器会不会直接拒绝。&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18635211/3336551-20241227110937156-602041295.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18635211/3336551-20241227110940615-700043181.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18635211/3336551-20241227110956597-3771706.png&#34;&gt;&lt;br&gt;
+好的，似了。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18635211/3336551-20241227111155346-91531758.png&#34;&gt;&lt;br&gt;
+你知道吗，有时候ide是不准确的。不知道什么原因，反正跑起来了。&lt;/p&gt;
+&lt;h1 id=&#34;能跑就不动了&#34;&gt;能跑就不动了。&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18635211/3336551-20241227111301667-1848419428.png&#34;&gt;&lt;br&gt;
+小窝没有配置localhost，的确如此。&lt;br&gt;
+不过这并不妨碍我们继续，因为我本来也没打算用localhost访问。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18635211/3336551-20241227111412099-596372791.png&#34;&gt;&lt;br&gt;
+不对，我傻吧，为什么我不直接用127.0.0.1，这样甚至别人看到的不会是我调试中的画面。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>【AI版本】什么是零知识证明？零知识证明真的传的神乎其神吗？</title>
+      <link>https://t1mmoc.github.io/posts/18633291/</link>
+      <pubDate>Thu, 26 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18633291/</guid>
+      <description>&lt;h1 id=&#34;来点对比没有对比没有伤害也&#34;&gt;来点对比，没有对比没有伤害也~&lt;/h1&gt;
+&lt;p&gt;对了，上一篇文章我写的也是挺早的事情了。&lt;/p&gt;
+&lt;h1 id=&#34;零知识证明为何方神圣&#34;&gt;零知识证明为何方神圣？&lt;/h1&gt;
+&lt;p&gt;在当今数字化浪潮中，隐私保护成为了人们日益关注的焦点。而零知识证明（Zero-Knowledge Proof）技术，就像是一位神秘的卫士，悄然守护着我们的隐私安全。那么，究竟什么是零知识证明呢？&lt;br&gt;
+零知识证明是一种密码学工具，诞生于 20 世纪 80 年代初，由 Goldwasser、Micali 和 Rackoff 三位密码学家提出。它允许证明者向验证者证明某个陈述是真实的，而无需透露任何超出该陈述本身有效性的信息。这就好比，你想向朋友证明你拥有某个房间的钥匙，但又不想让朋友看到钥匙的样子，通过零知识证明，你可以在不展示钥匙的情况下，让朋友确信你拥有钥匙。&lt;br&gt;
+举个例子，假设阿里巴巴被强盗抓住，强盗索要开启山洞大门的咒语。阿里巴巴若直接说出咒语，虽能保命但咒语会泄露；若不说，强盗可能会杀了他。于是，阿里巴巴想出一个办法，让强盗离他 30 米远并用弓箭指着他，当强盗举起双手，他就念咒语开门；强盗放下双手，他就念咒语关门。强盗通过观察门的开合，相信了阿里巴巴知道咒语，而阿里巴巴始终未透露咒语的具体内容。这就是零知识证明的一个生动案例，它在不泄露关键信息的前提下，成功证明了某个事实的存在。&lt;br&gt;
+零知识证明的魔法是如何施展的？&lt;/p&gt;
+&lt;p&gt;零知识证明的 “魔法” 之所以能够施展，关键在于它独特的工作原理，这其中涉及到交互式与非交互式两种类型，同时承诺方案和挑战 - 响应协议也在其中起着关键作用。&lt;br&gt;
+先来说交互式零知识证明，它要求证明者和验证者之间进行多次互动。验证者像是一个严苛的考官，会不断抛出问题来挑战证明者，而证明者则要绞尽脑汁回应这些挑战，直至说服验证者为止 。就好比色盲游戏里，Alice 是色盲，Bob 不是。Bob 手上有两个大小、形状完全一致，但颜色分别为蓝色与红色的球。Alice 怀疑两个球颜色是否真不一样，Bob 需要证明这点。Bob 让 Alice 拿起球放背后随机交换位置，再问 Bob 球是否交换过，要是 Bob 能看清球颜色，每次都能答对。多轮测试下来，只要 Bob 持续答对，Alice 就会越发相信 Bob 所言属实。不过，这种交互式方法存在局限：每次验证流程冗长繁琐；证明方与验证方必须同时在场；而且它只能取信一个验证者，面对多个验证者，就得重复多次证明过程；并且只在某个特定时刻有效。&lt;br&gt;
+为攻克这些难题，非交互式零知识证明应运而生。这种方式下，证明者仅需在初次向验证者发送一个证明即可，后续验证者随时都能对该证明信息展开验证，而且仅需验证一次就能判断是否该相信证明者。例如数独游戏，Alice 要向 Bob 证明解开了数独难题，她将答案放入防篡改机器，机器遵循公开可验证协议，把数独每行、每列、每宫的卡片分别混淆装入袋子给 Bob。Bob 检查袋子里卡片，若都含 1 - 9 数字且无丢失重复，就能确认 Alice 解开难题，同时还没获取到任何关于数独解的实质信息。只是，这种证明方式往往需要更强算力来达成。&lt;br&gt;
+零知识证明还依靠承诺方案和挑战 - 响应协议运作。承诺方案允许证明者用加密手段隐藏信息，做出承诺后无法更改。就好像把秘密锁进一个高科技保险箱，外人看不到里面是什么，而且锁上后就定型了。而挑战 - 响应协议呢，是验证者提出挑战，证明者依照自身掌握的信息给出响应。这类似一场问答较量，验证者出招，证明者凭借真本事巧妙接招，以此证明自己确实手握关键 “情报” 。通过这一系列复杂又精妙的流程，零知识证明才能在不泄露隐私的同时，完成对事实的有力证明，施展它神奇的 “魔法”。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>【材料】SetThreadContextCall！</title>
+      <link>https://t1mmoc.github.io/posts/18633227/</link>
+      <pubDate>Thu, 26 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18633227/</guid>
+      <description>&lt;h1 id=&#34;这是一篇古老的文章在线下完成了展示并无意向重写到博客园&#34;&gt;这是一篇古老的文章，在线下完成了展示，并无意向重写到博客园。&lt;/h1&gt;
+&lt;h1 id=&#34;github项目-setthreadcontextcall&#34;&gt;github项目 SetThreadContextCall &lt;a href=&#34;https://github.com/12UE/SetThreadContextCall&#34;&gt;https://github.com/12UE/SetThreadContextCall&lt;/a&gt;&lt;/h1&gt;
+&lt;ul&gt;
+&lt;li&gt;241 - 注入shellcode方式&lt;/li&gt;
+&lt;li&gt;253 - shellcode&lt;/li&gt;
+&lt;li&gt;626 - 主代码 - 679 - 参数传递。&lt;/li&gt;
+&lt;li&gt;154 - 单例构造 - 方法静态。&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://blog.csdn.net/qq_41375318/article/details/127080405&#34;&gt;template＜typename &amp;hellip; Args＞：可变参数模板的解释和使用_&lt;em&gt;Major&lt;/em&gt;的博客-CSDN博客&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;C++ 模板、多参讲解&lt;/li&gt;
+&lt;li&gt;520 - 参数讲解&lt;/li&gt;
+&lt;li&gt;C++ 简单的析构函数讲解 - 智能指针&lt;/li&gt;
+&lt;/ul&gt;</description>
+    </item>
+    <item>
+      <title>Windows 权限获取攻略：你的Windows，安全吗？</title>
+      <link>https://t1mmoc.github.io/posts/18633320/</link>
+      <pubDate>Thu, 26 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18633320/</guid>
+      <description>&lt;h1 id=&#34;本篇讲的是全流程获取windows的所有权限&#34;&gt;本篇讲的是全流程获取windows的所有权限&lt;/h1&gt;
+&lt;p&gt;并且可获取其中的全部隐私信息&lt;/p&gt;
+&lt;p&gt;以提醒各位注意自己的电脑数据安全&lt;/p&gt;
+&lt;hr&gt;
+&lt;h1 id=&#34;0思路与步骤&#34;&gt;0.思路与步骤&lt;/h1&gt;
+&lt;ul&gt;
+&lt;li&gt;建立任意shell交互（最难）&lt;/li&gt;
+&lt;li&gt;得到低权限用户&lt;/li&gt;
+&lt;li&gt;得到高权限用户（非管理员模式）&lt;/li&gt;
+&lt;li&gt;高权限用户绕过UAC&lt;/li&gt;
+&lt;li&gt;得到高权限用户的高权限（管理员模式）&lt;/li&gt;
+&lt;li&gt;得到SYSTEM权限（最简单）&lt;/li&gt;
+&lt;li&gt;得到目标用户的数据&lt;/li&gt;
+&lt;li&gt;全程均需要处理杀软，杀软的不稳定性过高不在本次讨论范围内。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h1 id=&#34;1建立任意shell交互&#34;&gt;1.建立任意shell交互&lt;/h1&gt;
+&lt;p&gt;有两种方案：从网络中攻入、从物理上攻入&lt;/p&gt;
+&lt;h1 id=&#34;11本地手段电脑不在手上时&#34;&gt;1.1.本地手段（电脑不在手上时）&lt;/h1&gt;
+&lt;p&gt;这里演示从物理上攻入的方案&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;UAC已自动绕过，UAC不能防止来自物理上直接的输入。&lt;/li&gt;
+&lt;li&gt;
+&lt;ul&gt;
+&lt;li&gt;UAC绕过方案可搜索Bypass UAC：&lt;a href=&#34;https://blog.csdn.net/qq_36119192/article/details/104292591&#34;&gt;绕过UAC提权-CSDN博客&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;本次演示将会直接获取高权限用户，因此跳过了低权限用户的可选步骤。&lt;/li&gt;
+&lt;li&gt;
+&lt;ul&gt;
+&lt;li&gt;有时候对低权限用户的隔离不充分，使其能够接触、修改到高权限用户的部分文件（点名steam）会造成严重后果，此处不展开&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h1 id=&#34;111得到system权限&#34;&gt;1.1.1.得到SYSTEM权限&lt;/h1&gt;
+&lt;p&gt;采用经典的辅助功能替换成cmd直接获得system权限。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>再战博客园美化（三）——Vue和Element UI</title>
+      <link>https://t1mmoc.github.io/posts/18632526/</link>
+      <pubDate>Thu, 26 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18632526/</guid>
+      <description>&lt;h1 id=&#34;新的技术终究是新的技术不适合初学者直接使用&#34;&gt;新的技术终究是新的技术，不适合初学者直接使用&lt;/h1&gt;
+&lt;p&gt;既然一口气吃不成胖子，那不如从Vue和Element UI这两个大名鼎鼎的库开始。&lt;br&gt;
+其实也是因为我发现我原本套用的模板自带了这两个库的使用。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632526/3336551-20241226095214844-1306551855.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632526/3336551-20241226095159163-1654228370.png&#34;&gt;&lt;br&gt;
+我得说我这path是越来越臃肿了&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632526/3336551-20241226103752962-620732406.png&#34;&gt;&lt;br&gt;
+这是gpt的输出，gpt更胜一筹（好吧赛道都不一样，vue和elementui这么早的）&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632526/3336551-20241226123806113-1964816897.png&#34;&gt;&lt;br&gt;
+一番操作过后，它现在变成了这样！&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632526/3336551-20241226131432122-2068211557.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632526/3336551-20241226131442343-80804648.png&#34;&gt;&lt;br&gt;
+欧耶！&lt;br&gt;
+还有待改善，不过已经有模有样了。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>再战博客园美化（四）</title>
+      <link>https://t1mmoc.github.io/posts/18632537/</link>
+      <pubDate>Thu, 26 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18632537/</guid>
+      <description>&lt;h1 id=&#34;书接上回&#34;&gt;书接上回&lt;/h1&gt;
+&lt;p&gt;上回提到，博客园的美化实现了vue，并且实现了黑暗模式，现在已经进入到自己美化的地步了。&lt;br&gt;
+虽然感觉和安全之路越来越远，不过也是一种体验。&lt;/p&gt;
+&lt;h1 id=&#34;目前的问题&#34;&gt;目前的问题&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632537/3336551-20241226131819459-143609067.png&#34;&gt;&lt;br&gt;
+现在这个边角有点生硬，不够淡雅。&lt;br&gt;
+应该是gpt帮我生成的边角，我试试他原有的样子如何。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632537/3336551-20241226131914481-900960956.png&#34;&gt;&lt;br&gt;
+误会了，它原本的边角就是这么锐利的，看来我得自己调试了。&lt;br&gt;
+或者。。。换个思路&lt;br&gt;
+不调试了。直接把图片加上去试试？&lt;br&gt;
+感谢：www.liveout.cn&lt;br&gt;
+感谢：&lt;a href=&#34;https://recyvan.github.io/&#34;&gt;https://recyvan.github.io/&lt;/a&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632537/3336551-20241226134454306-1060504184.png&#34;&gt;&lt;br&gt;
+再次感谢@www.liveout.cn ，还是复制好用啊&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632537/3336551-20241226134528612-1626035286.png&#34;&gt;&lt;br&gt;
+在div里面写::before和::after（目前未使用），比直接替换body的样式表更加好用。&lt;br&gt;
+这里gpt都没给出这么好的方案，感谢。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632537/3336551-20241226134616494-641988624.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632537/3336551-20241226134629211-150266801.png&#34;&gt;&lt;br&gt;
+替换一下就是这样的。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632537/3336551-20241226134653665-1142555830.png&#34;&gt;&lt;br&gt;
+有提示？逝逝。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632537/3336551-20241226134702941-416579805.png&#34;&gt;&lt;br&gt;
+变成了这样。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632537/3336551-20241226134720806-1196767146.png&#34;&gt;&lt;br&gt;
+《可安全地替换》这就是ide说的，我不知道是不是因为我不符合规范，不过我用vue修改一个已有的网页本身已经不符合vue的调度规范了。&lt;br&gt;
+总之，我不予评价。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632537/3336551-20241226134744566-742838614.png&#34;&gt;&lt;br&gt;
+还是换回来吧。&lt;br&gt;
+然后也不能一直用别人的图吧，换个自己的图上去。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18632537/3336551-20241226134917761-14141205.png&#34;&gt;&lt;br&gt;
+完成！&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>植物大战僵尸阳光调整教程</title>
+      <link>https://t1mmoc.github.io/posts/18633214/</link>
+      <pubDate>Thu, 26 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18633214/</guid>
+      <description>&lt;h1 id=&#34;这是一篇ai文章其中代码是我两年前所写但博文本人懒得写了&#34;&gt;&lt;strong&gt;这是一篇AI文章，其中代码是我两年前所写，但博文本人懒得写了&lt;/strong&gt;&lt;/h1&gt;
+&lt;h1 id=&#34;一引言&#34;&gt;一、引言&lt;/h1&gt;
+&lt;p&gt;《植物大战僵尸》作为一款风靡全球的经典塔防游戏，以其丰富的玩法和策略性深受广大玩家喜爱。在游戏中，阳光作为关键资源，用于购买各种植物来抵御僵尸的进攻，其重要性不言而喻。然而，获取阳光的过程有时会受到僵尸的干扰，导致资源紧张，影响游戏体验。因此，不少玩家对如何修改阳光值产生了兴趣，今天我们就来探讨一下使用 Python 实现植物大战僵尸阳光修改的方法。需要注意的是，修改游戏数据仅用于学习交流目的，请勿在未经授权的情况下用于商业或其他不正当用途，同时也要遵守游戏的使用条款和相关法律法规。&lt;/p&gt;
+&lt;h1 id=&#34;二准备工作&#34;&gt;二、准备工作&lt;/h1&gt;
+&lt;p&gt;在开始修改之前，我们需要准备好相应的工具和环境：&lt;br&gt;
+Python：这是我们实现修改功能的主要编程语言。如果你还没有安装 Python，请前往 Python 官方网站（ &lt;a href=&#34;https://www.python.org/downloads/&#34;&gt;https://www.python.org/downloads/&lt;/a&gt; ）下载并安装适合你操作系统的版本，建议选择较新的稳定版本，如 Python 3.8 及以上。&lt;br&gt;
+win32gui、win32process、win32api、ctypes 库：这些库可以帮助我们与 Windows 系统进行交互，实现对游戏进程内存的读取和写入操作，从而达到修改阳光值的目的。它们通常包含在pywin32扩展库中。如果你的 Python 环境中尚未安装pywin32，可以通过以下命令使用pip进行安装：&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>零知识证明：什么是零知识证明？零知识证明真的传的神乎其神吗？</title>
+      <link>https://t1mmoc.github.io/posts/18633277/</link>
+      <pubDate>Thu, 26 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18633277/</guid>
+      <description>&lt;h1 id=&#34;零知识证明的探索学习之路&#34;&gt;零知识证明的探索学习之路&lt;/h1&gt;
+&lt;p&gt;我真服了，看到网上的零知识证明，感觉真累，什么都能往零知识里面塞。&lt;/p&gt;
+&lt;h2 id=&#34;1-零秘密型&#34;&gt;1. 零秘密型&lt;/h2&gt;
+&lt;p&gt;这种零知识证明是这样的：&lt;/p&gt;
+&lt;p&gt;受信者需要证明21^3 == 9261&lt;/p&gt;
+&lt;p&gt;证明者已知21、3、9261&lt;/p&gt;
+&lt;p&gt;但是证明者懒得算，算起来太耗费时间，这时的零知识证明的用处是：&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;我确确实实按照乘法规则计算了一遍这个过程，你不用算了，信我的就行了&lt;/strong&gt;&lt;/p&gt;
+&lt;h2 id=&#34;2一秘密型&#34;&gt;2.一秘密型&lt;/h2&gt;
+&lt;p&gt;受信者需要证明自己拥有字符串“hello”经过sha256后得到结果“2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824”&lt;/p&gt;
+&lt;p&gt;证明者已知sha256、“2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824”&lt;/p&gt;
+&lt;h2 id=&#34;3二秘密型&#34;&gt;3.二秘密型&lt;/h2&gt;
+&lt;p&gt;这里没有受信者和证明者，只有两个互相不信任的人。&lt;/p&gt;
+&lt;p&gt;A和B想比较自己的存款谁比较多，这里A的秘密是自己的存款，A不知道的是B的存款，A想要知道的是自己的存款是否大于对方。&lt;/p&gt;
+&lt;p&gt;那个盒子的事情，我们都知道了。&lt;/p&gt;
+&lt;h2 id=&#34;公私钥型&#34;&gt;&lt;del&gt;公私钥型&lt;/del&gt;&lt;/h2&gt;
+&lt;p&gt;挑战、应答机制，不是，你拿着公钥去确认对方手上是否拿着私钥，然后把这种东西称为零知识证明的一种？&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>h1测试</title>
+      <link>https://t1mmoc.github.io/posts/18630787/</link>
+      <pubDate>Wed, 25 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18630787/</guid>
+      <description>&lt;h1 id=&#34;h1测试&#34;&gt;h1测试&lt;/h1&gt;
+&lt;p&gt;H1居然还自带了一条线？&lt;/p&gt;
+&lt;h1 id=&#34;h1测试-1&#34;&gt;h1测试&lt;/h1&gt;
+&lt;hr&gt;
+&lt;p&gt;那我写的这个线谁给我补呢&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>python tqdm 进度条尝试</title>
+      <link>https://t1mmoc.github.io/posts/18630701/</link>
+      <pubDate>Wed, 25 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18630701/</guid>
+      <description>&lt;h1 id=&#34;起因&#34;&gt;起因&lt;/h1&gt;
+&lt;hr&gt;
+&lt;p&gt;那今天来整个进度条。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18630701/3336551-20241225160314893-1279631744.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18630701/3336551-20241225160321136-424256677.png&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;好的本篇随笔到此结束&#34;&gt;好的本篇随笔到此结束&lt;/h1&gt;
+&lt;hr&gt;
+&lt;p&gt;不是这也太水了吧，试着按到上篇博客里面？&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18630701/3336551-20241225160615129-938364315.png&#34;&gt;&lt;br&gt;
+只需要修改worker的代码就好了。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18630701/3336551-20241225160857254-788691069.webp&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;不是不是等等我说停停&#34;&gt;不是不是，等等，我说停停。&lt;/h1&gt;
+&lt;hr&gt;
+&lt;p&gt;合着这个进度条是每次打印了一个长到我看不到的回车完成的效果？&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18630701/3336551-20241225161051681-1625835916.webp&#34;&gt;&lt;br&gt;
+不不，并非如此，只是它不适应多进程，在读取不到自己打印出来的东西的时候就没办法运作了。&lt;/p&gt;
+&lt;h1 id=&#34;取舍&#34;&gt;取舍&lt;/h1&gt;
+&lt;hr&gt;
+&lt;p&gt;点击查看代码&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;    for p in tqdm(threads):
+        p.join()
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;最后的解决方法非常简单，不使用密码数量作为颗粒度，而是使用开启的进程作为颗粒度即可。&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18630701/3336551-20241225162331900-1576939048.png&#34;&gt;&lt;/p&gt;
+&lt;p&gt;就是如此。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>再战博客园美化</title>
+      <link>https://t1mmoc.github.io/posts/18631547/</link>
+      <pubDate>Wed, 25 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18631547/</guid>
+      <description>&lt;h1 id=&#34;看一张难蹦的图片&#34;&gt;看一张难蹦的图片&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18631547/3336551-20241225220459776-528799828.png&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;卡片势在必行&#34;&gt;卡片势在必行！&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18631547/3336551-20241225220654649-1272964834.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18631547/3336551-20241225220750034-220891907.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18631547/3336551-20241225220759926-568525337.png&#34;&gt;&lt;br&gt;
+以上几个有什么区别？&lt;/p&gt;
+&lt;h3 id=&#34;卡片&#34;&gt;卡片！！&lt;/h3&gt;
+&lt;h1 id=&#34;不想搬离博客园怎么办&#34;&gt;不想搬离博客园怎么办&lt;/h1&gt;
+&lt;p&gt;博客园的访问速度比上述两个网站快多了，而且不用担心服务器问题等等&lt;br&gt;
+但是自定义怎么弄？&lt;/p&gt;
+&lt;h1 id=&#34;js&#34;&gt;js！&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18631547/3336551-20241225220946484-557177389.png&#34;&gt;&lt;br&gt;
+差不多类似这样，暴力遍历。&lt;br&gt;
+然后我一开始用的是ts，就出现了那个名场面&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18631547/3336551-20241225220459776-528799828.png&#34;&gt;&lt;br&gt;
+实在难蹦。&lt;br&gt;
+我搜了一下，没看到别人遇到过这种问题，非常怀疑是我装完ide没有重启的后果。&lt;br&gt;
+管他呢，那我转战js，js古老一点教程也多一点，也好。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18631547/3336551-20241225221228912-429988326.png&#34;&gt;&lt;br&gt;
+怎么可能？我的js是在最后加载的，怎么会为null？&lt;/p&gt;
+&lt;h1 id=&#34;对了插一句&#34;&gt;对了，插一句&lt;/h1&gt;
+&lt;p&gt;网站直接用ctrl+s就保存下来了，对于分析而言完全足够&lt;br&gt;
+httrack_x64-noinst-3.49.2&lt;br&gt;
+嗯，我还下载了这个网站克隆工具，不过发现这个太深了，我只是想分析一下样式，不需要这么深的复制。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>博客园美化 纯代码部分</title>
+      <link>https://t1mmoc.github.io/posts/18628883/</link>
+      <pubDate>Wed, 25 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18628883/</guid>
+      <description>&lt;p&gt;顺便公开一下代码&lt;/p&gt;
+&lt;p&gt;还能再水一篇&lt;/p&gt;
+&lt;p&gt;首先是几个一万年下载失败的东西，我替你们下载好了，可以直接引用我发布在博客园的文件，毕竟人人为我，我为人人嘛。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://files.cnblogs.com/files/blogs/809481/jquery.cookie.js?t=1735051954&amp;amp;download=true&#34;&gt;https://files.cnblogs.com/files/blogs/809481/jquery.cookie.js?t=1735051954&amp;amp;download=true&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://files.cnblogs.com/files/blogs/809481/vue.js?t=1735051820&amp;amp;download=true&#34;&gt;https://files.cnblogs.com/files/blogs/809481/vue.js?t=1735051820&amp;amp;download=true&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://files.cnblogs.com/files/blogs/809481/eui.css?t=1735051643&amp;amp;download=true&#34;&gt;https://files.cnblogs.com/files/blogs/809481/eui.css?t=1735051643&amp;amp;download=true&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628883/ContractedBlock.gif&#34;&gt;&lt;img loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628883/ExpandedBlockStart.gif&#34;&gt;&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;&amp;lt;script&amp;gt;
+
+
+
+    let avatar = &amp;#34;https://images.cnblogs.com/cnblogs_com/gshang/1609278/o_210910153736IMG_20210909_232803.jpg&amp;#34;,
+
+        homepage = $(&amp;#39;#profile_block a&amp;#39;).eq(0).attr(&amp;#39;href&amp;#39;),
+
+        name = $(&amp;#39;#profile_block a&amp;#39;).eq(0).text(),
+
+        desc = $(&amp;#39;#blogTitle h2&amp;#39;).html(),
+
+        join = $(&amp;#39;#profile_block a&amp;#39;).eq(1).attr(&amp;#39;title&amp;#39;),
+
+        age = $(&amp;#39;#profile_block a&amp;#39;).eq(1).text(),
+
+        fans_link = $(&amp;#39;#profile_block a&amp;#39;).eq(2).attr(&amp;#39;href&amp;#39;),
+
+        fans = $(&amp;#39;#profile_block a&amp;#39;).eq(2).text(),
+
+        follow_link = $(&amp;#39;#profile_block a&amp;#39;).eq(3).attr(&amp;#39;href&amp;#39;),
+
+        follow = $(&amp;#39;#profile_block a&amp;#39;).eq(3).text(),
+
+        post = $(&amp;#39;#stats_post_count&amp;#39;).text().replace(/[^0-9]/ig, &amp;#34;&amp;#34;),
+
+        article = $(&amp;#39;#stats_article_count&amp;#39;).text().replace(/[^0-9]/ig, &amp;#34;&amp;#34;),
+
+        comment = $(&amp;#39;#stats-comment_count&amp;#39;).text().replace(/[^0-9]/ig, &amp;#34;&amp;#34;),
+
+        view_text = $(&amp;#39;#stats-total-view-count span&amp;#39;).text(),
+
+        view_num = $(&amp;#39;#stats-total-view-count span&amp;#39;).attr(&amp;#39;title&amp;#39;).replace(/[^0-9]/ig, &amp;#34;&amp;#34;)
+
+    let profile =`
+
+    &amp;lt;div id=&amp;#34;my-profile&amp;#34;&amp;gt;
+
+    &amp;lt;div id=&amp;#34;top-info&amp;#34;&amp;gt;
+
+        &amp;lt;div id=&amp;#34;user-avatar&amp;#34;&amp;gt;
+
+            &amp;lt;div class=&amp;#34;avater-border&amp;#34;&amp;gt;&amp;lt;/div&amp;gt;
+
+            &amp;lt;a href=&amp;#34;${homepage}&amp;#34; class=&amp;#34;my-logo-container&amp;#34;&amp;gt;&amp;lt;img src=&amp;#34;${avatar}&amp;#34; class=&amp;#34;my-logo&amp;#34; /&amp;gt;&amp;lt;/a&amp;gt;
+
+        &amp;lt;/div&amp;gt;
+
+        &amp;lt;div class=&amp;#34;my-name-container&amp;#34;&amp;gt;
+
+            &amp;lt;div&amp;gt;
+
+                &amp;lt;span class=&amp;#34;my-name&amp;#34;&amp;gt;&amp;lt;a href=&amp;#34;${homepage}&amp;#34;&amp;gt;${name}&amp;lt;/a&amp;gt;&amp;lt;/span&amp;gt;
+
+                &amp;lt;span id=&amp;#34;age&amp;#34; title=&amp;#34;join&amp;#34;&amp;gt;${age}&amp;lt;/span&amp;gt;
+
+            &amp;lt;/div&amp;gt;
+
+            &amp;lt;div class=&amp;#34;my-desc&amp;#34;&amp;gt;${desc}&amp;lt;/div&amp;gt;
+
+        &amp;lt;/div&amp;gt;
+
+    &amp;lt;/div&amp;gt;
+
+
+
+    &amp;lt;div class=&amp;#34;my-detaial&amp;#34;&amp;gt;
+
+        &amp;lt;ul&amp;gt;
+
+            &amp;lt;li id=&amp;#34;follow&amp;#34;&amp;gt;&amp;lt;a href=&amp;#34;${follow_link}&amp;#34; title=&amp;#34; follow&amp;#34;&amp;gt;${follow}&amp;lt;/a&amp;gt;&amp;lt;/li&amp;gt;
+
+            &amp;lt;li id=&amp;#34;fans&amp;#34;&amp;gt;&amp;lt;a href=&amp;#34;${fans_link}&amp;#34; title=&amp;#34; fans&amp;#34;&amp;gt;${fans}&amp;lt;/a&amp;gt;&amp;lt;/li&amp;gt;
+
+            &amp;lt;li id=&amp;#34;more&amp;#34;&amp;gt;
+
+                &amp;lt;div class=&amp;#34;my-stats&amp;#34;&amp;gt;
+
+                    &amp;lt;div class=&amp;#34;btn-more&amp;#34;&amp;gt;&amp;lt;/div&amp;gt;
+
+                    &amp;lt;ul class=&amp;#34;dropwon-content&amp;#34;&amp;gt;
+
+                        &amp;lt;li id=&amp;#34;post&amp;#34; title=&amp;#34;随笔： ${post}&amp;#34;&amp;gt; ${post}&amp;lt;/li&amp;gt;
+
+                        &amp;lt;li id=&amp;#34;article&amp;#34; title=&amp;#34;文章： ${article}&amp;#34;&amp;gt; ${article}&amp;lt;/li&amp;gt;
+
+                        &amp;lt;li id=&amp;#34;comment&amp;#34; title=&amp;#34;评论： ${comment}&amp;#34;&amp;gt; ${comment}&amp;lt;/li&amp;gt;
+
+                        &amp;lt;li id=&amp;#34;view&amp;#34; title=&amp;#34;阅读： ${view_num}&amp;#34;&amp;gt; ${view_text}&amp;lt;/li&amp;gt;
+
+                    &amp;lt;/ul&amp;gt;
+
+                &amp;lt;/div&amp;gt;
+
+            &amp;lt;/li&amp;gt;
+
+        &amp;lt;/ul&amp;gt;
+
+    &amp;lt;/div&amp;gt;
+
+    &amp;lt;div id=&amp;#34;follow-btn&amp;#34;&amp;gt;&amp;lt;/div&amp;gt;
+
+&amp;lt;/div&amp;gt;
+
+    `;
+
+
+
+    $(&amp;#39;#blog-news&amp;#39;).append(profile);
+
+
+
+    $(&amp;#39;#follow-btn&amp;#39;).append($(&amp;#39;#p_b_follow&amp;#39;));
+
+    if ($(&amp;#34;#topics&amp;#34;).length &amp;gt; 0) {
+
+        // setZan();
+
+        $(&amp;#39;#digg_tips&amp;#39;).bind(&amp;#34;DOMNodeInserted&amp;#34;, function() {
+
+
+
+            //console.log($(&amp;#39;#digg_tips&amp;#39;).text())
+
+            if ($(&amp;#39;#digg_tips&amp;#39;).text() == &amp;#34;支持成功&amp;#34; || $(&amp;#39;#digg_tips&amp;#39;).text() == &amp;#34;取消支持成功&amp;#34;) {
+
+                ele.$message({
+
+                    showClose: true,
+
+                    message: $(&amp;#39;#digg_tips&amp;#39;).text(),
+
+                    duration: 1000,
+
+                    type: &amp;#34;success&amp;#34;,
+
+                });
+
+            }
+
+
+
+            if ($(&amp;#39;#digg_tips&amp;#39;).text() == &amp;#34;您已支持过&amp;#34; || $(&amp;#39;#digg_tips&amp;#39;).text() == &amp;#34;不能推荐自己的内容&amp;#34;) {
+
+                ele.$message({
+
+                    showClose: true,
+
+                    message: $(&amp;#39;#digg_tips&amp;#39;).text(),
+
+                    duration: 1000,
+
+                    type: &amp;#34;warning&amp;#34;,
+
+                });
+
+            }
+
+
+
+
+
+
+
+        })
+
+
+
+    }
+
+
+
+
+
+
+
+window.onload =function()
+{
+
+
+setTimeout(function(){
+$(&amp;#39;.math,.MathJax,.footnote-ref,.mrow,math&amp;#39;).attr(&amp;#39;translate&amp;#39;,&amp;#39;no&amp;#39;);
+},&amp;#34;10000&amp;#34;);
+}
+
+
+&amp;lt;/script&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;侧边公告&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>博客字典爆破尝试</title>
+      <link>https://t1mmoc.github.io/posts/18630509/</link>
+      <pubDate>Wed, 25 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18630509/</guid>
+      <description>&lt;h1 id=&#34;起因&#34;&gt;起因&lt;/h1&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;img loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18630509/3336551-20241225151650727-1164932268.png&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;碎碎念&#34;&gt;碎碎念&lt;/h1&gt;
+&lt;hr&gt;
+&lt;p&gt;这已经是我&lt;strong&gt;第二次&lt;/strong&gt;遇到加密的博客了，有了经验，那就是这玩意是不上传服务器的。&lt;br&gt;
+既然是在前端，那怎么确保安全性呢？&lt;br&gt;
+翻阅源代码可知，作者也是挺聪明的。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18630509/3336551-20241225151840467-1434044309.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18630509/3336551-20241225151853460-1500180519.png&#34;&gt;&lt;br&gt;
+已经知道放在前端的东西会被各种手段操作，但是如果是用的AES-CBC加密，并且密码完全不放在前端，又当如何？&lt;/p&gt;
+&lt;h1 id=&#34;只剩下一条路了&#34;&gt;只剩下一条路了&lt;/h1&gt;
+&lt;hr&gt;
+&lt;p&gt;爆破，或者用字典，这其实是同一条路。&lt;br&gt;
+摆在面前的是类似于压缩包的东西，那就爆破一下，博文应该不会设置太难的密码。。。。吧？&lt;br&gt;
+把代码丢给ai喂一下，让ai把python版本的代码吐出来，顺便加一下多线程什么的。&lt;br&gt;
+就变成了下面这样：&lt;/p&gt;
+&lt;p&gt;点击查看代码&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;import threading
+
+from Crypto.Cipher import AES
+from Crypto.Hash import SHA256
+from Crypto.Protocol.KDF import PBKDF2
+from Crypto.Util.Padding import unpad
+
+
+def hex_to_array(s):
+    data = []
+    for i in range(0, len(s), 2):
+        num = int(s[i:i + 2], 16)
+        data.append(num)
+    return bytes(data)
+
+
+def get_hmac_key(key_material, key_salt):
+    return PBKDF2(key_material, key_salt, dkLen=32, count=1024, hmac_hash_module=SHA256)
+
+
+def get_iv(key_material, iv_salt):
+    return PBKDF2(key_material, iv_salt, dkLen=16, count=512, hmac_hash_module=SHA256)
+
+
+def get_key_material(password):
+    return password.encode()
+
+
+known_prefix = &amp;#34;&amp;lt;hbe-prefix&amp;gt;&amp;lt;/hbe-prefix&amp;gt;&amp;#34;
+
+
+def decrypt(ciphertext, password):
+    key_salt = &amp;#34;hexo-blog-encrypt的作者们都是大帅比!&amp;#34;.encode()
+    iv_salt = &amp;#34;hexo-blog-encrypt是地表最强Hexo加密插件!&amp;#34;.encode()
+    try:
+        key_material = get_key_material(password)
+        hmac_key = get_hmac_key(key_material, key_salt)
+        iv = get_iv(key_material, iv_salt)
+        ciphertext_bytes = hex_to_array(ciphertext)
+        cipher = AES.new(hmac_key, AES.MODE_CBC, iv)
+        decrypted_data = cipher.decrypt(ciphertext_bytes)
+        unpadded_data = unpad(decrypted_data, AES.block_size)
+        if not unpadded_data.decode().startswith(known_prefix):
+            return None
+    except ValueError as e:
+        return None
+    return unpadded_data.decode()
+
+
+def worker(ciphertext, password_chunk, event):
+    for password in password_chunk:
+        password = password.strip()
+        if event.is_set():
+            return
+        result = decrypt(ciphertext, password)
+        if result:
+            print(f&amp;#34;Decrypted successfully with password: {password.strip()}&amp;#34;)
+            event.set()
+            return
+
+
+def brute_force(ciphertext, passwords, max_threads=5):
+    results = []
+    threads = []
+    password_chunks = [[] for _ in range(max_threads)]
+    for index, password in enumerate(passwords):
+        chunk_index = index % max_threads
+        password_chunks[chunk_index].append(password)
+
+    stop_event = threading.Event()
+
+    for password_chunk in password_chunks:
+        if password_chunk:
+            t = threading.Thread(target=lambda chunk=password_chunk: worker(ciphertext, chunk, stop_event))
+            threads.append(t)
+            t.start()
+
+    for t in threads:
+        t.join()
+
+    if not stop_event.is_set():
+        print(&amp;#34;No valid password found.&amp;#34;)
+
+
+try:
+    with open(&amp;#39;enData.txt&amp;#39;, &amp;#39;r&amp;#39;) as f:
+        ciphertext = f.read().strip()
+    with open(r&amp;#34;你应该有自己的字典8&amp;#34;, &amp;#39;r&amp;#39;, encoding=&amp;#34;utf-8&amp;#34;) as f:
+        passwords = f.readlines()
+        brute_force(ciphertext, passwords, max_threads=200)
+except FileNotFoundError as e:
+    print(f&amp;#34;Error: {e}&amp;#34;)
+&lt;/code&gt;&lt;/pre&gt;&lt;h1 id=&#34;爆破&#34;&gt;爆破&lt;/h1&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18630509/3336551-20241225152333789-1181526778.png&#34;&gt;&lt;br&gt;
+也许你不相信，但是真的有人会用超长的密码去加密一篇博客，有鬼吧。&lt;br&gt;
+我没有加进度条，但是200个进程跑那么久跑不出来已经很说明问题了。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>博客园cnblog美化</title>
+      <link>https://t1mmoc.github.io/posts/18628835/</link>
+      <pubDate>Tue, 24 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18628835/</guid>
+      <description>&lt;h1 id=&#34;起因&#34;&gt;起因&lt;/h1&gt;
+&lt;hr&gt;
+&lt;p&gt;博客园这个丑丑的默认样式实在看不下去，换了一个主题，但是发现这个主题用的人还是太多了&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628835/3336551-20241224220813394-1447544816.png&#34;&gt;&lt;br&gt;
+说实话要是给主页的样子其实也还不错啊（广告就不要了谢谢）&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628835/3336551-20241224220620680-1667604397.png&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;改变现状&#34;&gt;改变现状&lt;/h1&gt;
+&lt;hr&gt;
+&lt;p&gt;想来想去，还是得美化一下，但是自己没有这个精力去美化，怎么办呢&lt;br&gt;
+自然还是去找别人的模板，先好看起来再说，以后再去想要不要修改，要不要变得更好看。&lt;br&gt;
+感谢 &lt;a href=&#34;https://www.cnblogs.com/lingyunvoid/p/beautify.html&#34;&gt;https://www.cnblogs.com/lingyunvoid/p/beautify.html&lt;/a&gt;&lt;br&gt;
+感谢 &lt;a href=&#34;https://www.cnblogs.com/cyy22321-blog/p/16048788.html&#34;&gt;https://www.cnblogs.com/cyy22321-blog/p/16048788.html&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628835/3336551-20241224221105541-1804703366.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628835/3336551-20241224221052134-415876891.png&#34;&gt;&lt;br&gt;
+下载下来的内容进行对应的修改即可，要修改的东西还是挺多的。&lt;/p&gt;
+&lt;h1 id=&#34;图片随机&#34;&gt;图片随机？&lt;/h1&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628835/3336551-20241224221624999-1083372139.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628835/3336551-20241224221624640-1546878523.png&#34;&gt;&lt;br&gt;
+居然能随机主图，那我就上传点图片玩玩。&lt;/p&gt;
+&lt;h1 id=&#34;标题不要&#34;&gt;标题？不要&lt;/h1&gt;
+&lt;hr&gt;
+&lt;p&gt;乐了，有没有和我一样每次都被焦点标题烦到。&lt;/p&gt;
+&lt;h1 id=&#34;奇妙问题&#34;&gt;奇妙问题&lt;/h1&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628835/3336551-20241224222953837-1086719112.png&#34;&gt;&lt;br&gt;
+弄完了，但是这个hearts[i].y&amp;ndash;;一直显示报错&lt;br&gt;
+非常奇妙&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628835/3336551-20241224223023695-1256796506.png&#34;&gt;&lt;br&gt;
+太奇妙了。&lt;br&gt;
+我以为剪贴板有奇怪的东西，手动输入了一遍，还是报错。&lt;br&gt;
+算了，这行我本来也不想要，注释了，那就留着注释好了。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>国产AI使用尝试</title>
+      <link>https://t1mmoc.github.io/posts/18628779/</link>
+      <pubDate>Tue, 24 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18628779/</guid>
+      <description>&lt;h1 id=&#34;豆包ai使用体验&#34;&gt;豆包AI使用体验&lt;/h1&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628779/3336551-20241224214528423-2018388656.png&#34;&gt;&lt;br&gt;
+不得不说现在AI的能力也是越来越离谱了。&lt;br&gt;
+完全可以以假乱真了，但是具体的细节、上下文链接、逻辑问题，还有待检查。&lt;br&gt;
+我只修改了可能侵犯版权的部分，具体的文章可以直接跳转上一篇博客。&lt;/p&gt;
+&lt;h1 id=&#34;两全其美的解决方法&#34;&gt;两全其美的解决方法&lt;/h1&gt;
+&lt;hr&gt;
+&lt;p&gt;对于希望拿到代码的人，可以直接拿到代码；对于希望看到解析的人，ai可以给出非常详细的解析，而并非如我现在码字一样的慢慢敲，并不如ai高效，也不如ai清晰。&lt;br&gt;
+因此我竟感觉我写代码，然后让AI码字上传倒是一件好事。&lt;br&gt;
+待我让ai替我润色点存货。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>图片上传</title>
+      <link>https://t1mmoc.github.io/posts/18628814/</link>
+      <pubDate>Tue, 24 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18628814/</guid>
+      <description>&lt;h1 id=&#34;图片上传贴&#34;&gt;图片上传贴&lt;/h1&gt;
+&lt;p&gt;由于博客园的文件上传只有100M，而图片上传单张图片最大2M&lt;br&gt;
+那就上传到随笔好了，图片本身是网络图片，因此并不担心公开问题。&lt;br&gt;
+但是图片的链接需要保证我还在使用博客园的期间有效，所以不想引用外链。&lt;br&gt;
+以下图片将成为初始的随机图列表，刚好挺适合的。&lt;/p&gt;
+&lt;h1 id=&#34;图片&#34;&gt;图片&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628814/3336551-20241224221515139-799095308.jpg&#34;&gt;&lt;br&gt;
+![image](&lt;a href=&#34;https://img20&#34;&gt;https://img20&lt;/a&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628814/3336551-20241224221536119-740667203.jpg&#34;&gt;&lt;br&gt;
+36551/202412/3336551-20241224221520937-641250709.jpg)&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;uploading...&#34;&gt;![image](&lt;a href=&#34;https://img20&#34;&gt;https://img20&lt;/a&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628814/3336551-20241224221528372-1971997832.jpg&#34;&gt;&lt;br&gt;
+36551/202412/3336551-20241224221524546-79330&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628814/3336551-20241224221531232-1881282061.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628814/3336551-20241224221537278-1713229069.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;uploading...&#34;&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628814/3336551-20241224221528025-1473483764.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;uploading...&#34;&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;uploading...&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;四张ai图有时间替换掉才行嫌弃水印-2024-12-29&#34;&gt;四张ai图，有时间替换掉才行，嫌弃水印 2024-12-29&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628814/3336551-20241229214249210-2036182383.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628814/3336551-20241229214258237-1419184658.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628814/3336551-20241229214302632-295331211.png&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18628814/3336551-20241229214322597-1159805764.png&#34;&gt;&lt;/p&gt;</description>
+    </item>
   </channel>
 </rss>

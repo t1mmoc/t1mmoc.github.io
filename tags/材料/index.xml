@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>材料 on Timmoc&#39;s Blog</title>
+    <link>https://t1mmoc.github.io/tags/%E6%9D%90%E6%96%99/</link>
+    <description>Recent content in 材料 on Timmoc&#39;s Blog</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Thu, 26 Dec 2024 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://t1mmoc.github.io/tags/%E6%9D%90%E6%96%99/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>【材料】SetThreadContextCall！</title>
+      <link>https://t1mmoc.github.io/posts/18633227/</link>
+      <pubDate>Thu, 26 Dec 2024 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18633227/</guid>
+      <description>&lt;h1 id=&#34;这是一篇古老的文章在线下完成了展示并无意向重写到博客园&#34;&gt;这是一篇古老的文章，在线下完成了展示，并无意向重写到博客园。&lt;/h1&gt;
+&lt;h1 id=&#34;github项目-setthreadcontextcall&#34;&gt;github项目 SetThreadContextCall &lt;a href=&#34;https://github.com/12UE/SetThreadContextCall&#34;&gt;https://github.com/12UE/SetThreadContextCall&lt;/a&gt;&lt;/h1&gt;
+&lt;ul&gt;
+&lt;li&gt;241 - 注入shellcode方式&lt;/li&gt;
+&lt;li&gt;253 - shellcode&lt;/li&gt;
+&lt;li&gt;626 - 主代码 - 679 - 参数传递。&lt;/li&gt;
+&lt;li&gt;154 - 单例构造 - 方法静态。&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://blog.csdn.net/qq_41375318/article/details/127080405&#34;&gt;template＜typename &amp;hellip; Args＞：可变参数模板的解释和使用_&lt;em&gt;Major&lt;/em&gt;的博客-CSDN博客&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;C++ 模板、多参讲解&lt;/li&gt;
+&lt;li&gt;520 - 参数讲解&lt;/li&gt;
+&lt;li&gt;C++ 简单的析构函数讲解 - 智能指针&lt;/li&gt;
+&lt;/ul&gt;</description>
+    </item>
+  </channel>
+</rss>

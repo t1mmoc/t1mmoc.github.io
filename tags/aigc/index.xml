@@ -22,5 +22,77 @@
       <guid>https://t1mmoc.github.io/posts/hugo-papermod-pitfalls/</guid>
       <description>从零搭建 Hugo 博客到 GitHub Pages，PaperMod v8 配置兼容、部署方案选型等踩坑实录</description>
     </item>
+    <item>
+      <title>【AIGC】Hermes Agent 飞书 Bot 部署经验总结</title>
+      <link>https://t1mmoc.github.io/posts/21137621/</link>
+      <pubDate>Sun, 05 Jul 2026 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/21137621/</guid>
+      <description>&lt;h1 id=&#34;hermes-agent-飞书-bot-部署经验总结&#34;&gt;Hermes Agent 飞书 Bot 部署经验总结&lt;/h1&gt;
+&lt;blockquote&gt;
+&lt;p&gt;记录在 Ubuntu 24.04 虚拟机上从零部署 Hermes Agent（NousResearch/hermes-agent），&lt;br&gt;
+接入智谱 bigmodel 作为 LLM 后端，并打通飞书 WebSocket 双向消息的完整流程与踩坑点。&lt;br&gt;
+时间：2026-07-05&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;0-准备清单&#34;&gt;0. 准备清单&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;项目&lt;/th&gt;
+					&lt;th&gt;说明&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;宿主机&lt;/td&gt;
+					&lt;td&gt;Windows 11 + PowerShell 5.1&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;虚拟机&lt;/td&gt;
+					&lt;td&gt;Ubuntu 24.04.3 LTS，VMWare Workstation，1 个 NAT 网络&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;VM IP&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;192.168.111.0/24&lt;/code&gt; 网段（按需替换）&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;VM 用户&lt;/td&gt;
+					&lt;td&gt;普通用户 &lt;code&gt;vmuser&lt;/code&gt;（sudo 组）+ root（密码登录 + SSH key）&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;工具链&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;paramiko&lt;/code&gt;（Windows 端 SSH）、&lt;code&gt;lark-oapi&lt;/code&gt;（飞书 SDK，hermes 依赖）、&lt;code&gt;Python 3.12&lt;/code&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;飞书账号&lt;/td&gt;
+					&lt;td&gt;已创建企业自建应用，&lt;strong&gt;开启了机器人能力&lt;/strong&gt;，获得 App ID / App Secret&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;LLM 凭据&lt;/td&gt;
+					&lt;td&gt;智谱 bigmodel &lt;code&gt;GLM_API_KEY&lt;/code&gt;（实名认证后免费档可用）&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;1-虚拟机初始化&#34;&gt;1. 虚拟机初始化&lt;/h2&gt;
+&lt;h3 id=&#34;11-ssh-key--root-登录&#34;&gt;1.1 SSH key + root 登录&lt;/h3&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;# 宿主机生成 ed25519 key
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;通过 paramiko 远程执行（避免在 VM 控制台操作）：&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>【AIGC】如何让AI找出偷偷藏在系统中偷吃内存的元凶</title>
+      <link>https://t1mmoc.github.io/posts/21126386/</link>
+      <pubDate>Sat, 04 Jul 2026 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/21126386/</guid>
+      <description>&lt;h1 id=&#34;如何让-ai-找出偷偷藏在系统中偷吃内存的元凶&#34;&gt;如何让 AI 找出偷偷藏在系统中偷吃内存的&amp;quot;元凶&amp;quot;&lt;/h1&gt;
+&lt;blockquote&gt;
+&lt;p&gt;当你打开任务管理器，发现&amp;quot;使用中&amp;quot;内存比所有进程加起来多出好几个 GB，却找不到去哪了——这篇文章就是写给你的。更关键的是：&lt;strong&gt;这种枯燥到让人抓狂的&amp;quot;挨个查每个进程是干什么的&amp;quot;活儿，正好是 AI 的强项。&lt;/strong&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h2 id=&#34;背景一个让人抓狂的痛点&#34;&gt;背景：一个让人抓狂的痛点&lt;/h2&gt;
+&lt;p&gt;排查 Windows 内存占用时，几乎所有人都会遇到这个场景：&lt;/p&gt;
+&lt;p&gt;任务管理器显示&amp;quot;使用中 13 GB&amp;quot;，但把所有进程的内存加起来，只有 9 GB 左右。&lt;strong&gt;差了将近 4 GB，去哪了？&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;更让人崩溃的是：&lt;/p&gt;</description>
+    </item>
   </channel>
 </rss>

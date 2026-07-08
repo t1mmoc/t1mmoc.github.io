@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>模拟器抓包 on Timmoc&#39;s Blog</title>
+    <link>https://t1mmoc.github.io/tags/%E6%A8%A1%E6%8B%9F%E5%99%A8%E6%8A%93%E5%8C%85/</link>
+    <description>Recent content in 模拟器抓包 on Timmoc&#39;s Blog</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sun, 15 Feb 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://t1mmoc.github.io/tags/%E6%A8%A1%E6%8B%9F%E5%99%A8%E6%8A%93%E5%8C%85/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>【模拟器抓包】再来一次，完整版</title>
+      <link>https://t1mmoc.github.io/posts/19618653/</link>
+      <pubDate>Sun, 15 Feb 2026 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/19618653/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;因为模拟器发生了一些奇怪的事情（关不掉代理了），所以重新来一遍。&lt;/p&gt;
+&lt;h1 id=&#34;ca证书&#34;&gt;CA证书&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;http://burp&lt;/code&gt;&lt;br&gt;
+不多说&lt;/p&gt;
+&lt;h2 id=&#34;der转0证书&#34;&gt;der转.0证书&lt;/h2&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;# 步骤1: 将DER格式转换为PEM格式
+openssl x509 -inform DER -in cacert.der -out cacert.pem
+
+# 步骤2: 计算证书的旧版subject hash（Android系统使用）
+openssl x509 -inform PEM -subject_hash_old -in cacert.pem | head -1
+# 输出示例: 9a5ba575
+
+# 步骤3: 将PEM证书重命名为 &amp;lt;hash&amp;gt;.0 格式
+mv cacert.pem 9a5ba575.0
+&lt;/code&gt;&lt;/pre&gt;&lt;h1 id=&#34;安装证书&#34;&gt;安装证书&lt;/h1&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;adb root
+adb shell mount -o rw,remount /system
+adb push 9a5ba575.0 /system/etc/security/cacerts/
+adb shell chmod 644 /system/etc/security/cacerts/9a5ba575.0
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;如果你也和我一样push了以后找不到，那就在shell里面&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>【模拟器抓包】标签就是标题</title>
+      <link>https://t1mmoc.github.io/posts/19067212/</link>
+      <pubDate>Sun, 31 Aug 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/19067212/</guid>
+      <description>&lt;h1 id=&#34;ca证书&#34;&gt;CA证书&lt;/h1&gt;
+&lt;p&gt;CA证书折腾了很久，最后发现fiddler的不行，burp的行，不知道原因&lt;br&gt;
+这部分已经做过了懒得再做一遍，有心者去看看网上的教程吧很详细了。&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;a href=&#34;https://blog.csdn.net/weixin_43391813/article/details/130850778&#34;&gt;https://blog.csdn.net/weixin_43391813/article/details/130850778&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h1 id=&#34;代理&#34;&gt;代理&lt;/h1&gt;
+&lt;h3 id=&#34;方法1&#34;&gt;方法1：&lt;/h3&gt;
+&lt;p&gt;adb.exe shell settings put global http_proxy 10.0.2.2:8080&lt;/p&gt;
+&lt;h3 id=&#34;方法2&#34;&gt;方法2：&lt;/h3&gt;
+&lt;p&gt;iptables -t nat -A OUTPUT -p tcp -j DNAT &amp;ndash;to-destination 127.0.0.1:8080&lt;br&gt;
+adb reverse tcp:8080 tcp:8080&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

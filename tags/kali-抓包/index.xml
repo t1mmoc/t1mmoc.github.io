@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Kali 抓包 on Timmoc&#39;s Blog</title>
+    <link>https://t1mmoc.github.io/tags/kali-%E6%8A%93%E5%8C%85/</link>
+    <description>Recent content in Kali 抓包 on Timmoc&#39;s Blog</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Mon, 01 Sep 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://t1mmoc.github.io/tags/kali-%E6%8A%93%E5%8C%85/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>【kali 抓包】全部流量流经kali，劫持到burp</title>
+      <link>https://t1mmoc.github.io/posts/19067511/</link>
+      <pubDate>Mon, 01 Sep 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/19067511/</guid>
+      <description>&lt;p&gt;&lt;strong&gt;受够了有数据包遗漏了吗？没错，来加入kali抓包大家庭吧&lt;/strong&gt;&lt;/p&gt;
+&lt;h1 id=&#34;思路&#34;&gt;思路&lt;/h1&gt;
+&lt;p&gt;本机设置kali为网关，kali全部FORWARD劫持到8080&lt;/p&gt;
+&lt;h1 id=&#34;命令&#34;&gt;命令&lt;/h1&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;# 开启 IP 转发
+echo 1 | tee /proc/sys/net/ipv4/ip_forward
+
+# 允许本机以非本地 IP 发包
+sysctl -w net.ipv4.conf.all.route_localnet=1
+
+# 转发，不多说
+iptables -t nat -A PREROUTING -i eth0 -p tcp -m multiport --dports 80,443 -j REDIRECT --to-port 8080
+
+如果想抓特别的可以把 -m multiport --dports 80,443 删掉
+
+# 两张网卡，eth1是外网时转发
+iptables -t nat -A POSTROUTING -o eth1 -j MASQUERADE
+&lt;/code&gt;&lt;/pre&gt;</description>
+    </item>
+  </channel>
+</rss>

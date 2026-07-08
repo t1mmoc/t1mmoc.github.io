@@ -1,0 +1,221 @@
+<!doctype html><html lang=en dir=auto data-theme=auto><head><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><meta name=robots content="index, follow"><title>【AIGC】Hermes Agent 飞书 Bot 部署经验总结 | Timmoc's Blog</title><meta name=keywords content="AIGC"><meta name=description content="Hermes Agent 飞书 Bot 部署经验总结
+
+记录在 Ubuntu 24.04 虚拟机上从零部署 Hermes Agent（NousResearch/hermes-agent），
+接入智谱 bigmodel 作为 LLM 后端，并打通飞书 WebSocket 双向消息的完整流程与踩坑点。
+时间：2026-07-05
+
+
+0. 准备清单
+
+	
+			
+					项目
+					说明
+			
+	
+	
+			
+					宿主机
+					Windows 11 + PowerShell 5.1
+			
+			
+					虚拟机
+					Ubuntu 24.04.3 LTS，VMWare Workstation，1 个 NAT 网络
+			
+			
+					VM IP
+					192.168.111.0/24 网段（按需替换）
+			
+			
+					VM 用户
+					普通用户 vmuser（sudo 组）+ root（密码登录 + SSH key）
+			
+			
+					工具链
+					paramiko（Windows 端 SSH）、lark-oapi（飞书 SDK，hermes 依赖）、Python 3.12
+			
+			
+					飞书账号
+					已创建企业自建应用，开启了机器人能力，获得 App ID / App Secret
+			
+			
+					LLM 凭据
+					智谱 bigmodel GLM_API_KEY（实名认证后免费档可用）
+			
+	
+
+
+1. 虚拟机初始化
+1.1 SSH key + root 登录
+# 宿主机生成 ed25519 key
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
+通过 paramiko 远程执行（避免在 VM 控制台操作）："><meta name=author content><link rel=canonical href=https://t1mmoc.github.io/posts/21137621/><link crossorigin=anonymous href=/assets/css/stylesheet.cd9298b33628769aa1bc1acebbbfd7aa11ce81dfe03484d479e1907760249a1d.css integrity="sha256-zZKYszYodpqhvBrOu7/XqhHOgd/gNITUeeGQd2Akmh0=" rel="preload stylesheet" as=style><link rel=icon href=https://t1mmoc.github.io/favicon.ico><link rel=icon type=image/png sizes=16x16 href=https://t1mmoc.github.io/favicon-16x16.png><link rel=icon type=image/png sizes=32x32 href=https://t1mmoc.github.io/favicon-32x32.png><link rel=apple-touch-icon href=https://t1mmoc.github.io/apple-touch-icon.png><link rel=mask-icon href=https://t1mmoc.github.io/safari-pinned-tab.svg><meta name=theme-color content="#2e2e33"><meta name=msapplication-TileColor content="#2e2e33"><link rel=alternate hreflang=en href=https://t1mmoc.github.io/posts/21137621/><noscript><style>#theme-toggle,.top-link{display:none}</style><style>@media(prefers-color-scheme:dark){:root{--theme:rgb(29, 30, 32);--entry:rgb(46, 46, 51);--primary:rgb(218, 218, 219);--secondary:rgb(155, 156, 157);--tertiary:rgb(65, 66, 68);--content:rgb(196, 196, 197);--code-block-bg:rgb(46, 46, 51);--code-bg:rgb(55, 56, 62);--border:rgb(51, 51, 51);color-scheme:dark}.list{background:var(--theme)}.toc{background:var(--entry)}}</style></noscript><script>localStorage.getItem("pref-theme")==="dark"?document.querySelector("html").dataset.theme="dark":localStorage.getItem("pref-theme")==="light"?document.querySelector("html").dataset.theme="light":window.matchMedia("(prefers-color-scheme: dark)").matches?document.querySelector("html").dataset.theme="dark":document.querySelector("html").dataset.theme="light"</script><meta property="og:url" content="https://t1mmoc.github.io/posts/21137621/"><meta property="og:site_name" content="Timmoc's Blog"><meta property="og:title" content="【AIGC】Hermes Agent 飞书 Bot 部署经验总结"><meta property="og:description" content="Hermes Agent 飞书 Bot 部署经验总结 记录在 Ubuntu 24.04 虚拟机上从零部署 Hermes Agent（NousResearch/hermes-agent），
+接入智谱 bigmodel 作为 LLM 后端，并打通飞书 WebSocket 双向消息的完整流程与踩坑点。
+时间：2026-07-05
+0. 准备清单 项目 说明 宿主机 Windows 11 + PowerShell 5.1 虚拟机 Ubuntu 24.04.3 LTS，VMWare Workstation，1 个 NAT 网络 VM IP 192.168.111.0/24 网段（按需替换） VM 用户 普通用户 vmuser（sudo 组）+ root（密码登录 + SSH key） 工具链 paramiko（Windows 端 SSH）、lark-oapi（飞书 SDK，hermes 依赖）、Python 3.12 飞书账号 已创建企业自建应用，开启了机器人能力，获得 App ID / App Secret LLM 凭据 智谱 bigmodel GLM_API_KEY（实名认证后免费档可用） 1. 虚拟机初始化 1.1 SSH key + root 登录 # 宿主机生成 ed25519 key ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 通过 paramiko 远程执行（避免在 VM 控制台操作）："><meta property="og:locale" content="zh_cn"><meta property="og:type" content="article"><meta property="article:section" content="posts"><meta property="article:published_time" content="2026-07-05T00:00:00+00:00"><meta property="article:modified_time" content="2026-07-05T00:00:00+00:00"><meta property="article:tag" content="AIGC"><meta name=twitter:card content="summary"><meta name=twitter:title content="【AIGC】Hermes Agent 飞书 Bot 部署经验总结"><meta name=twitter:description content="Hermes Agent 飞书 Bot 部署经验总结 记录在 Ubuntu 24.04 虚拟机上从零部署 Hermes Agent（NousResearch/hermes-agent），
+接入智谱 bigmodel 作为 LLM 后端，并打通飞书 WebSocket 双向消息的完整流程与踩坑点。
+时间：2026-07-05
+0. 准备清单 项目 说明 宿主机 Windows 11 + PowerShell 5.1 虚拟机 Ubuntu 24.04.3 LTS，VMWare Workstation，1 个 NAT 网络 VM IP 192.168.111.0/24 网段（按需替换） VM 用户 普通用户 vmuser（sudo 组）+ root（密码登录 + SSH key） 工具链 paramiko（Windows 端 SSH）、lark-oapi（飞书 SDK，hermes 依赖）、Python 3.12 飞书账号 已创建企业自建应用，开启了机器人能力，获得 App ID / App Secret LLM 凭据 智谱 bigmodel GLM_API_KEY（实名认证后免费档可用） 1. 虚拟机初始化 1.1 SSH key + root 登录 # 宿主机生成 ed25519 key ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 通过 paramiko 远程执行（避免在 VM 控制台操作）："><script type=application/ld+json>{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Posts","item":"https://t1mmoc.github.io/posts/"},{"@type":"ListItem","position":2,"name":"【AIGC】Hermes Agent 飞书 Bot 部署经验总结","item":"https://t1mmoc.github.io/posts/21137621/"}]}</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","headline":"【AIGC】Hermes Agent 飞书 Bot 部署经验总结","name":"【AIGC】Hermes Agent 飞书 Bot 部署经验总结","description":"Hermes Agent 飞书 Bot 部署经验总结 记录在 Ubuntu 24.04 虚拟机上从零部署 Hermes Agent（NousResearch/hermes-agent），\n接入智谱 bigmodel 作为 LLM 后端，并打通飞书 WebSocket 双向消息的完整流程与踩坑点。\n时间：2026-07-05\n0. 准备清单 项目 说明 宿主机 Windows 11 + PowerShell 5.1 虚拟机 Ubuntu 24.04.3 LTS，VMWare Workstation，1 个 NAT 网络 VM IP 192.168.111.0/24 网段（按需替换） VM 用户 普通用户 vmuser（sudo 组）+ root（密码登录 + SSH key） 工具链 paramiko（Windows 端 SSH）、lark-oapi（飞书 SDK，hermes 依赖）、Python 3.12 飞书账号 已创建企业自建应用，开启了机器人能力，获得 App ID / App Secret LLM 凭据 智谱 bigmodel GLM_API_KEY（实名认证后免费档可用） 1. 虚拟机初始化 1.1 SSH key + root 登录 # 宿主机生成 ed25519 key ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 通过 paramiko 远程执行（避免在 VM 控制台操作）：\n","keywords":["AIGC"],"articleBody":"Hermes Agent 飞书 Bot 部署经验总结 记录在 Ubuntu 24.04 虚拟机上从零部署 Hermes Agent（NousResearch/hermes-agent），\n接入智谱 bigmodel 作为 LLM 后端，并打通飞书 WebSocket 双向消息的完整流程与踩坑点。\n时间：2026-07-05\n0. 准备清单 项目 说明 宿主机 Windows 11 + PowerShell 5.1 虚拟机 Ubuntu 24.04.3 LTS，VMWare Workstation，1 个 NAT 网络 VM IP 192.168.111.0/24 网段（按需替换） VM 用户 普通用户 vmuser（sudo 组）+ root（密码登录 + SSH key） 工具链 paramiko（Windows 端 SSH）、lark-oapi（飞书 SDK，hermes 依赖）、Python 3.12 飞书账号 已创建企业自建应用，开启了机器人能力，获得 App ID / App Secret LLM 凭据 智谱 bigmodel GLM_API_KEY（实名认证后免费档可用） 1. 虚拟机初始化 1.1 SSH key + root 登录 # 宿主机生成 ed25519 key ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 通过 paramiko 远程执行（避免在 VM 控制台操作）：\n# 关键步骤（伪代码，按顺序） # 1) 改 root 密码（unattended） echo \"root:NEW_ROOT_PW\" | chpasswd # 2) 写 root 授权 key mkdir -p /root/.ssh \u0026\u0026 chmod 700 /root/.ssh cat \u003e /root/.ssh/authorized_keys \u003c\u003c\u003c \"ssh-ed25519 AAAA... user@host\" chmod 600 /root/.ssh/authorized_keys # 3) 改 sshd 配置 sed -i 's/^#\\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config sed -i 's/^#\\?PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config sshd -t \u0026\u0026 systemctl restart ssh 坑：Ubuntu 24 默认锁 root 密码登录；/etc/pam.d/login 不引用 pam_securetty，所以 securetty 改不改都无所谓。GDM 登录界面默认隐藏 UID=0 用户，要登录 root 必须点 “未列出？” 手动输入。\n1.2 国内镜像源 # APT cat \u003e /etc/apt/sources.list.d/aliyun.list \u003c ~/.pip/pip.conf \u003c","wordCount":"1056","inLanguage":"en","datePublished":"2026-07-05T00:00:00Z","dateModified":"2026-07-05T00:00:00Z","mainEntityOfPage":{"@type":"WebPage","@id":"https://t1mmoc.github.io/posts/21137621/"},"publisher":{"@type":"Organization","name":"Timmoc's Blog","logo":{"@type":"ImageObject","url":"https://t1mmoc.github.io/favicon.ico"}}}</script></head><body id=top><header class=header><nav class=header-nav><div class=logo><a href=https://t1mmoc.github.io/ accesskey=h title="Timmoc's Blog (Alt + H)">Timmoc's Blog</a><div class=logo-switches><button id=theme-toggle class=theme-toggle accesskey=t title="(Alt + T)" aria-label="Toggle theme">
+<svg class="moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+<svg class="sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button></div></div><ul id=menu class=menu><li><a href=https://t1mmoc.github.io/posts/ title=文章><span>文章</span></a></li><li><a href=https://t1mmoc.github.io/tags/ title=标签><span>标签</span></a></li><li><a href=https://t1mmoc.github.io/search/ title="搜索 (Alt + /)" accesskey=/><span>搜索</span></a></li></ul></nav></header><main class=main><article class=post-single><header class=post-header><nav class=breadcrumbs role=navigation aria-label=Breadcrumb><a href=/>Home</a>
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right"><polyline points="9 18 15 12 9 6"/></svg>
+<a href=/posts/>Posts</a>
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right"><polyline points="9 18 15 12 9 6"/></svg></nav><h1 class="post-title entry-hint-parent">【AIGC】Hermes Agent 飞书 Bot 部署经验总结</h1><div class=post-meta><span title='2026-07-05 00:00:00 +0000 UTC'>July 5, 2026</span>&nbsp;·&nbsp;<span>5 min</span>&nbsp;|&nbsp;<span>
+<a href=https://github.com/t1mmoc/t1mmoc.github.io/tree/main/content/posts/21137621.md rel="noopener noreferrer edit" target=_blank>编辑此页</a></span></div></header><details class=toc><summary accesskey=c title="(Alt + C)"><span class=title>Table of Contents</span></summary><div class=inner><ul><li><a href=#hermes-agent-%e9%a3%9e%e4%b9%a6-bot-%e9%83%a8%e7%bd%b2%e7%bb%8f%e9%aa%8c%e6%80%bb%e7%bb%93 aria-label="Hermes Agent 飞书 Bot 部署经验总结">Hermes Agent 飞书 Bot 部署经验总结</a><ul><li><a href=#0-%e5%87%86%e5%a4%87%e6%b8%85%e5%8d%95 aria-label="0. 准备清单">0. 准备清单</a></li><li><a href=#1-%e8%99%9a%e6%8b%9f%e6%9c%ba%e5%88%9d%e5%a7%8b%e5%8c%96 aria-label="1. 虚拟机初始化">1. 虚拟机初始化</a><ul><li><a href=#11-ssh-key--root-%e7%99%bb%e5%bd%95 aria-label="1.1 SSH key + root 登录">1.1 SSH key + root 登录</a></li><li><a href=#12-%e5%9b%bd%e5%86%85%e9%95%9c%e5%83%8f%e6%ba%90 aria-label="1.2 国内镜像源">1.2 国内镜像源</a></li></ul></li><li><a href=#2-%e5%ae%89%e8%a3%85-hermes-agent aria-label="2. 安装 Hermes Agent">2. 安装 Hermes Agent</a><ul><li><a href=#21-%e4%b8%8b%e8%bd%bd%e4%b8%8e%e5%ae%9a%e5%88%b6%e5%ae%89%e8%a3%85%e8%84%9a%e6%9c%ac aria-label="2.1 下载与定制安装脚本">2.1 下载与定制安装脚本</a></li><li><a href=#22-%e5%ae%89%e8%a3%85%e6%a0%b8%e5%bf%83%e7%bb%84%e4%bb%b6 aria-label="2.2 安装核心组件">2.2 安装核心组件</a></li></ul></li><li><a href=#3-%e9%85%8d%e7%bd%ae-llm%e6%99%ba%e8%b0%b1-bigmodel aria-label="3. 配置 LLM（智谱 bigmodel）">3. 配置 LLM（智谱 bigmodel）</a><ul><li><a href=#31-%e7%94%a8%e5%af%b9-provider aria-label="3.1 用对 provider">3.1 用对 provider</a></li><li><a href=#32-%e6%a8%a1%e5%9e%8b%e5%90%8d%e5%ae%9e%e6%b5%8b-bigmodel-2026-07-%e7%ab%af%e7%82%b9 aria-label="3.2 模型名（实测 bigmodel 2026-07 端点）">3.2 模型名（实测 bigmodel 2026-07 端点）</a></li><li><a href=#33-%e8%a7%86%e8%a7%89--%e8%be%85%e5%8a%a9%e6%a8%a1%e5%9e%8b aria-label="3.3 视觉 / 辅助模型">3.3 视觉 / 辅助模型</a></li></ul></li><li><a href=#4-%e6%8e%a5%e5%85%a5%e9%a3%9e%e4%b9%a6lark-oapi-websocket-%e6%a8%a1%e5%bc%8f aria-label="4. 接入飞书（lark-oapi WebSocket 模式）">4. 接入飞书（lark-oapi WebSocket 模式）</a><ul><li><a href=#41-%e9%a3%9e%e4%b9%a6%e5%ba%94%e7%94%a8%e9%85%8d%e7%bd%ae aria-label="4.1 飞书应用配置">4.1 飞书应用配置</a></li><li><a href=#42-%e8%a3%85%e4%be%9d%e8%b5%96 aria-label="4.2 装依赖">4.2 装依赖</a></li><li><a href=#43-%e5%86%99-env aria-label="4.3 写 .env">4.3 写 .env</a></li><li><a href=#44-%e5%90%af%e5%8a%a8-gateway aria-label="4.4 启动 Gateway">4.4 启动 Gateway</a></li><li><a href=#45-%e9%aa%8c%e8%af%81 aria-label="4.5 验证">4.5 验证</a></li></ul></li><li><a href=#5-%e9%98%b2%e7%81%ab%e5%a2%99--%e5%ae%89%e5%85%a8 aria-label="5. 防火墙 & 安全">5. 防火墙 & 安全</a><ul><li><a href=#51-%e5%85%b3%e9%97%ad-gnome-%e8%87%aa%e5%8a%a8%e9%94%81%e5%b1%8f aria-label="5.1 关闭 GNOME 自动锁屏">5.1 关闭 GNOME 自动锁屏</a></li><li><a href=#52-gdm-%e6%98%be%e7%a4%ba-root-%e7%99%bb%e5%bd%95 aria-label="5.2 GDM 显示 root 登录">5.2 GDM 显示 root 登录</a></li><li><a href=#53-%e9%98%b2%e7%81%ab%e5%a2%99 aria-label="5.3 防火墙">5.3 防火墙</a></li></ul></li><li><a href=#6-%e5%b8%b8%e8%a7%81%e5%9d%91%e9%80%9f%e6%9f%a5%e8%a1%a8 aria-label="6. 常见坑速查表">6. 常见坑速查表</a></li><li><a href=#7-%e8%bf%90%e7%bb%b4%e5%91%bd%e4%bb%a4%e9%80%9f%e6%9f%a5 aria-label="7. 运维命令速查">7. 运维命令速查</a></li><li><a href=#8-%e5%be%85%e5%8a%9e%e5%8f%af%e9%80%89 aria-label="8. 待办（可选）">8. 待办（可选）</a></li><li><a href=#9-%e5%85%b3%e9%94%ae%e6%96%87%e4%bb%b6%e6%b8%85%e5%8d%95 aria-label="9. 关键文件清单">9. 关键文件清单</a></li><li><a href=#10-%e6%80%bb%e7%bb%93 aria-label="10. 总结">10. 总结</a></li></ul></li></ul></div></details><div class="post-content md-content"><h1 id=hermes-agent-飞书-bot-部署经验总结>Hermes Agent 飞书 Bot 部署经验总结<a hidden class=anchor aria-hidden=true href=#hermes-agent-飞书-bot-部署经验总结>#</a></h1><blockquote><p>记录在 Ubuntu 24.04 虚拟机上从零部署 Hermes Agent（NousResearch/hermes-agent），<br>接入智谱 bigmodel 作为 LLM 后端，并打通飞书 WebSocket 双向消息的完整流程与踩坑点。<br>时间：2026-07-05</p></blockquote><hr><h2 id=0-准备清单>0. 准备清单<a hidden class=anchor aria-hidden=true href=#0-准备清单>#</a></h2><table><thead><tr><th>项目</th><th>说明</th></tr></thead><tbody><tr><td>宿主机</td><td>Windows 11 + PowerShell 5.1</td></tr><tr><td>虚拟机</td><td>Ubuntu 24.04.3 LTS，VMWare Workstation，1 个 NAT 网络</td></tr><tr><td>VM IP</td><td><code>192.168.111.0/24</code> 网段（按需替换）</td></tr><tr><td>VM 用户</td><td>普通用户 <code>vmuser</code>（sudo 组）+ root（密码登录 + SSH key）</td></tr><tr><td>工具链</td><td><code>paramiko</code>（Windows 端 SSH）、<code>lark-oapi</code>（飞书 SDK，hermes 依赖）、<code>Python 3.12</code></td></tr><tr><td>飞书账号</td><td>已创建企业自建应用，<strong>开启了机器人能力</strong>，获得 App ID / App Secret</td></tr><tr><td>LLM 凭据</td><td>智谱 bigmodel <code>GLM_API_KEY</code>（实名认证后免费档可用）</td></tr></tbody></table><hr><h2 id=1-虚拟机初始化>1. 虚拟机初始化<a hidden class=anchor aria-hidden=true href=#1-虚拟机初始化>#</a></h2><h3 id=11-ssh-key--root-登录>1.1 SSH key + root 登录<a hidden class=anchor aria-hidden=true href=#11-ssh-key--root-登录>#</a></h3><pre tabindex=0><code># 宿主机生成 ed25519 key
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
+</code></pre><p>通过 paramiko 远程执行（避免在 VM 控制台操作）：</p><pre tabindex=0><code># 关键步骤（伪代码，按顺序）
+# 1) 改 root 密码（unattended）
+echo &#34;root:NEW_ROOT_PW&#34; | chpasswd
+
+# 2) 写 root 授权 key
+mkdir -p /root/.ssh &amp;&amp; chmod 700 /root/.ssh
+cat &gt; /root/.ssh/authorized_keys &lt;&lt;&lt; &#34;ssh-ed25519 AAAA...  user@host&#34;
+chmod 600 /root/.ssh/authorized_keys
+
+# 3) 改 sshd 配置
+sed -i &#39;s/^#\?PermitRootLogin.*/PermitRootLogin yes/&#39; /etc/ssh/sshd_config
+sed -i &#39;s/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/&#39; /etc/ssh/sshd_config
+sshd -t &amp;&amp; systemctl restart ssh
+</code></pre><p><strong>坑</strong>：Ubuntu 24 默认锁 root 密码登录；<code>/etc/pam.d/login</code> 不引用 <code>pam_securetty</code>，所以 <code>securetty</code> 改不改都无所谓。GDM 登录界面默认隐藏 UID=0 用户，要登录 root 必须点 &ldquo;未列出？&rdquo; 手动输入。</p><h3 id=12-国内镜像源>1.2 国内镜像源<a hidden class=anchor aria-hidden=true href=#12-国内镜像源>#</a></h3><pre tabindex=0><code># APT
+cat &gt; /etc/apt/sources.list.d/aliyun.list &lt;&lt;EOF
+deb https://mirrors.aliyun.com/ubuntu noble main restricted universe multiverse
+deb https://mirrors.aliyun.com/ubuntu noble-security main restricted universe multiverse
+deb https://mirrors.aliyun.com/ubuntu noble-updates main restricted universe multiverse
+deb https://mirrors.aliyun.com/ubuntu noble-backports main restricted universe multiverse
+EOF
+apt update   # 52MB, 7s
+
+# pip
+mkdir -p ~/.pip
+cat &gt; ~/.pip/pip.conf &lt;&lt;EOF
+[global]
+index-url = https://pypi.tuna.tsinghua.edu.cn/simple
+timeout = 120
+trusted-host = pypi.tuna.tsinghua.edu.cn
+[install]
+trusted-host = pypi.tuna.tsinghua.edu.cn
+EOF
+</code></pre><hr><h2 id=2-安装-hermes-agent>2. 安装 Hermes Agent<a hidden class=anchor aria-hidden=true href=#2-安装-hermes-agent>#</a></h2><h3 id=21-下载与定制安装脚本>2.1 下载与定制安装脚本<a hidden class=anchor aria-hidden=true href=#21-下载与定制安装脚本>#</a></h3><pre tabindex=0><code># 装基础工具
+apt install -y curl wget
+
+# 下载 install.sh
+curl -fsSL https://res1.hermesagent.org.cn/install.sh -o /tmp/hermes_install.sh
+</code></pre><p><strong>坑 1：官方镜像慢</strong>。res1 镜像下 60MB 源码包要 15min+。<strong>解决方案</strong>：sed 替换 <code>MIRROR_BASE_URL</code> 强制走 GitHub：</p><pre tabindex=0><code># 替换默认镜像为无效值，让 install.sh 回退到 GitHub 源
+sed -i &#39;s|MIRROR_BASE_URL=&#34;${HERMES_MIRROR_BASE_URL:-https://res1.hermesagent.org.cn}&#34;|MIRROR_BASE_URL=&#34;${HERMES_MIRROR_BASE_URL:-https://invalid-mirror.invalid}&#34;|&#39; /tmp/hermes_install.sh
+</code></pre><p>GitHub 60MB tarball 实测 <strong>1s 传完</strong>（前提：网络能直连 GitHub，否则需要 proxychains）。</p><p><strong>坑 2：setup wizard 失败</strong>。<code>hermes setup</code> 需要 TTY，SSH 远程跑会报 <code>/dev/tty: 没有那个设备或地址</code>。<strong>解决方案</strong>：直接跳过 setup，手工编辑 <code>/root/.hermes/.env</code> 和 <code>config.yaml</code>。</p><h3 id=22-安装核心组件>2.2 安装核心组件<a hidden class=anchor aria-hidden=true href=#22-安装核心组件>#</a></h3><pre tabindex=0><code># 装运行时依赖
+apt install -y python3-venv python3-dev build-essential libffi-dev
+
+# 执行安装（用清华 pip 源）
+HERMES_PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
+  bash /tmp/hermes_install.sh
+</code></pre><p>安装步骤会自动：</p><ol><li>识别环境（Ubuntu）</li><li>检测 Python 3.12</li><li>警告缺 ripgrep/ffmpeg 但跳过</li><li>下载源码（GitHub 60MB）</li><li>创建 venv</li><li>装 pip 依赖（清华源）</li><li>创建 <code>~/.local/bin/hermes</code> 软链</li><li>同步 72 个 skills</li></ol><pre tabindex=0><code># 验证
+/root/.local/bin/hermes --version
+# Hermes Agent v0.18.0 (2026.7.1)
+</code></pre><p><strong>坑 3：PATH 不永久</strong>。root 登录新 shell 找不到 hermes。<strong>解决方案</strong>：</p><pre tabindex=0><code>echo &#39;export PATH=$HOME/.local/bin:$PATH&#39; &gt;&gt; /root/.bashrc
+</code></pre><hr><h2 id=3-配置-llm智谱-bigmodel>3. 配置 LLM（智谱 bigmodel）<a hidden class=anchor aria-hidden=true href=#3-配置-llm智谱-bigmodel>#</a></h2><h3 id=31-用对-provider>3.1 用对 provider<a hidden class=anchor aria-hidden=true href=#31-用对-provider>#</a></h3><p>Hermes 内置 <code>zai</code> provider 专门对接智谱。<code>provider: "custom"</code> 会<strong>强制走本地推理服务器路径</strong>，用 <code>no-key-required</code> placeholder，<strong>忽略所有 API key</strong>（含 OPENAI_API_KEY）。</p><pre tabindex=0><code># /root/.hermes/config.yaml
+model:
+  default: &#34;glm-4.7&#34;
+  provider: &#34;zai&#34;            # ← 不是 &#34;custom&#34;
+  base_url: &#34;https://open.bigmodel.cn/api/paas/v4&#34;
+</code></pre><pre tabindex=0><code># /root/.hermes/.env
+GLM_API_KEY=&lt;your_zhipu_key&gt;
+GLM_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+</code></pre><h3 id=32-模型名实测-bigmodel-2026-07-端点>3.2 模型名（实测 bigmodel 2026-07 端点）<a hidden class=anchor aria-hidden=true href=#32-模型名实测-bigmodel-2026-07-端点>#</a></h3><table><thead><tr><th>用途</th><th>模型名</th><th>备注</th></tr></thead><tbody><tr><td>文本主</td><td><code>glm-4.7</code></td><td>不要带 <code>-Flash</code> 后缀（端点上不存在）</td></tr><tr><td>视觉</td><td><code>glm-4.6v</code></td><td>基础版稳定；<code>-flash</code> 后缀会触发 1305 限流</td></tr><tr><td>视觉备选</td><td><code>glm-4v</code> / <code>glm-4v-plus</code></td><td>准确率低但能跑</td></tr><tr><td>文本兜底</td><td><code>glm-4.5-air</code></td><td>免费档限速更宽松</td></tr><tr><td>图像生成</td><td><code>cogview-3</code> / <code>cogview-3-flash</code></td><td>不是视觉理解</td></tr></tbody></table><p>bigmodel 错误码速查：</p><ul><li><code>1211</code> = 模型不存在</li><li><code>1302</code> = 账号 RPM 限速</li><li><code>1305</code> = 模型级限流</li></ul><p><strong>踩坑</strong>：用 <code>hermes auth add zai</code> 走认证流程更稳（Hermes CLI 会自动生成 BigModel credential record 并关联 <code>zai</code> provider）。</p><h3 id=33-视觉--辅助模型>3.3 视觉 / 辅助模型<a hidden class=anchor aria-hidden=true href=#33-视觉--辅助模型>#</a></h3><pre tabindex=0><code>auxiliary:
+  vision:
+    provider: &#34;zai&#34;
+    model: &#34;glm-4.6v&#34;
+  web_extract:
+    provider: &#34;zai&#34;
+    model: &#34;glm-4.7&#34;
+  tts_audio_tags:
+    provider: &#34;zai&#34;
+    model: &#34;&#34;        # 留空走主模型
+  session_search:
+    provider: &#34;zai&#34;
+    model: &#34;&#34;        # 留空走主模型
+</code></pre><pre tabindex=0><code># Smoke test
+hermes -z &#34;Reply with exactly PONG&#34;   # → &#34;PONG&#34;
+</code></pre><hr><h2 id=4-接入飞书lark-oapi-websocket-模式>4. 接入飞书（lark-oapi WebSocket 模式）<a hidden class=anchor aria-hidden=true href=#4-接入飞书lark-oapi-websocket-模式>#</a></h2><h3 id=41-飞书应用配置>4.1 飞书应用配置<a hidden class=anchor aria-hidden=true href=#41-飞书应用配置>#</a></h3><ol><li>飞书开放平台 → 创建企业自建应用</li><li>添加能力：<strong>机器人</strong></li><li>权限管理：开通 <code>im:message</code>、<code>im:message.group_at_msg</code>、<code>im:message.p2p_msg</code>、<code>im:message:send_as_bot</code> 等</li><li>事件订阅：添加 <code>im.message.receive_v1</code>（接收消息）</li><li>复制 App ID + App Secret</li></ol><p><strong>注意：WebSocket 模式不需要配置回调 URL 或公网 webhook</strong>，比 webhook 模式省心。</p><h3 id=42-装依赖>4.2 装依赖<a hidden class=anchor aria-hidden=true href=#42-装依赖>#</a></h3><pre tabindex=0><code>source /root/.hermes/hermes-agent/venv/bin/activate
+pip install lark_oapi aiohttp websockets
+# → 装 lark_oapi-1.7.0, pycryptodome, requests-toolbelt
+</code></pre><h3 id=43-写-env>4.3 写 .env<a hidden class=anchor aria-hidden=true href=#43-写-env>#</a></h3><pre tabindex=0><code># 追加到 /root/.hermes/.env
+cat &gt;&gt; /root/.hermes/.env &lt;&lt;EOF
+
+# &gt;&gt;&gt; Feishu (added by setup) &gt;&gt;&gt;
+FEISHU_APP_ID=&lt;your_app_id&gt;
+FEISHU_APP_SECRET=&lt;your_app_secret&gt;
+FEISHU_DOMAIN=feishu
+FEISHU_HOME_CHANNEL=
+FEISHU_ALLOW_ALL_USERS=true
+GATEWAY_ALLOW_ALL_USERS=true
+FEISHU_DM_POLICY=open
+FEISHU_GROUP_POLICY=open
+# &lt;&lt;&lt; Feishu &lt;&lt;&lt;
+EOF
+chmod 600 /root/.hermes/.env
+</code></pre><h3 id=44-启动-gateway>4.4 启动 Gateway<a hidden class=anchor aria-hidden=true href=#44-启动-gateway>#</a></h3><p><strong>坑 4：后台启动</strong>。<code>hermes gateway run</code> 是阻塞进程；用 <code>setsid</code> + <code>&</code> 在 SSH exec_command 里会随父进程一起死。<strong>解决方案</strong>：用 Python Popen + <code>start_new_session=True</code>：</p><pre tabindex=0><code># /tmp/spawn_gw.py
+import os, subprocess
+env = os.environ.copy()
+env[&#34;LANG&#34;] = &#34;C.UTF-8&#34;
+env[&#34;LC_ALL&#34;] = &#34;C.UTF-8&#34;
+env[&#34;PATH&#34;] = f&#34;/root/.local/bin:{env.get(&#39;PATH&#39;,&#39;&#39;)}&#34;
+log = open(&#34;/tmp/gateway.log&#34;, &#34;wb&#34;)
+subprocess.Popen(
+    [&#34;/root/.hermes/hermes-agent/venv/bin/hermes&#34;, &#34;gateway&#34;, &#34;run&#34;, &#34;--accept-hooks&#34;],
+    cwd=&#34;/root&#34;, env=env,
+    stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+    start_new_session=True,
+)
+</code></pre><pre tabindex=0><code># 启动
+python3 /tmp/spawn_gw.py
+
+# 验证
+ps -ef | grep hermes
+# root  79399  1  ...  hermes gateway run --accept-hooks
+
+tail -f /tmp/gateway.log
+# [Lark] [INFO] connected to wss://msg-frontier.feishu.cn/ws/v2?...
+</code></pre><h3 id=45-验证>4.5 验证<a hidden class=anchor aria-hidden=true href=#45-验证>#</a></h3><pre tabindex=0><code># 用同 key 调飞书 OpenAPI 验证 token
+curl -X POST https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal \
+  -H &#34;Content-Type: application/json&#34; \
+  -d &#39;{&#34;app_id&#34;:&#34;&lt;APP_ID&gt;&#34;,&#34;app_secret&#34;:&#34;&lt;APP_SECRET&gt;&#34;}&#39;
+# → {&#34;code&#34;:0,&#34;expire&#34;:7200,&#34;tenant_access_token&#34;:&#34;t-...&#34;}
+</code></pre><hr><h2 id=5-防火墙--安全>5. 防火墙 & 安全<a hidden class=anchor aria-hidden=true href=#5-防火墙--安全>#</a></h2><h3 id=51-关闭-gnome-自动锁屏>5.1 关闭 GNOME 自动锁屏<a hidden class=anchor aria-hidden=true href=#51-关闭-gnome-自动锁屏>#</a></h3><pre tabindex=0><code># 7 项 gsettings（timmoc 和 root 用户都设）
+gsettings set org.gnome.desktop.session idle-delay 0
+gsettings set org.gnome.desktop.screensaver lock-enabled false
+gsettings set org.gnome.desktop.screensaver lock-delay 0
+gsettings set org.gnome.desktop.screensaver idle-activation-enabled false
+gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type &#39;nothing&#39;
+gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type &#39;nothing&#39;
+gsettings set org.gnome.settings-daemon.plugins.power idle-dim false
+</code></pre><h3 id=52-gdm-显示-root-登录>5.2 GDM 显示 root 登录<a hidden class=anchor aria-hidden=true href=#52-gdm-显示-root-登录>#</a></h3><pre tabindex=0><code># /etc/pam.d/gdm-password: 注释掉第 3 行 user != root 那一行
+# /etc/gdm3/custom.conf: AllowRoot=true, AutomaticLoginEnable=false
+# /var/lib/AccountsService/users/root: 新建 [User] SystemAccount=true
+
+systemctl restart gdm
+</code></pre><h3 id=53-防火墙>5.3 防火墙<a hidden class=anchor aria-hidden=true href=#53-防火墙>#</a></h3><pre tabindex=0><code># Hermes 走出站 WebSocket，不需要入站端口
+# 飞书 API: open.feishu.cn:443, msg-frontier.feishu.cn:443
+# 出站无需特殊配置
+</code></pre><hr><h2 id=6-常见坑速查表>6. 常见坑速查表<a hidden class=anchor aria-hidden=true href=#6-常见坑速查表>#</a></h2><table><thead><tr><th>现象</th><th>根因</th><th>解决</th></tr></thead><tbody><tr><td><code>hermes setup</code> 报 <code>/dev/tty: 没有那个设备或地址</code></td><td>无 TTY</td><td>跳过 setup，手工改 .env / config.yaml</td></tr><tr><td><code>hermes -z</code> 报 HTTP 401</td><td><code>provider: "custom"</code> 强制 no-key</td><td>改 <code>provider: "zai"</code></td></tr><tr><td>bigmodel 报 &ldquo;模型不存在 (1211)&rdquo;</td><td>模型名拼写错（如加了 <code>-Flash</code>）</td><td>用 <code>curl /v1/models</code> 探测真实名单</td></tr><tr><td>bigmodel 报 &ldquo;限速 (1305/1302)&rdquo;</td><td>触发了模型级或账号级限流</td><td>换 <code>-air</code> 后缀或等几分钟</td></tr><tr><td>res1 镜像 15min 拉不完 60MB</td><td>镜像带宽差</td><td>sed 替换 MIRROR_BASE_URL 走 GitHub</td></tr><tr><td>gateway 一启动就死</td><td><code>setsid + &</code> 在 SSH exec_command 里不够 detached</td><td>Python Popen + <code>start_new_session=True</code></td></tr><tr><td>gateway list 显示 &ldquo;not running&rdquo;</td><td>进程没 detach 或被杀</td><td>查 `ps -ef</td></tr><tr><td>飞书 bot 收不到消息</td><td>缺事件订阅 <code>im.message.receive_v1</code></td><td>飞书开发者后台加权限</td></tr><tr><td>飞书 bot 拒收所有消息</td><td>默认 pairing/allowlist policy</td><td>设 <code>FEISHU_ALLOW_ALL_USERS=true</code> + <code>*_POLICY=open</code></td></tr><tr><td><code>lark_oapi</code> ModuleNotFoundError</td><td>hermes venv 没装</td><td><code>pip install lark_oapi aiohttp websockets</code></td></tr><tr><td>视觉模型返回 &ldquo;yellow&rdquo; 误判</td><td><code>glm-4.6v</code> 准确率有限</td><td>试 <code>glm-4.6v-plus</code> 或人工校验</td></tr></tbody></table><hr><h2 id=7-运维命令速查>7. 运维命令速查<a hidden class=anchor aria-hidden=true href=#7-运维命令速查>#</a></h2><pre tabindex=0><code># 状态
+hermes status
+hermes gateway list
+ps -ef | grep hermes
+
+# 日志
+tail -f /tmp/gateway.log
+
+# 重启
+pkill -9 -f &#39;hermes gateway&#39;
+python3 /tmp/spawn_gw.py
+
+# 改配置后生效
+systemctl reload ssh   # sshd_config
+# gateway 改 .env 需重启
+</code></pre><hr><h2 id=8-待办可选>8. 待办（可选）<a hidden class=anchor aria-hidden=true href=#8-待办可选>#</a></h2><ul><li>配 systemd service 让 gateway 开机自启</li><li>装 Docker 让镜像源（daemon.json）真的能用</li><li>设 webhook 模式作为 WebSocket 的备份链路</li><li>用 <code>hermes doctor --fix</code> 修剩余的 config 版本落后问题</li><li>配 allowlist 白名单收紧访问（生产环境）</li><li>监控：用 <code>hermes cron</code> + 飞书通知做心跳</li></ul><hr><h2 id=9-关键文件清单>9. 关键文件清单<a hidden class=anchor aria-hidden=true href=#9-关键文件清单>#</a></h2><table><thead><tr><th>路径</th><th>作用</th></tr></thead><tbody><tr><td><code>/root/.hermes/.env</code></td><td>凭据 + 平台配置（Feishu、GLM）</td></tr><tr><td><code>/root/.hermes/config.yaml</code></td><td>模型 + auxiliary 段</td></tr><tr><td><code>/root/.hermes/hermes-agent/</code></td><td>Hermes 源码 + venv</td></tr><tr><td><code>/root/.local/bin/hermes</code></td><td>CLI 软链</td></tr><tr><td><code>/tmp/gateway.log</code></td><td>Gateway 运行时 log</td></tr><tr><td><code>/tmp/spawn_gw.py</code></td><td>重启脚本</td></tr><tr><td><code>/etc/ssh/sshd_config</code></td><td>SSH 配置（root 登录）</td></tr><tr><td><code>/etc/gdm3/custom.conf</code></td><td>GDM root 登录</td></tr><tr><td><code>/etc/pam.d/gdm-password</code></td><td>注释掉 user != root</td></tr><tr><td><code>~/.pip/pip.conf</code></td><td>pip 清华源</td></tr><tr><td><code>/etc/apt/sources.list.d/aliyun.list</code></td><td>APT 阿里源</td></tr></tbody></table><hr><h2 id=10-总结>10. 总结<a hidden class=anchor aria-hidden=true href=#10-总结>#</a></h2><p><strong>全流程 ~1.5 小时</strong>（含多个网络探测 + 失败重试）。</p><p><strong>关键经验</strong>：</p><ol><li><strong><code>provider: "zai"</code> 不是 &ldquo;custom&rdquo;</strong> —— 单这一条卡了 20 分钟</li><li><strong>res1 镜像慢</strong> → sed 强制走 GitHub，<strong>提速 1000 倍</strong></li><li><strong>gateway 必须 Python Popen + start_new_session</strong> —— <code>setsid</code> 在 SSH exec_command 里不够</li><li><strong>WebSocket 模式 > Webhook 模式</strong> —— 不需要公网 IP/端口映射</li><li><strong>lark_oapi 必须手工装</strong> —— hermes 默认 deps 没包含飞书 SDK</li><li><strong>bigmodel 模型名无 <code>-Flash</code> 后缀</strong> —— 端点上不存在，得用 <code>curl /v1/models</code> 探测</li></ol><p><strong>一次配置长期运行</strong>：零依赖人工干预，机器人 7×24 接收飞书消息。</p></div><footer class=post-footer><ul class=post-tags><li><a href=https://t1mmoc.github.io/tags/aigc/>AIGC</a></li></ul><nav class=paginav><a class=prev href=https://t1mmoc.github.io/posts/hugo-papermod-pitfalls/><span class=title>« Prev</span>
+<span>【AIGC】Hugo + PaperMod + GitHub Pages 搭建踩坑全记录</span>
+</a><a class=next href=https://t1mmoc.github.io/posts/21126386/><span class=title>Next »</span>
+<span>【AIGC】如何让AI找出偷偷藏在系统中偷吃内存的元凶</span></a></nav><ul class=share-buttons><li><a target=_blank rel="noopener noreferrer" aria-label="share 【AIGC】Hermes Agent 飞书 Bot 部署经验总结 on x" href="https://x.com/intent/tweet/?text=%e3%80%90AIGC%e3%80%91Hermes%20Agent%20%e9%a3%9e%e4%b9%a6%20Bot%20%e9%83%a8%e7%bd%b2%e7%bb%8f%e9%aa%8c%e6%80%bb%e7%bb%93&amp;url=https%3a%2f%2ft1mmoc.github.io%2fposts%2f21137621%2f&amp;hashtags=AIGC"><svg viewBox="0 0 512 512" height="30" width="30" fill="currentColor"><path d="M512 62.554V449.446C512 483.97 483.97 512 449.446 512H62.554C28.03 512 0 483.97.0 449.446V62.554C0 28.03 28.029.0 62.554.0H449.446C483.971.0 512 28.03 512 62.554zM269.951 190.75 182.567 75.216H56L207.216 272.95 63.9 436.783h61.366L235.9 310.383l96.667 126.4H456L298.367 228.367l134-153.151H371.033zM127.633 110h36.468l219.38 290.065H349.5z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share 【AIGC】Hermes Agent 飞书 Bot 部署经验总结 on linkedin" href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2ft1mmoc.github.io%2fposts%2f21137621%2f&amp;title=%e3%80%90AIGC%e3%80%91Hermes%20Agent%20%e9%a3%9e%e4%b9%a6%20Bot%20%e9%83%a8%e7%bd%b2%e7%bb%8f%e9%aa%8c%e6%80%bb%e7%bb%93&amp;summary=%e3%80%90AIGC%e3%80%91Hermes%20Agent%20%e9%a3%9e%e4%b9%a6%20Bot%20%e9%83%a8%e7%bd%b2%e7%bb%8f%e9%aa%8c%e6%80%bb%e7%bb%93&amp;source=https%3a%2f%2ft1mmoc.github.io%2fposts%2f21137621%2f"><svg viewBox="0 0 512 512" height="30" width="30" fill="currentColor"><path d="M449.446.0C483.971.0 512 28.03 512 62.554v386.892C512 483.97 483.97 512 449.446 512H62.554c-34.524.0-62.554-28.03-62.554-62.554V62.554c0-34.524 28.029-62.554 62.554-62.554h386.892zM160.461 423.278V197.561h-75.04v225.717h75.04zm270.539.0V293.839c0-69.333-37.018-101.586-86.381-101.586-39.804.0-57.634 21.891-67.617 37.266v-31.958h-75.021c.995 21.181.0 225.717.0 225.717h75.02V297.222c0-6.748.486-13.492 2.474-18.315 5.414-13.475 17.767-27.434 38.494-27.434 27.135.0 38.007 20.707 38.007 51.037v120.768H431zM123.448 88.722C97.774 88.722 81 105.601 81 127.724c0 21.658 16.264 39.002 41.455 39.002h.484c26.165.0 42.452-17.344 42.452-39.002-.485-22.092-16.241-38.954-41.943-39.002z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share 【AIGC】Hermes Agent 飞书 Bot 部署经验总结 on reddit" href="https://reddit.com/submit?url=https%3a%2f%2ft1mmoc.github.io%2fposts%2f21137621%2f&title=%e3%80%90AIGC%e3%80%91Hermes%20Agent%20%e9%a3%9e%e4%b9%a6%20Bot%20%e9%83%a8%e7%bd%b2%e7%bb%8f%e9%aa%8c%e6%80%bb%e7%bb%93"><svg viewBox="0 0 512 512" height="30" width="30" fill="currentColor"><path d="M449.446.0C483.971.0 512 28.03 512 62.554v386.892C512 483.97 483.97 512 449.446 512H62.554c-34.524.0-62.554-28.03-62.554-62.554V62.554c0-34.524 28.029-62.554 62.554-62.554h386.892zM446 265.638c0-22.964-18.616-41.58-41.58-41.58-11.211.0-21.361 4.457-28.841 11.666-28.424-20.508-67.586-33.757-111.204-35.278l18.941-89.121 61.884 13.157c.756 15.734 13.642 28.29 29.56 28.29 16.407.0 29.706-13.299 29.706-29.701.0-16.403-13.299-29.702-29.706-29.702-11.666.0-21.657 6.792-26.515 16.578l-69.105-14.69c-1.922-.418-3.939-.042-5.585 1.036-1.658 1.073-2.811 2.761-3.224 4.686l-21.152 99.438c-44.258 1.228-84.046 14.494-112.837 35.232-7.468-7.164-17.589-11.591-28.757-11.591-22.965.0-41.585 18.616-41.585 41.58.0 16.896 10.095 31.41 24.568 37.918-.639 4.135-.99 8.328-.99 12.576.0 63.977 74.469 115.836 166.33 115.836s166.334-51.859 166.334-115.836c0-4.218-.347-8.387-.977-12.493 14.564-6.47 24.735-21.034 24.735-38.001zM326.526 373.831c-20.27 20.241-59.115 21.816-70.534 21.816-11.428.0-50.277-1.575-70.522-21.82-3.007-3.008-3.007-7.882.0-10.889 3.003-2.999 7.882-3.003 10.885.0 12.777 12.781 40.11 17.317 59.637 17.317 19.522.0 46.86-4.536 59.657-17.321 3.016-2.999 7.886-2.995 10.885.008 3.008 3.011 3.003 7.882-.008 10.889zm-5.23-48.781c-16.373.0-29.701-13.324-29.701-29.698.0-16.381 13.328-29.714 29.701-29.714 16.378.0 29.706 13.333 29.706 29.714.0 16.374-13.328 29.698-29.706 29.698zM160.91 295.348c0-16.381 13.328-29.71 29.714-29.71 16.369.0 29.689 13.329 29.689 29.71.0 16.373-13.32 29.693-29.689 29.693-16.386.0-29.714-13.32-29.714-29.693z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share 【AIGC】Hermes Agent 飞书 Bot 部署经验总结 on facebook" href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2ft1mmoc.github.io%2fposts%2f21137621%2f"><svg viewBox="0 0 512 512" height="30" width="30" fill="currentColor"><path d="M449.446.0C483.971.0 512 28.03 512 62.554v386.892C512 483.97 483.97 512 449.446 512H342.978V319.085h66.6l12.672-82.621h-79.272v-53.617c0-22.603 11.073-44.636 46.58-44.636H425.6v-70.34s-32.71-5.582-63.982-5.582c-65.288.0-107.96 39.569-107.96 111.204v62.971h-72.573v82.621h72.573V512h-191.104c-34.524.0-62.554-28.03-62.554-62.554V62.554c0-34.524 28.029-62.554 62.554-62.554h386.892z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share 【AIGC】Hermes Agent 飞书 Bot 部署经验总结 on whatsapp" href="https://api.whatsapp.com/send?text=%e3%80%90AIGC%e3%80%91Hermes%20Agent%20%e9%a3%9e%e4%b9%a6%20Bot%20%e9%83%a8%e7%bd%b2%e7%bb%8f%e9%aa%8c%e6%80%bb%e7%bb%93%20-%20https%3a%2f%2ft1mmoc.github.io%2fposts%2f21137621%2f"><svg viewBox="0 0 512 512" height="30" width="30" fill="currentColor"><path d="M449.446.0C483.971.0 512 28.03 512 62.554v386.892C512 483.97 483.97 512 449.446 512H62.554c-34.524.0-62.554-28.03-62.554-62.554V62.554c0-34.524 28.029-62.554 62.554-62.554h386.892zm-58.673 127.703c-33.842-33.881-78.847-52.548-126.798-52.568-98.799.0-179.21 80.405-179.249 179.234-.013 31.593 8.241 62.428 23.927 89.612l-25.429 92.884 95.021-24.925c26.181 14.28 55.659 21.807 85.658 21.816h.074c98.789.0 179.206-80.413 179.247-179.243.018-47.895-18.61-92.93-52.451-126.81zM263.976 403.485h-.06c-26.734-.01-52.954-7.193-75.828-20.767l-5.441-3.229-56.386 14.792 15.05-54.977-3.542-5.637c-14.913-23.72-22.791-51.136-22.779-79.287.033-82.142 66.867-148.971 149.046-148.971 39.793.014 77.199 15.531 105.329 43.692 28.128 28.16 43.609 65.592 43.594 105.4-.034 82.149-66.866 148.983-148.983 148.984zm81.721-111.581c-4.479-2.242-26.499-13.075-30.604-14.571-4.105-1.495-7.091-2.241-10.077 2.241-2.986 4.483-11.569 14.572-14.182 17.562-2.612 2.988-5.225 3.364-9.703 1.12-4.479-2.241-18.91-6.97-36.017-22.23C231.8 264.15 222.81 249.484 220.198 245s-.279-6.908 1.963-9.14c2.016-2.007 4.48-5.232 6.719-7.847 2.24-2.615 2.986-4.484 4.479-7.472 1.493-2.99.747-5.604-.374-7.846-1.119-2.241-10.077-24.288-13.809-33.256-3.635-8.733-7.327-7.55-10.077-7.688-2.609-.13-5.598-.158-8.583-.158-2.986.0-7.839 1.121-11.944 5.604-4.105 4.484-15.675 15.32-15.675 37.364.0 22.046 16.048 43.342 18.287 46.332 2.24 2.99 31.582 48.227 76.511 67.627 10.685 4.615 19.028 7.371 25.533 9.434 10.728 3.41 20.492 2.929 28.209 1.775 8.605-1.285 26.499-10.833 30.231-21.295 3.732-10.464 3.732-19.431 2.612-21.298-1.119-1.869-4.105-2.99-8.583-5.232z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share 【AIGC】Hermes Agent 飞书 Bot 部署经验总结 on telegram" href="https://telegram.me/share/url?text=%e3%80%90AIGC%e3%80%91Hermes%20Agent%20%e9%a3%9e%e4%b9%a6%20Bot%20%e9%83%a8%e7%bd%b2%e7%bb%8f%e9%aa%8c%e6%80%bb%e7%bb%93&amp;url=https%3a%2f%2ft1mmoc.github.io%2fposts%2f21137621%2f"><svg viewBox="2 2 28 28" height="30" width="30" fill="currentColor"><path d="M26.49 29.86H5.5a3.37 3.37.0 01-2.47-1 3.35 3.35.0 01-1-2.47V5.48A3.36 3.36.0 013 3 3.37 3.37.0 015.5 2h21A3.38 3.38.0 0129 3a3.36 3.36.0 011 2.46V26.37a3.35 3.35.0 01-1 2.47 3.38 3.38.0 01-2.51 1.02zm-5.38-6.71a.79.79.0 00.85-.66L24.73 9.24a.55.55.0 00-.18-.46.62.62.0 00-.41-.17q-.08.0-16.53 6.11a.59.59.0 00-.41.59.57.57.0 00.43.52l4 1.24 1.61 4.83a.62.62.0 00.63.43.56.56.0 00.4-.17L16.54 20l4.09 3A.9.9.0 0021.11 23.15zM13.8 20.71l-1.21-4q8.72-5.55 8.78-5.55c.15.0.23.0.23.16a.18.18.0 010 .06s-2.51 2.3-7.52 6.8z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share 【AIGC】Hermes Agent 飞书 Bot 部署经验总结 on ycombinator" href="https://news.ycombinator.com/submitlink?t=%e3%80%90AIGC%e3%80%91Hermes%20Agent%20%e9%a3%9e%e4%b9%a6%20Bot%20%e9%83%a8%e7%bd%b2%e7%bb%8f%e9%aa%8c%e6%80%bb%e7%bb%93&u=https%3a%2f%2ft1mmoc.github.io%2fposts%2f21137621%2f"><svg width="30" height="30" viewBox="0 0 512 512" fill="currentColor"><path d="M449.446.0C483.971.0 512 28.03 512 62.554V449.446C512 483.97 483.97 512 449.446 512H62.554C28.03 512 0 483.97.0 449.446V62.554C0 28.03 28.029.0 62.554.0H449.446zM183.8767 87.9921h-62.034L230.6673 292.4508V424.0079h50.6655V292.4508L390.1575 87.9921H328.1233L256 238.2489z"/></svg></a></li></ul></footer></article></main><footer class=footer><span>&copy; 2026 <a href=https://t1mmoc.github.io/>Timmoc's Blog</a></span> ·
+<span>Powered by
+<a href="https://gohugo.io/?utm_source=papermod" rel=noopener target=_blank>Hugo</a> &
+<a href=https://github.com/adityatelange/hugo-PaperMod/ rel=noopener target=_blank>PaperMod</a></span></footer><a href=#top id=top-link class="top-link hidden" aria-label="go to top" title="Go to Top (Alt + G)" accesskey=g><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevrons-up"><polyline points="17 11 12 6 7 11"/><polyline points="17 18 12 13 7 18"/></svg>
+</a><script>let menu=document.getElementById("menu");if(menu){const e=localStorage.getItem("menu-scroll-position");e&&(menu.scrollLeft=parseInt(e,10)),menu.onscroll=function(){localStorage.setItem("menu-scroll-position",menu.scrollLeft)}}document.querySelectorAll('a[href^="#"]').forEach(e=>{e.addEventListener("click",function(e){e.preventDefault();var t=this.getAttribute("href").substr(1);window.matchMedia("(prefers-reduced-motion: reduce)").matches?document.querySelector(`[id='${decodeURIComponent(t)}']`).scrollIntoView():document.querySelector(`[id='${decodeURIComponent(t)}']`).scrollIntoView({behavior:"smooth"}),t==="top"?history.replaceState(null,null," "):history.pushState(null,null,`#${t}`)})})</script><script>var toplink=document.getElementById("top-link");window.onscroll=function(){const e=window.innerHeight;document.body.scrollTop>e||document.documentElement.scrollTop>e?toplink.classList.remove("hidden"):toplink.classList.add("hidden")}</script><script>document.getElementById("theme-toggle").addEventListener("click",()=>{const e=document.querySelector("html");e.dataset.theme==="dark"?(e.dataset.theme="light",localStorage.setItem("pref-theme","light")):(e.dataset.theme="dark",localStorage.setItem("pref-theme","dark"))})</script><script>document.querySelectorAll("pre > code").forEach(e=>{const n=e.parentNode.parentNode,t=document.createElement("button");t.classList.add("copy-code"),t.innerHTML="copy";function s(){t.innerHTML="copied!",setTimeout(()=>{t.innerHTML="copy"},2e3)}t.addEventListener("click",t=>{if("clipboard"in navigator){navigator.clipboard.writeText(e.textContent),s();return}const n=document.createRange();n.selectNodeContents(e);const o=window.getSelection();o.removeAllRanges(),o.addRange(n);try{document.execCommand("copy"),s()}catch{}o.removeRange(n)}),n.classList.contains("highlight")?n.appendChild(t):n.parentNode.firstChild==n||(e.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName=="TABLE"?e.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(t):e.parentNode.appendChild(t))})</script></body></html>

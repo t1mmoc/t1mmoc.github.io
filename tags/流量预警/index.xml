@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>流量预警 on Timmoc&#39;s Blog</title>
+    <link>https://t1mmoc.github.io/tags/%E6%B5%81%E9%87%8F%E9%A2%84%E8%AD%A6/</link>
+    <description>Recent content in 流量预警 on Timmoc&#39;s Blog</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sat, 29 Mar 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://t1mmoc.github.io/tags/%E6%B5%81%E9%87%8F%E9%A2%84%E8%AD%A6/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>【流量预警】装了UU远程/GameViewer的小心了</title>
+      <link>https://t1mmoc.github.io/posts/18799833/</link>
+      <pubDate>Sat, 29 Mar 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18799833/</guid>
+      <description>&lt;h1 id=&#34;前言&#34;&gt;前言&lt;/h1&gt;
+&lt;p&gt;月末了，没流量了，不过我今天怎么跑了4个G的流量？&lt;br&gt;
+我倒要看看是谁干的好事。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18799833/3336551-20250329195847653-1875540781.jpg&#34;&gt;&lt;br&gt;
+热点跑的？但是我一整天都挂着手机连电脑没动啊，最多也就偶尔用了一下。&lt;/p&gt;
+&lt;h1 id=&#34;别让我找到是谁偷跑我流量跑这么多&#34;&gt;别让我找到是谁偷跑我流量跑这么多&lt;/h1&gt;
+&lt;p&gt;好啊好，UU远程，得，你清高，你偷偷上传我电脑数据是吧。虽说没抓到现行也只能怀疑而已，但我磁盘空间哪里够他一天占3个G？&lt;br&gt;
+更重要的是，我【一天内从来没有使用过它】，我挂着它开机自启动【只是为了在我需要用到的时候使用】&lt;br&gt;
+那么问题来了，一个我没有用到的软件，凭什么和我用的其他软件排在一起？&lt;br&gt;
+英伟达也是，不过这个不敢卸载，留着算了。浏览器、oopz、雷神我今天确实用过，放过他们了。&lt;br&gt;
+sunshine好像用了一次，在内网环境下的，那200MB内网的话就无所谓了。&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18799833/3336551-20250329195720585-1774057098.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18799833/3336551-20250329200016774-168797912.jpg&#34;&gt;&lt;br&gt;
+往下翻了翻，更好笑了，ToDesk我【刚刚才使用过】，跑了45MB的流量。&lt;br&gt;
+那UU远程，你在干什么呢？&lt;br&gt;
+不会是拿我有ipv6的电脑跑节点吧。&lt;br&gt;
+比如其他用户的屏幕、操作数据，加密以后【经过我这台电脑中继】&lt;br&gt;
+这就是低延迟的理由吗&lt;/p&gt;
+&lt;h1 id=&#34;结语&#34;&gt;结语&lt;/h1&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18799833/3336551-20250329200632433-1995766672.jpg&#34;&gt;&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

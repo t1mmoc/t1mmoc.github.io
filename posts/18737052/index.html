@@ -1,0 +1,461 @@
+<!doctype html><html lang=en dir=auto data-theme=auto><head><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><meta name=robots content="index, follow"><title>Windows内核学习笔记（三） | Timmoc's Blog</title><meta name=keywords content><meta name=description content="前言
+本篇并非内核学习，但有点相关，是本人看了内核区域后的遐想。
+AI是一个思考的好工具，但是具体的验证还得亲为。
+这样的问题我曾经也思考过，但是由于编写代码过于麻烦，而现在也该给自己一个答案了。
+**图片太长，点击展开**
+
+尝试编码
+
+
+项目结构：
+
+TestDll：被修改的Dll
+TestRunner： 运行者，旁观者
+DllMemoryInjectTest：修改者，管理员权限
+
+由于已知内核代码是不能修改的，但是同一个dll在代码中的情况，windows会选择隔离进程吗？
+
+此处省略处理代码异常过程……
+最后会给出代码
+结果
+
+不同程序加载相同dll，其中一个程序修改它自身内存中dll后，另一个程序不会同步修改。
+当我发现修改保护不需要管理员权限时，其实就已经不抱有太大希望了
+但为了完成整个程序，还是写到了最后。
+dll难道都类似于include一样，每一个exe都复制自己的dll吗
+
+哎，有个问题。
+系统dll也适用这个条件吗？
+这里的基地址完全一样。
+
+注意到，用户模块的基地址也完全一样
+感觉不抱希望。
+不如直接用xdbg修改试试，没必要写软件了。
+
+随便改了一个字节，没有同步。"><meta name=author content><link rel=canonical href=https://t1mmoc.github.io/posts/18737052/><link crossorigin=anonymous href=/assets/css/stylesheet.cd9298b33628769aa1bc1acebbbfd7aa11ce81dfe03484d479e1907760249a1d.css integrity="sha256-zZKYszYodpqhvBrOu7/XqhHOgd/gNITUeeGQd2Akmh0=" rel="preload stylesheet" as=style><link rel=icon href=https://t1mmoc.github.io/favicon.ico><link rel=icon type=image/png sizes=16x16 href=https://t1mmoc.github.io/favicon-16x16.png><link rel=icon type=image/png sizes=32x32 href=https://t1mmoc.github.io/favicon-32x32.png><link rel=apple-touch-icon href=https://t1mmoc.github.io/apple-touch-icon.png><link rel=mask-icon href=https://t1mmoc.github.io/safari-pinned-tab.svg><meta name=theme-color content="#2e2e33"><meta name=msapplication-TileColor content="#2e2e33"><link rel=alternate hreflang=en href=https://t1mmoc.github.io/posts/18737052/><noscript><style>#theme-toggle,.top-link{display:none}</style><style>@media(prefers-color-scheme:dark){:root{--theme:rgb(29, 30, 32);--entry:rgb(46, 46, 51);--primary:rgb(218, 218, 219);--secondary:rgb(155, 156, 157);--tertiary:rgb(65, 66, 68);--content:rgb(196, 196, 197);--code-block-bg:rgb(46, 46, 51);--code-bg:rgb(55, 56, 62);--border:rgb(51, 51, 51);color-scheme:dark}.list{background:var(--theme)}.toc{background:var(--entry)}}</style></noscript><script>localStorage.getItem("pref-theme")==="dark"?document.querySelector("html").dataset.theme="dark":localStorage.getItem("pref-theme")==="light"?document.querySelector("html").dataset.theme="light":window.matchMedia("(prefers-color-scheme: dark)").matches?document.querySelector("html").dataset.theme="dark":document.querySelector("html").dataset.theme="light"</script><meta property="og:url" content="https://t1mmoc.github.io/posts/18737052/"><meta property="og:site_name" content="Timmoc's Blog"><meta property="og:title" content="Windows内核学习笔记（三）"><meta property="og:description" content="前言 本篇并非内核学习，但有点相关，是本人看了内核区域后的遐想。
+AI是一个思考的好工具，但是具体的验证还得亲为。
+这样的问题我曾经也思考过，但是由于编写代码过于麻烦，而现在也该给自己一个答案了。
+**图片太长，点击展开**
+尝试编码 项目结构：
+TestDll：被修改的Dll TestRunner： 运行者，旁观者 DllMemoryInjectTest：修改者，管理员权限 由于已知内核代码是不能修改的，但是同一个dll在代码中的情况，windows会选择隔离进程吗？
+此处省略处理代码异常过程……
+最后会给出代码
+结果 不同程序加载相同dll，其中一个程序修改它自身内存中dll后，另一个程序不会同步修改。
+当我发现修改保护不需要管理员权限时，其实就已经不抱有太大希望了
+但为了完成整个程序，还是写到了最后。
+dll难道都类似于include一样，每一个exe都复制自己的dll吗
+哎，有个问题。
+系统dll也适用这个条件吗？
+这里的基地址完全一样。
+注意到，用户模块的基地址也完全一样
+感觉不抱希望。
+不如直接用xdbg修改试试，没必要写软件了。
+随便改了一个字节，没有同步。"><meta property="og:locale" content="zh_cn"><meta property="og:type" content="article"><meta property="article:section" content="posts"><meta property="article:published_time" content="2025-02-25T00:00:00+00:00"><meta property="article:modified_time" content="2025-02-25T00:00:00+00:00"><meta name=twitter:card content="summary"><meta name=twitter:title content="Windows内核学习笔记（三）"><meta name=twitter:description content="前言 本篇并非内核学习，但有点相关，是本人看了内核区域后的遐想。
+AI是一个思考的好工具，但是具体的验证还得亲为。
+这样的问题我曾经也思考过，但是由于编写代码过于麻烦，而现在也该给自己一个答案了。
+**图片太长，点击展开**
+尝试编码 项目结构：
+TestDll：被修改的Dll TestRunner： 运行者，旁观者 DllMemoryInjectTest：修改者，管理员权限 由于已知内核代码是不能修改的，但是同一个dll在代码中的情况，windows会选择隔离进程吗？
+此处省略处理代码异常过程……
+最后会给出代码
+结果 不同程序加载相同dll，其中一个程序修改它自身内存中dll后，另一个程序不会同步修改。
+当我发现修改保护不需要管理员权限时，其实就已经不抱有太大希望了
+但为了完成整个程序，还是写到了最后。
+dll难道都类似于include一样，每一个exe都复制自己的dll吗
+哎，有个问题。
+系统dll也适用这个条件吗？
+这里的基地址完全一样。
+注意到，用户模块的基地址也完全一样
+感觉不抱希望。
+不如直接用xdbg修改试试，没必要写软件了。
+随便改了一个字节，没有同步。"><script type=application/ld+json>{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Posts","item":"https://t1mmoc.github.io/posts/"},{"@type":"ListItem","position":2,"name":"Windows内核学习笔记（三）","item":"https://t1mmoc.github.io/posts/18737052/"}]}</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","headline":"Windows内核学习笔记（三）","name":"Windows内核学习笔记（三）","description":"前言 本篇并非内核学习，但有点相关，是本人看了内核区域后的遐想。\nAI是一个思考的好工具，但是具体的验证还得亲为。\n这样的问题我曾经也思考过，但是由于编写代码过于麻烦，而现在也该给自己一个答案了。\n**图片太长，点击展开**\n尝试编码 项目结构：\nTestDll：被修改的Dll TestRunner： 运行者，旁观者 DllMemoryInjectTest：修改者，管理员权限 由于已知内核代码是不能修改的，但是同一个dll在代码中的情况，windows会选择隔离进程吗？\n此处省略处理代码异常过程……\n最后会给出代码\n结果 不同程序加载相同dll，其中一个程序修改它自身内存中dll后，另一个程序不会同步修改。\n当我发现修改保护不需要管理员权限时，其实就已经不抱有太大希望了\n但为了完成整个程序，还是写到了最后。\ndll难道都类似于include一样，每一个exe都复制自己的dll吗\n哎，有个问题。\n系统dll也适用这个条件吗？\n这里的基地址完全一样。\n注意到，用户模块的基地址也完全一样\n感觉不抱希望。\n不如直接用xdbg修改试试，没必要写软件了。\n随便改了一个字节，没有同步。\n","keywords":[],"articleBody":"前言 本篇并非内核学习，但有点相关，是本人看了内核区域后的遐想。\nAI是一个思考的好工具，但是具体的验证还得亲为。\n这样的问题我曾经也思考过，但是由于编写代码过于麻烦，而现在也该给自己一个答案了。\n**图片太长，点击展开**\n尝试编码 项目结构：\nTestDll：被修改的Dll TestRunner： 运行者，旁观者 DllMemoryInjectTest：修改者，管理员权限 由于已知内核代码是不能修改的，但是同一个dll在代码中的情况，windows会选择隔离进程吗？\n此处省略处理代码异常过程……\n最后会给出代码\n结果 不同程序加载相同dll，其中一个程序修改它自身内存中dll后，另一个程序不会同步修改。\n当我发现修改保护不需要管理员权限时，其实就已经不抱有太大希望了\n但为了完成整个程序，还是写到了最后。\ndll难道都类似于include一样，每一个exe都复制自己的dll吗\n哎，有个问题。\n系统dll也适用这个条件吗？\n这里的基地址完全一样。\n注意到，用户模块的基地址也完全一样\n感觉不抱希望。\n不如直接用xdbg修改试试，没必要写软件了。\n随便改了一个字节，没有同步。\n思考 windows应该不会像Chromium一样，因此抱着怀疑的态度询问了AI\n这篇文章中的说法是不完全准确的。在Windows系统中，DLL（动态链接库）的加载和共享机制并不是通过简单地“复制一份”来实现的，而是通过复杂的内存映射和共享机制来完成的。 关于DLL的共享机制 在Windows中，DLL文件（如kernel32.dll、ntdll.dll等）是被设计为可以被多个进程共享的。当第一个进程加载某个DLL时，系统会将DLL的代码部分加载到内存中，并为该DLL创建一个共享的内存映射。\n当其他进程加载相同的DLL时，系统不会重新加载DLL的代码部分，而是直接映射到已经加载的内存区域。这意味着多个进程可以共享同一个DLL的代码部分，从而节省内存。\nDLL的代码与数据分离： DLL的代码部分（即只读的指令代码）是可以被多个进程共享的，因为代码是只读的，不会被修改。\n而DLL的全局数据部分（如变量等）是每个进程独立的，系统会为每个进程创建独立的数据副本，以避免进程之间的数据冲突。\n基地址相同的原因： 文章中提到“用户模块的基地址完全一样”，这是因为Windows的内存管理机制会尽量将DLL加载到相同的基地址（如果可能的话）。这是为了提高性能和兼容性，但并不意味着DLL被“复制”了。\n如果由于某些原因（如地址空间冲突），DLL无法加载到预期的基地址，系统会进行重定位，但代码部分仍然可以共享。\n关于文章中的实验结果 文章中提到“不同程序加载相同DLL，其中一个程序修改它自身内存中的DLL后，另一个程序不会同步修改”。这个结果是正确的，因为DLL的代码部分是只读的，一旦被修改，实际上是在修改进程的私有内存映射，而不是原始的DLL代码。其他进程仍然会看到原始的DLL代码。\n代码 DllMemoryInjectTest.cpp\n// Program1.cpp #include #include #include // 用于 std::memcmp 和 std::memcpy // 搜索函数 int searchInBuffer(const char* buf, size_t buf_size, const char* target, size_t target_size) { if (buf == nullptr || target == nullptr || buf_size \u003c target_size) { return -1; // 参数无效或目标序列比缓冲区大 } for (size_t i = 0; i \u003c= buf_size - target_size; ++i) { // 使用 std::memcmp 比较目标序列 if (std::memcmp(buf + i, target, target_size) == 0) { return static_cast(i); // 找到匹配，返回位置 } } return -1; // 未找到 } int main() { // 加载DLL HMODULE hDll = LoadLibrary(L\"TestDll.dll\"); if (!hDll) { printf(\"Failed to load DLL\\n\"); return 1; } // 获取函数地址 FARPROC originalFunction = GetProcAddress(hDll, \"MyFunction\"); if (!originalFunction) { printf(\"Failed to get function address\\n\"); FreeLibrary(hDll); return 1; } // 获取实际函数代码地址 // 跳板指令格式：E9 \u003c相对偏移量\u003e (相对跳转) unsigned char* thunk = (unsigned char*)originalFunction; unsigned int relativeOffset = *(unsigned int*)(thunk + 1); // 获取相对偏移量 void* actualFunction = (void*)((unsigned char*)originalFunction + relativeOffset + 5); // 计算实际函数地址 // 调用修改后的函数 typedef void (*Func)(); Func function = (Func)originalFunction; function(); // 尝试修改代码段的保护属性 DWORD oldProtect; if (!VirtualProtect(actualFunction, 1024, PAGE_EXECUTE_READWRITE, \u0026oldProtect)) { printf(\"Failed to change protection\\n\"); FreeLibrary(hDll); return 1; } // 尝试修改代码 // 新函数的机器代码（x86/x64汇编实现） // 注意：以下代码为x86架构的实现，如果需要x64架构，需要调整机器代码 unsigned char rawCode[] = { 0x40, 0x55, // push rbp 0x57, // push rdi 0x48, 0x81, 0xEC, 0xE8, 0x00, 0x00, 0x00, // sub rsp, 0xE8 0x48, 0x8D, 0x6C, 0x24, 0x20, // lea rbp, [rsp+20h] 0x48, 0x8D, 0x0D, 0x00, 0x00, 0x00, 0x00, // lea rcx, [rel fmt] (需要修正为字符串地址) 0xE8, 0x00, 0x00, 0x00, 0x00, // call printf (需要修正为printf地址) 0x48, 0x8D, 0xA5, 0xC8, 0x00, 0x00, 0x00, // lea rsp, [rbp+0C8h] 0x5F, // pop rdi 0x5D, // pop rbp 0xC3, // ret 'M', 'o', 'd', 'i', 'f', 'i', 'e', 'd', ' ', 'F', 'u', 'n', 'c', 't', 'i', 'o', 'n', 0x00 // \"Modified Function\\0\" }; unsigned char newCodeData[] = { 'M', 'o', 'd', 'i', 'f', 'i', 'e', 'd', ' ', 'F', 'u', 'n', 'c', 't', 'i', 'o', 'n','\\n', 0x00 // \"Modified Function\\0\" }; char search2[] = { 0x5D,0xC3 }; int index2 = searchInBuffer((char*)actualFunction, 60, search2, sizeof(search2)); if (index2 == -1) { printf(\"err2\"); return -1; } index2 += sizeof(search2); char search1[] = { 0x48,0x8D,0x0D }; int index1 = searchInBuffer((char*)actualFunction, 60, search1, sizeof(search1)); if (index1 == -1) { printf(\"err1\"); return -1; } index1 += sizeof(search1); int index1_ = searchInBuffer((char*)actualFunction + index1, 60, search1, sizeof(search1)); if (index1_ != -1) { index1 = index1 + index1_ + sizeof(search1); } // 修正字符串地址 char* strLo = (char*)actualFunction + index2; char* ripLo = (char*)actualFunction + index1 + 4; int releative = strLo - ripLo; *(int*)((char*)actualFunction + index1) = releative; memcpy(strLo, newCodeData, sizeof(newCodeData)); // 恢复保护属性 VirtualProtect(actualFunction, 1024, oldProtect, \u0026oldProtect); printf(\"Attempted to modify DLL code\\n\"); function(); // 保持DLL加载状态，等待用户输入 printf(\"Press Enter to exit...\\n\"); getchar(); FreeLibrary(hDll); return 0; } TestRunner.cpp\n// Program2.cpp #include #include int main() { // 加载DLL HMODULE hDll = LoadLibrary(L\"TestDll.dll\"); if (!hDll) { printf(\"Failed to load DLL\\n\"); return 1; } // 获取函数地址并调用 typedef void (*Func)(); Func myFunction = (Func)GetProcAddress(hDll, \"MyFunction\"); if (!myFunction) { printf(\"Failed to get function address\\n\"); FreeLibrary(hDll); return 1; } // 第一次调用：验证原始状态 printf(\"Calling MyFunction (Original State):\\n\"); myFunction(); // 等待用户输入，以便程序1修改DLL代码 printf(\"Press Enter to continue...\\n\"); getchar(); // 第二次调用：验证修改后的状态 printf(\"Calling MyFunction (Modified State):\\n\"); myFunction(); FreeLibrary(hDll); printf(\"Press Enter to exit...\\n\"); getchar(); return 0; } dllmain.cpp\n// dllmain.cpp : 定义 DLL 应用程序的入口点。 #include \"pch.h\" BOOL APIENTRY DllMain( HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved ) { switch (ul_reason_for_call) { case DLL_PROCESS_ATTACH: case DLL_THREAD_ATTACH: case DLL_THREAD_DETACH: case DLL_PROCESS_DETACH: break; } return TRUE; } extern \"C\" __declspec(dllexport) void MyFunction() { printf(\"Original Function\\n\"); } 给自己的备份（访客不可用）\n-----BEGIN PGP MESSAGE----- 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 lpJU+Vdi7K9cwqxuYVjSplK9L4DAnu6N =NDG3 -----END PGP MESSAGE----- ","wordCount":"809","inLanguage":"en","datePublished":"2025-02-25T00:00:00Z","dateModified":"2025-02-25T00:00:00Z","mainEntityOfPage":{"@type":"WebPage","@id":"https://t1mmoc.github.io/posts/18737052/"},"publisher":{"@type":"Organization","name":"Timmoc's Blog","logo":{"@type":"ImageObject","url":"https://t1mmoc.github.io/favicon.ico"}}}</script></head><body id=top><header class=header><nav class=header-nav><div class=logo><a href=https://t1mmoc.github.io/ accesskey=h title="Timmoc's Blog (Alt + H)">Timmoc's Blog</a><div class=logo-switches><button id=theme-toggle class=theme-toggle accesskey=t title="(Alt + T)" aria-label="Toggle theme">
+<svg class="moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+<svg class="sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button></div></div><ul id=menu class=menu><li><a href=https://t1mmoc.github.io/posts/ title=文章><span>文章</span></a></li><li><a href=https://t1mmoc.github.io/tags/ title=标签><span>标签</span></a></li><li><a href=https://t1mmoc.github.io/search/ title="搜索 (Alt + /)" accesskey=/><span>搜索</span></a></li></ul></nav></header><main class=main><article class=post-single><header class=post-header><nav class=breadcrumbs role=navigation aria-label=Breadcrumb><a href=/>Home</a>
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right"><polyline points="9 18 15 12 9 6"/></svg>
+<a href=/posts/>Posts</a>
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right"><polyline points="9 18 15 12 9 6"/></svg></nav><h1 class="post-title entry-hint-parent">Windows内核学习笔记（三）</h1><div class=post-meta><span title='2025-02-25 00:00:00 +0000 UTC'>February 25, 2025</span>&nbsp;·&nbsp;<span>4 min</span>&nbsp;|&nbsp;<span>
+<a href=https://github.com/t1mmoc/t1mmoc.github.io/tree/main/content/posts/18737052.md rel="noopener noreferrer edit" target=_blank>编辑此页</a></span></div></header><details class=toc><summary accesskey=c title="(Alt + C)"><span class=title>Table of Contents</span></summary><div class=inner><ul><li><a href=#%e5%89%8d%e8%a8%80 aria-label=前言>前言</a></li><li><a href=#%e5%b0%9d%e8%af%95%e7%bc%96%e7%a0%81 aria-label=尝试编码>尝试编码</a></li><li><a href=#%e7%bb%93%e6%9e%9c aria-label=结果>结果</a></li><li><a href=#%e6%80%9d%e8%80%83 aria-label=思考>思考</a><ul><ul><li><a href=#%e8%bf%99%e7%af%87%e6%96%87%e7%ab%a0%e4%b8%ad%e7%9a%84%e8%af%b4%e6%b3%95%e6%98%af%e4%b8%8d%e5%ae%8c%e5%85%a8%e5%87%86%e7%a1%ae%e7%9a%84%e5%9c%a8windows%e7%b3%bb%e7%bb%9f%e4%b8%addll%e5%8a%a8%e6%80%81%e9%93%be%e6%8e%a5%e5%ba%93%e7%9a%84%e5%8a%a0%e8%bd%bd%e5%92%8c%e5%85%b1%e4%ba%ab%e6%9c%ba%e5%88%b6%e5%b9%b6%e4%b8%8d%e6%98%af%e9%80%9a%e8%bf%87%e7%ae%80%e5%8d%95%e5%9c%b0%e5%a4%8d%e5%88%b6%e4%b8%80%e4%bb%bd%e6%9d%a5%e5%ae%9e%e7%8e%b0%e7%9a%84%e8%80%8c%e6%98%af%e9%80%9a%e8%bf%87%e5%a4%8d%e6%9d%82%e7%9a%84%e5%86%85%e5%ad%98%e6%98%a0%e5%b0%84%e5%92%8c%e5%85%b1%e4%ba%ab%e6%9c%ba%e5%88%b6%e6%9d%a5%e5%ae%8c%e6%88%90%e7%9a%84 aria-label=这篇文章中的说法是不完全准确的。在Windows系统中，DLL（动态链接库）的加载和共享机制并不是通过简单地“复制一份”来实现的，而是通过复杂的内存映射和共享机制来完成的。>这篇文章中的说法是不完全准确的。在Windows系统中，DLL（动态链接库）的加载和共享机制并不是通过简单地“复制一份”来实现的，而是通过复杂的内存映射和共享机制来完成的。</a></li><li><a href=#%e5%85%b3%e4%ba%8edll%e7%9a%84%e5%85%b1%e4%ba%ab%e6%9c%ba%e5%88%b6 aria-label=关于DLL的共享机制>关于DLL的共享机制</a><ul><li><a href=#dll%e7%9a%84%e4%bb%a3%e7%a0%81%e4%b8%8e%e6%95%b0%e6%8d%ae%e5%88%86%e7%a6%bb aria-label=DLL的代码与数据分离：>DLL的代码与数据分离：</a></li><li><a href=#%e5%9f%ba%e5%9c%b0%e5%9d%80%e7%9b%b8%e5%90%8c%e7%9a%84%e5%8e%9f%e5%9b%a0 aria-label=基地址相同的原因：>基地址相同的原因：</a></li><li><a href=#%e5%85%b3%e4%ba%8e%e6%96%87%e7%ab%a0%e4%b8%ad%e7%9a%84%e5%ae%9e%e9%aa%8c%e7%bb%93%e6%9e%9c aria-label=关于文章中的实验结果>关于文章中的实验结果</a></li></ul></li></ul></ul></li><li><a href=#%e4%bb%a3%e7%a0%81 aria-label=代码>代码</a></li></ul></div></details><div class="post-content md-content"><h1 id=前言>前言<a hidden class=anchor aria-hidden=true href=#前言>#</a></h1><p>本篇并非内核学习，但有点相关，是本人看了内核区域后的遐想。<br>AI是一个思考的好工具，但是具体的验证还得亲为。<br>这样的问题我曾经也思考过，但是由于编写代码过于麻烦，而现在也该给自己一个答案了。</p><p>**图片太长，点击展开**</p><p><img alt=image loading=lazy src=/images/18737052/3336551-20250225172907861-126349978.png></p><h1 id=尝试编码>尝试编码<a hidden class=anchor aria-hidden=true href=#尝试编码>#</a></h1><p><img alt=image loading=lazy src=/images/18737052/3336551-20250225173206197-89734721.png><br><img alt=image loading=lazy src=/images/18737052/3336551-20250225173305759-98452787.png></p><p>项目结构：</p><ul><li>TestDll：被修改的Dll</li><li>TestRunner： 运行者，旁观者</li><li>DllMemoryInjectTest：修改者，管理员权限</li></ul><p>由于已知内核代码是不能修改的，但是同一个dll在代码中的情况，windows会选择隔离进程吗？<br><img alt=image loading=lazy src=/images/18737052/3336551-20250225174036259-691100929.png><br>此处省略处理代码异常过程……<br>最后会给出代码</p><h1 id=结果>结果<a hidden class=anchor aria-hidden=true href=#结果>#</a></h1><p><img alt=image loading=lazy src=/images/18737052/3336551-20250226091423575-1520665169.png><br>不同程序加载相同dll，其中一个程序修改它自身内存中dll后，另一个程序<strong>不会</strong>同步修改。<br>当我发现修改保护不需要管理员权限时，其实就已经不抱有太大希望了<br>但为了完成整个程序，还是写到了最后。<br>dll难道都类似于include一样，每一个exe都复制自己的dll吗<br><img alt=image loading=lazy src=/images/18737052/3336551-20250226091806144-1735326950.png><br>哎，有个问题。<br>系统dll也适用这个条件吗？<br>这里的基地址完全一样。<br><img alt=image loading=lazy src=/images/18737052/3336551-20250226092439558-350337592.png><br>注意到，用户模块的基地址也完全一样<br>感觉不抱希望。<br>不如直接用xdbg修改试试，没必要写软件了。<br><img alt=image loading=lazy src=/images/18737052/3336551-20250226092553080-1270040428.png><br>随便改了一个字节，没有同步。</p><h1 id=思考>思考<a hidden class=anchor aria-hidden=true href=#思考>#</a></h1><p>windows应该不会像<code>Chromium</code>一样，因此抱着怀疑的态度询问了AI</p><h3 id=这篇文章中的说法是不完全准确的在windows系统中dll动态链接库的加载和共享机制并不是通过简单地复制一份来实现的而是通过复杂的内存映射和共享机制来完成的>这篇文章中的说法是不完全准确的。在Windows系统中，DLL（动态链接库）的加载和共享机制并不是通过简单地“复制一份”来实现的，而是通过复杂的内存映射和共享机制来完成的。<a hidden class=anchor aria-hidden=true href=#这篇文章中的说法是不完全准确的在windows系统中dll动态链接库的加载和共享机制并不是通过简单地复制一份来实现的而是通过复杂的内存映射和共享机制来完成的>#</a></h3><h3 id=关于dll的共享机制>关于DLL的共享机制<a hidden class=anchor aria-hidden=true href=#关于dll的共享机制>#</a></h3><p>在Windows中，DLL文件（如kernel32.dll、ntdll.dll等）是被设计为可以被多个进程共享的。当第一个进程加载某个DLL时，系统会将DLL的代码部分加载到内存中，并为该DLL创建一个共享的内存映射。</p><p>当其他进程加载相同的DLL时，系统不会重新加载DLL的代码部分，而是直接映射到已经加载的内存区域。这意味着多个进程可以共享同一个DLL的代码部分，从而节省内存。</p><h4 id=dll的代码与数据分离>DLL的代码与数据分离：<a hidden class=anchor aria-hidden=true href=#dll的代码与数据分离>#</a></h4><p>DLL的代码部分（即只读的指令代码）是可以被多个进程共享的，因为代码是只读的，不会被修改。<br>而DLL的全局数据部分（如变量等）是每个进程独立的，系统会为每个进程创建独立的数据副本，以避免进程之间的数据冲突。</p><h4 id=基地址相同的原因>基地址相同的原因：<a hidden class=anchor aria-hidden=true href=#基地址相同的原因>#</a></h4><p>文章中提到“用户模块的基地址完全一样”，这是因为Windows的内存管理机制会尽量将DLL加载到相同的基地址（如果可能的话）。这是为了提高性能和兼容性，但并不意味着DLL被“复制”了。</p><p>如果由于某些原因（如地址空间冲突），DLL无法加载到预期的基地址，系统会进行重定位，但代码部分仍然可以共享。</p><h4 id=关于文章中的实验结果>关于文章中的实验结果<a hidden class=anchor aria-hidden=true href=#关于文章中的实验结果>#</a></h4><p>文章中提到“不同程序加载相同DLL，其中一个程序修改它自身内存中的DLL后，另一个程序不会同步修改”。这个结果是正确的，因为DLL的代码部分是只读的，一旦被修改，<strong>实际上是在修改进程的私有内存映射</strong>，而不是原始的DLL代码。其他进程仍然会看到原始的DLL代码。</p><h1 id=代码>代码<a hidden class=anchor aria-hidden=true href=#代码>#</a></h1><p>DllMemoryInjectTest.cpp</p><pre tabindex=0><code>// Program1.cpp
+#include &lt;windows.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;cstring&gt; // 用于 std::memcmp 和 std::memcpy
+
+// 搜索函数
+int searchInBuffer(const char* buf, size_t buf_size, const char* target, size_t target_size) {
+    if (buf == nullptr || target == nullptr || buf_size &lt; target_size) {
+        return -1; // 参数无效或目标序列比缓冲区大
+    }
+
+    for (size_t i = 0; i &lt;= buf_size - target_size; ++i) {
+        // 使用 std::memcmp 比较目标序列
+        if (std::memcmp(buf + i, target, target_size) == 0) {
+            return static_cast&lt;int&gt;(i); // 找到匹配，返回位置
+        }
+    }
+
+    return -1; // 未找到
+}
+
+int main() {
+    // 加载DLL
+    HMODULE hDll = LoadLibrary(L&#34;TestDll.dll&#34;);
+    if (!hDll) {
+        printf(&#34;Failed to load DLL\n&#34;);
+        return 1;
+    }
+
+    // 获取函数地址
+    FARPROC originalFunction = GetProcAddress(hDll, &#34;MyFunction&#34;);
+    if (!originalFunction) {
+        printf(&#34;Failed to get function address\n&#34;);
+        FreeLibrary(hDll);
+        return 1;
+    }
+    // 获取实际函数代码地址
+    // 跳板指令格式：E9 &lt;相对偏移量&gt; (相对跳转)
+    unsigned char* thunk = (unsigned char*)originalFunction;
+    unsigned int relativeOffset = *(unsigned int*)(thunk + 1); // 获取相对偏移量
+    void* actualFunction = (void*)((unsigned char*)originalFunction + relativeOffset + 5); // 计算实际函数地址
+
+    // 调用修改后的函数
+    typedef void (*Func)();
+    Func function = (Func)originalFunction;
+    function();
+
+    // 尝试修改代码段的保护属性
+    DWORD oldProtect;
+    if (!VirtualProtect(actualFunction, 1024, PAGE_EXECUTE_READWRITE, &amp;oldProtect)) {
+        printf(&#34;Failed to change protection\n&#34;);
+        FreeLibrary(hDll);
+        return 1;
+    }
+
+    // 尝试修改代码
+    // 新函数的机器代码（x86/x64汇编实现）
+// 注意：以下代码为x86架构的实现，如果需要x64架构，需要调整机器代码
+    unsigned char rawCode[] = {
+        0x40, 0x55,                       // push rbp
+        0x57,                             // push rdi
+        0x48, 0x81, 0xEC, 0xE8, 0x00, 0x00, 0x00, // sub rsp, 0xE8
+        0x48, 0x8D, 0x6C, 0x24, 0x20,     // lea rbp, [rsp+20h]
+        0x48, 0x8D, 0x0D, 0x00, 0x00, 0x00, 0x00, // lea rcx, [rel fmt] (需要修正为字符串地址)
+        0xE8, 0x00, 0x00, 0x00, 0x00,     // call printf (需要修正为printf地址)
+        0x48, 0x8D, 0xA5, 0xC8, 0x00, 0x00, 0x00, // lea rsp, [rbp+0C8h]
+        0x5F,                             // pop rdi
+        0x5D,                             // pop rbp
+        0xC3,                             // ret
+        &#39;M&#39;, &#39;o&#39;, &#39;d&#39;, &#39;i&#39;, &#39;f&#39;, &#39;i&#39;, &#39;e&#39;, &#39;d&#39;, &#39; &#39;, &#39;F&#39;, &#39;u&#39;, &#39;n&#39;, &#39;c&#39;, &#39;t&#39;, &#39;i&#39;, &#39;o&#39;, &#39;n&#39;, 0x00 // &#34;Modified Function\0&#34;
+    };
+    unsigned char newCodeData[] = {
+        &#39;M&#39;, &#39;o&#39;, &#39;d&#39;, &#39;i&#39;, &#39;f&#39;, &#39;i&#39;, &#39;e&#39;, &#39;d&#39;, &#39; &#39;, &#39;F&#39;, &#39;u&#39;, &#39;n&#39;, &#39;c&#39;, &#39;t&#39;, &#39;i&#39;, &#39;o&#39;, &#39;n&#39;,&#39;\n&#39;, 0x00 // &#34;Modified Function\0&#34;
+    };
+    char search2[] = { 0x5D,0xC3 };
+    int index2 = searchInBuffer((char*)actualFunction, 60, search2, sizeof(search2));
+    if (index2 == -1) {
+        printf(&#34;err2&#34;);
+        return -1;
+    }
+    index2 += sizeof(search2);
+
+    char search1[] = { 0x48,0x8D,0x0D };
+    int index1 = searchInBuffer((char*)actualFunction, 60, search1, sizeof(search1));
+    if (index1 == -1) {
+        printf(&#34;err1&#34;);
+        return -1;
+    }
+    index1 += sizeof(search1);
+    int index1_ = searchInBuffer((char*)actualFunction + index1, 60, search1, sizeof(search1));
+    if (index1_ != -1) {
+        index1 = index1 + index1_ + sizeof(search1);
+    }
+
+    // 修正字符串地址
+    char* strLo = (char*)actualFunction + index2;
+    char* ripLo = (char*)actualFunction + index1 + 4;
+    int releative = strLo - ripLo;
+
+    *(int*)((char*)actualFunction + index1) = releative;
+    memcpy(strLo, newCodeData, sizeof(newCodeData));
+
+    // 恢复保护属性
+    VirtualProtect(actualFunction, 1024, oldProtect, &amp;oldProtect);
+
+    printf(&#34;Attempted to modify DLL code\n&#34;);
+
+    function();
+
+    // 保持DLL加载状态，等待用户输入
+    printf(&#34;Press Enter to exit...\n&#34;);
+    getchar();
+
+    FreeLibrary(hDll);
+    return 0;
+}
+</code></pre><p>TestRunner.cpp</p><pre tabindex=0><code>// Program2.cpp
+#include &lt;windows.h&gt;
+#include &lt;stdio.h&gt;
+
+int main() {
+    // 加载DLL
+    HMODULE hDll = LoadLibrary(L&#34;TestDll.dll&#34;);
+    if (!hDll) {
+        printf(&#34;Failed to load DLL\n&#34;);
+        return 1;
+    }
+
+    // 获取函数地址并调用
+    typedef void (*Func)();
+    Func myFunction = (Func)GetProcAddress(hDll, &#34;MyFunction&#34;);
+    if (!myFunction) {
+        printf(&#34;Failed to get function address\n&#34;);
+        FreeLibrary(hDll);
+        return 1;
+    }
+
+    // 第一次调用：验证原始状态
+    printf(&#34;Calling MyFunction (Original State):\n&#34;);
+    myFunction();
+
+    // 等待用户输入，以便程序1修改DLL代码
+    printf(&#34;Press Enter to continue...\n&#34;);
+    getchar();
+
+    // 第二次调用：验证修改后的状态
+    printf(&#34;Calling MyFunction (Modified State):\n&#34;);
+    myFunction();
+
+    FreeLibrary(hDll);
+
+    printf(&#34;Press Enter to exit...\n&#34;);
+    getchar();
+    return 0;
+}
+</code></pre><p>dllmain.cpp</p><pre tabindex=0><code>// dllmain.cpp : 定义 DLL 应用程序的入口点。
+#include &#34;pch.h&#34;
+
+BOOL APIENTRY DllMain( HMODULE hModule,
+                       DWORD  ul_reason_for_call,
+                       LPVOID lpReserved
+                     )
+{
+    switch (ul_reason_for_call)
+    {
+    case DLL_PROCESS_ATTACH:
+    case DLL_THREAD_ATTACH:
+    case DLL_THREAD_DETACH:
+    case DLL_PROCESS_DETACH:
+        break;
+    }
+    return TRUE;
+}
+
+extern &#34;C&#34; __declspec(dllexport) void MyFunction() {
+    printf(&#34;Original Function\n&#34;);
+}
+</code></pre><p><img alt=image loading=lazy src=/images/18737052/3336551-20250226093525088-69564493.png></p><p>给自己的备份（访客不可用）</p><pre tabindex=0><code>-----BEGIN PGP MESSAGE-----
+
+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
+lpJU+Vdi7K9cwqxuYVjSplK9L4DAnu6N
+=NDG3
+-----END PGP MESSAGE-----
+</code></pre></div><footer class=post-footer><ul class=post-tags></ul><nav class=paginav><a class=prev href=https://t1mmoc.github.io/posts/18736681/><span class=title>« Prev</span>
+<span>Windows内核学习笔记（一）</span>
+</a><a class=next href=https://t1mmoc.github.io/posts/18736797/><span class=title>Next »</span>
+<span>Windows内核学习笔记（二）</span></a></nav><ul class=share-buttons><li><a target=_blank rel="noopener noreferrer" aria-label="share Windows内核学习笔记（三） on x" href="https://x.com/intent/tweet/?text=Windows%e5%86%85%e6%a0%b8%e5%ad%a6%e4%b9%a0%e7%ac%94%e8%ae%b0%ef%bc%88%e4%b8%89%ef%bc%89&amp;url=https%3a%2f%2ft1mmoc.github.io%2fposts%2f18737052%2f&amp;hashtags="><svg viewBox="0 0 512 512" height="30" width="30" fill="currentColor"><path d="M512 62.554V449.446C512 483.97 483.97 512 449.446 512H62.554C28.03 512 0 483.97.0 449.446V62.554C0 28.03 28.029.0 62.554.0H449.446C483.971.0 512 28.03 512 62.554zM269.951 190.75 182.567 75.216H56L207.216 272.95 63.9 436.783h61.366L235.9 310.383l96.667 126.4H456L298.367 228.367l134-153.151H371.033zM127.633 110h36.468l219.38 290.065H349.5z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share Windows内核学习笔记（三） on linkedin" href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2ft1mmoc.github.io%2fposts%2f18737052%2f&amp;title=Windows%e5%86%85%e6%a0%b8%e5%ad%a6%e4%b9%a0%e7%ac%94%e8%ae%b0%ef%bc%88%e4%b8%89%ef%bc%89&amp;summary=Windows%e5%86%85%e6%a0%b8%e5%ad%a6%e4%b9%a0%e7%ac%94%e8%ae%b0%ef%bc%88%e4%b8%89%ef%bc%89&amp;source=https%3a%2f%2ft1mmoc.github.io%2fposts%2f18737052%2f"><svg viewBox="0 0 512 512" height="30" width="30" fill="currentColor"><path d="M449.446.0C483.971.0 512 28.03 512 62.554v386.892C512 483.97 483.97 512 449.446 512H62.554c-34.524.0-62.554-28.03-62.554-62.554V62.554c0-34.524 28.029-62.554 62.554-62.554h386.892zM160.461 423.278V197.561h-75.04v225.717h75.04zm270.539.0V293.839c0-69.333-37.018-101.586-86.381-101.586-39.804.0-57.634 21.891-67.617 37.266v-31.958h-75.021c.995 21.181.0 225.717.0 225.717h75.02V297.222c0-6.748.486-13.492 2.474-18.315 5.414-13.475 17.767-27.434 38.494-27.434 27.135.0 38.007 20.707 38.007 51.037v120.768H431zM123.448 88.722C97.774 88.722 81 105.601 81 127.724c0 21.658 16.264 39.002 41.455 39.002h.484c26.165.0 42.452-17.344 42.452-39.002-.485-22.092-16.241-38.954-41.943-39.002z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share Windows内核学习笔记（三） on reddit" href="https://reddit.com/submit?url=https%3a%2f%2ft1mmoc.github.io%2fposts%2f18737052%2f&title=Windows%e5%86%85%e6%a0%b8%e5%ad%a6%e4%b9%a0%e7%ac%94%e8%ae%b0%ef%bc%88%e4%b8%89%ef%bc%89"><svg viewBox="0 0 512 512" height="30" width="30" fill="currentColor"><path d="M449.446.0C483.971.0 512 28.03 512 62.554v386.892C512 483.97 483.97 512 449.446 512H62.554c-34.524.0-62.554-28.03-62.554-62.554V62.554c0-34.524 28.029-62.554 62.554-62.554h386.892zM446 265.638c0-22.964-18.616-41.58-41.58-41.58-11.211.0-21.361 4.457-28.841 11.666-28.424-20.508-67.586-33.757-111.204-35.278l18.941-89.121 61.884 13.157c.756 15.734 13.642 28.29 29.56 28.29 16.407.0 29.706-13.299 29.706-29.701.0-16.403-13.299-29.702-29.706-29.702-11.666.0-21.657 6.792-26.515 16.578l-69.105-14.69c-1.922-.418-3.939-.042-5.585 1.036-1.658 1.073-2.811 2.761-3.224 4.686l-21.152 99.438c-44.258 1.228-84.046 14.494-112.837 35.232-7.468-7.164-17.589-11.591-28.757-11.591-22.965.0-41.585 18.616-41.585 41.58.0 16.896 10.095 31.41 24.568 37.918-.639 4.135-.99 8.328-.99 12.576.0 63.977 74.469 115.836 166.33 115.836s166.334-51.859 166.334-115.836c0-4.218-.347-8.387-.977-12.493 14.564-6.47 24.735-21.034 24.735-38.001zM326.526 373.831c-20.27 20.241-59.115 21.816-70.534 21.816-11.428.0-50.277-1.575-70.522-21.82-3.007-3.008-3.007-7.882.0-10.889 3.003-2.999 7.882-3.003 10.885.0 12.777 12.781 40.11 17.317 59.637 17.317 19.522.0 46.86-4.536 59.657-17.321 3.016-2.999 7.886-2.995 10.885.008 3.008 3.011 3.003 7.882-.008 10.889zm-5.23-48.781c-16.373.0-29.701-13.324-29.701-29.698.0-16.381 13.328-29.714 29.701-29.714 16.378.0 29.706 13.333 29.706 29.714.0 16.374-13.328 29.698-29.706 29.698zM160.91 295.348c0-16.381 13.328-29.71 29.714-29.71 16.369.0 29.689 13.329 29.689 29.71.0 16.373-13.32 29.693-29.689 29.693-16.386.0-29.714-13.32-29.714-29.693z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share Windows内核学习笔记（三） on facebook" href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2ft1mmoc.github.io%2fposts%2f18737052%2f"><svg viewBox="0 0 512 512" height="30" width="30" fill="currentColor"><path d="M449.446.0C483.971.0 512 28.03 512 62.554v386.892C512 483.97 483.97 512 449.446 512H342.978V319.085h66.6l12.672-82.621h-79.272v-53.617c0-22.603 11.073-44.636 46.58-44.636H425.6v-70.34s-32.71-5.582-63.982-5.582c-65.288.0-107.96 39.569-107.96 111.204v62.971h-72.573v82.621h72.573V512h-191.104c-34.524.0-62.554-28.03-62.554-62.554V62.554c0-34.524 28.029-62.554 62.554-62.554h386.892z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share Windows内核学习笔记（三） on whatsapp" href="https://api.whatsapp.com/send?text=Windows%e5%86%85%e6%a0%b8%e5%ad%a6%e4%b9%a0%e7%ac%94%e8%ae%b0%ef%bc%88%e4%b8%89%ef%bc%89%20-%20https%3a%2f%2ft1mmoc.github.io%2fposts%2f18737052%2f"><svg viewBox="0 0 512 512" height="30" width="30" fill="currentColor"><path d="M449.446.0C483.971.0 512 28.03 512 62.554v386.892C512 483.97 483.97 512 449.446 512H62.554c-34.524.0-62.554-28.03-62.554-62.554V62.554c0-34.524 28.029-62.554 62.554-62.554h386.892zm-58.673 127.703c-33.842-33.881-78.847-52.548-126.798-52.568-98.799.0-179.21 80.405-179.249 179.234-.013 31.593 8.241 62.428 23.927 89.612l-25.429 92.884 95.021-24.925c26.181 14.28 55.659 21.807 85.658 21.816h.074c98.789.0 179.206-80.413 179.247-179.243.018-47.895-18.61-92.93-52.451-126.81zM263.976 403.485h-.06c-26.734-.01-52.954-7.193-75.828-20.767l-5.441-3.229-56.386 14.792 15.05-54.977-3.542-5.637c-14.913-23.72-22.791-51.136-22.779-79.287.033-82.142 66.867-148.971 149.046-148.971 39.793.014 77.199 15.531 105.329 43.692 28.128 28.16 43.609 65.592 43.594 105.4-.034 82.149-66.866 148.983-148.983 148.984zm81.721-111.581c-4.479-2.242-26.499-13.075-30.604-14.571-4.105-1.495-7.091-2.241-10.077 2.241-2.986 4.483-11.569 14.572-14.182 17.562-2.612 2.988-5.225 3.364-9.703 1.12-4.479-2.241-18.91-6.97-36.017-22.23C231.8 264.15 222.81 249.484 220.198 245s-.279-6.908 1.963-9.14c2.016-2.007 4.48-5.232 6.719-7.847 2.24-2.615 2.986-4.484 4.479-7.472 1.493-2.99.747-5.604-.374-7.846-1.119-2.241-10.077-24.288-13.809-33.256-3.635-8.733-7.327-7.55-10.077-7.688-2.609-.13-5.598-.158-8.583-.158-2.986.0-7.839 1.121-11.944 5.604-4.105 4.484-15.675 15.32-15.675 37.364.0 22.046 16.048 43.342 18.287 46.332 2.24 2.99 31.582 48.227 76.511 67.627 10.685 4.615 19.028 7.371 25.533 9.434 10.728 3.41 20.492 2.929 28.209 1.775 8.605-1.285 26.499-10.833 30.231-21.295 3.732-10.464 3.732-19.431 2.612-21.298-1.119-1.869-4.105-2.99-8.583-5.232z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share Windows内核学习笔记（三） on telegram" href="https://telegram.me/share/url?text=Windows%e5%86%85%e6%a0%b8%e5%ad%a6%e4%b9%a0%e7%ac%94%e8%ae%b0%ef%bc%88%e4%b8%89%ef%bc%89&amp;url=https%3a%2f%2ft1mmoc.github.io%2fposts%2f18737052%2f"><svg viewBox="2 2 28 28" height="30" width="30" fill="currentColor"><path d="M26.49 29.86H5.5a3.37 3.37.0 01-2.47-1 3.35 3.35.0 01-1-2.47V5.48A3.36 3.36.0 013 3 3.37 3.37.0 015.5 2h21A3.38 3.38.0 0129 3a3.36 3.36.0 011 2.46V26.37a3.35 3.35.0 01-1 2.47 3.38 3.38.0 01-2.51 1.02zm-5.38-6.71a.79.79.0 00.85-.66L24.73 9.24a.55.55.0 00-.18-.46.62.62.0 00-.41-.17q-.08.0-16.53 6.11a.59.59.0 00-.41.59.57.57.0 00.43.52l4 1.24 1.61 4.83a.62.62.0 00.63.43.56.56.0 00.4-.17L16.54 20l4.09 3A.9.9.0 0021.11 23.15zM13.8 20.71l-1.21-4q8.72-5.55 8.78-5.55c.15.0.23.0.23.16a.18.18.0 010 .06s-2.51 2.3-7.52 6.8z"/></svg></a></li><li><a target=_blank rel="noopener noreferrer" aria-label="share Windows内核学习笔记（三） on ycombinator" href="https://news.ycombinator.com/submitlink?t=Windows%e5%86%85%e6%a0%b8%e5%ad%a6%e4%b9%a0%e7%ac%94%e8%ae%b0%ef%bc%88%e4%b8%89%ef%bc%89&u=https%3a%2f%2ft1mmoc.github.io%2fposts%2f18737052%2f"><svg width="30" height="30" viewBox="0 0 512 512" fill="currentColor"><path d="M449.446.0C483.971.0 512 28.03 512 62.554V449.446C512 483.97 483.97 512 449.446 512H62.554C28.03 512 0 483.97.0 449.446V62.554C0 28.03 28.029.0 62.554.0H449.446zM183.8767 87.9921h-62.034L230.6673 292.4508V424.0079h50.6655V292.4508L390.1575 87.9921H328.1233L256 238.2489z"/></svg></a></li></ul></footer></article></main><footer class=footer><span>&copy; 2026 <a href=https://t1mmoc.github.io/>Timmoc's Blog</a></span> ·
+<span>Powered by
+<a href="https://gohugo.io/?utm_source=papermod" rel=noopener target=_blank>Hugo</a> &
+<a href=https://github.com/adityatelange/hugo-PaperMod/ rel=noopener target=_blank>PaperMod</a></span></footer><a href=#top id=top-link class="top-link hidden" aria-label="go to top" title="Go to Top (Alt + G)" accesskey=g><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevrons-up"><polyline points="17 11 12 6 7 11"/><polyline points="17 18 12 13 7 18"/></svg>
+</a><script>let menu=document.getElementById("menu");if(menu){const e=localStorage.getItem("menu-scroll-position");e&&(menu.scrollLeft=parseInt(e,10)),menu.onscroll=function(){localStorage.setItem("menu-scroll-position",menu.scrollLeft)}}document.querySelectorAll('a[href^="#"]').forEach(e=>{e.addEventListener("click",function(e){e.preventDefault();var t=this.getAttribute("href").substr(1);window.matchMedia("(prefers-reduced-motion: reduce)").matches?document.querySelector(`[id='${decodeURIComponent(t)}']`).scrollIntoView():document.querySelector(`[id='${decodeURIComponent(t)}']`).scrollIntoView({behavior:"smooth"}),t==="top"?history.replaceState(null,null," "):history.pushState(null,null,`#${t}`)})})</script><script>var toplink=document.getElementById("top-link");window.onscroll=function(){const e=window.innerHeight;document.body.scrollTop>e||document.documentElement.scrollTop>e?toplink.classList.remove("hidden"):toplink.classList.add("hidden")}</script><script>document.getElementById("theme-toggle").addEventListener("click",()=>{const e=document.querySelector("html");e.dataset.theme==="dark"?(e.dataset.theme="light",localStorage.setItem("pref-theme","light")):(e.dataset.theme="dark",localStorage.setItem("pref-theme","dark"))})</script><script>document.querySelectorAll("pre > code").forEach(e=>{const n=e.parentNode.parentNode,t=document.createElement("button");t.classList.add("copy-code"),t.innerHTML="copy";function s(){t.innerHTML="copied!",setTimeout(()=>{t.innerHTML="copy"},2e3)}t.addEventListener("click",t=>{if("clipboard"in navigator){navigator.clipboard.writeText(e.textContent),s();return}const n=document.createRange();n.selectNodeContents(e);const o=window.getSelection();o.removeAllRanges(),o.addRange(n);try{document.execCommand("copy"),s()}catch{}o.removeRange(n)}),n.classList.contains("highlight")?n.appendChild(t):n.parentNode.firstChild==n||(e.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName=="TABLE"?e.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(t):e.parentNode.appendChild(t))})</script></body></html>

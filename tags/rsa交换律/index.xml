@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>RSA交换律 on Timmoc&#39;s Blog</title>
+    <link>https://t1mmoc.github.io/tags/rsa%E4%BA%A4%E6%8D%A2%E5%BE%8B/</link>
+    <description>Recent content in RSA交换律 on Timmoc&#39;s Blog</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Sun, 11 May 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://t1mmoc.github.io/tags/rsa%E4%BA%A4%E6%8D%A2%E5%BE%8B/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>【RSA交换律】基于RSA的智力扑克游戏</title>
+      <link>https://t1mmoc.github.io/posts/18870826/</link>
+      <pubDate>Sun, 11 May 2025 00:00:00 +0000</pubDate>
+      <guid>https://t1mmoc.github.io/posts/18870826/</guid>
+      <description>&lt;h1 id=&#34;前排提醒&#34;&gt;前排提醒&lt;/h1&gt;
+&lt;p&gt;&lt;strong&gt;陷阱&lt;/strong&gt;，别来。&lt;br&gt;
+什么RSA智力扑克&lt;br&gt;
+都是陷阱。&lt;/p&gt;
+&lt;h1 id=&#34;初次尝试&#34;&gt;初次尝试&lt;/h1&gt;
+&lt;p&gt;据说RSA的加解密是具备&lt;strong&gt;交换律&lt;/strong&gt;的（注：后来发现不完全是这样）&lt;br&gt;
+也就是这样子：&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18870826/3336551-20250511151458470-1622554513.jpg&#34;&gt;&lt;br&gt;
+&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18870826/3336551-20250511151433699-1258628173.jpg&#34;&gt;&lt;br&gt;
+神奇吧？A加密某个数据，随后B加密该数据，此时本来要解密的话是先B解密然后A解密的。&lt;br&gt;
+但是想不到吧，A是可以先解密，随后B解密的。&lt;/p&gt;
+&lt;p&gt;就因为看到这个&lt;strong&gt;神奇的操作&lt;/strong&gt;，我开始了苦逼的尝试之旅。&lt;br&gt;
+&lt;strong&gt;读者看到这里有福了，因为可以不用自己去尝试了&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;这个标题是初次尝试，不过初次尝试的代码已经被我迭代掉了。&lt;br&gt;
+一开始肯定是使用第三方库来的舒服对吧。&lt;/p&gt;
+&lt;p&gt;点击查看图片&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18870826/3336551-20250511151736610-1982396813.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;有cryptography库干嘛不用呢？
+然后就是这样的：&lt;/p&gt;
+&lt;p&gt;&lt;img alt=&#34;image&#34; loading=&#34;lazy&#34; src=&#34;https://t1mmoc.github.io/images/18870826/3336551-20250511151857886-1770026394.jpg&#34;&gt;&lt;/p&gt;
+&lt;p&gt;第二次加密出错了，没错，A加密，B加密。。。B加密直接出错了。&lt;br&gt;
+问AI，AI说填充的问题，叫我改成NoPadding，然后我改了，发现没有NoPadding这个选项。&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>
