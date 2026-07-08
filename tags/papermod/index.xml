@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
-    <title>PaperMod on Timmoc&#39;s Blog</title>
+    <title>PaperMod on Timmoc 的技术小屋</title>
     <link>https://t1mmoc.github.io/tags/papermod/</link>
-    <description>Recent content in PaperMod on Timmoc&#39;s Blog</description>
+    <description>Recent content in PaperMod on Timmoc 的技术小屋</description>
     <generator>Hugo</generator>
     <language>zh-cn</language>
     <lastBuildDate>Sun, 05 Jul 2026 16:45:00 +0800</lastBuildDate>

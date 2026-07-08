@@ -1,0 +1,32 @@
+/* ===== Timmoc 的技术小屋 · 美化样式 ===== */
+
+/* 首页头像：圆形 + 白色描边 + 渐变柔光 */
+.profile_inner img {
+  border-radius: 50%;
+  border: 4px solid #ffffff;
+  box-shadow: 0 10px 30px rgba(79, 70, 229, 0.28);
+}
+
+/* 首页主标题：渐变文字（带纯色回退） */
+.profile_inner h1 {
+  color: #1f2937;
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* 首页按钮：更圆润的胶囊样式 */
+.profile_inner .buttons .button {
+  border-radius: 999px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.profile_inner .buttons .button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.25);
+}
+
+/* 社交图标与头像间距更舒适 */
+.profile_inner .social-icons {
+  margin-top: 0.4rem;
+}
