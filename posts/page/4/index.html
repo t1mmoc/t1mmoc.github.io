@@ -2,21 +2,7 @@
 <svg class="moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
 <svg class="sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button></div></div><ul id=menu class=menu><li><a href=https://t1mmoc.github.io/posts/ title=文章><span class=active>文章</span></a></li><li><a href=https://t1mmoc.github.io/tags/ title=标签><span>标签</span></a></li><li><a href=https://t1mmoc.github.io/search/ title="搜索 (Alt + /)" accesskey=/><span>搜索</span></a></li></ul></nav></header><main class=main><header class=page-header><nav class=breadcrumbs role=navigation aria-label=Breadcrumb><a href=/>Home</a>
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right"><polyline points="9 18 15 12 9 6"/></svg></nav><h1>Posts
-<a href=/posts/index.xml title=RSS aria-label=RSS><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" height="23"><path d="M4 11a9 9 0 019 9"/><path d="M4 4a16 16 0 0116 16"/><circle cx="5" cy="19" r="1"/></svg></a></h1></header><article class=post-entry><header class=entry-header><h2 class=entry-hint-parent>Sunshine Moonlight 串流 再玩一把</h2></header><div class=entry-content><p>前言 其实我已经配置好了，目前的配置是
-不过我额外安装vdd是因为基地版自带的那个显示屏有点问题。
-只不过我自己也忘了有什么问题了。
-但是现在
-什么？有更新？
-更新来玩玩。
-博主能这样随便更新，是因为这个软件不怎么用，而且喜欢折腾才这样做的，如果经常需要使用建议是稳定就不更新了
-啥意思，以前本机外可以直接访问WEBUI吗，这太离谱。
-感觉更应该是以前不监听本机外IP
-卸载 按照提示卸载即可
-安装 直接下一步就完事
-修bug 出现了，逃不掉的。
-用新的东西以后开始出bug，看不懂，更新一下先
-再次卸载 看不懂报错原因，卸载了再说
-...</p></div><footer class=entry-footer><span title='2025-03-02 00:00:00 +0000 UTC'>March 2, 2025</span>&nbsp;·&nbsp;<span>1 min</span></footer><a class=entry-link aria-label="post link to Sunshine Moonlight 串流 再玩一把" href=https://t1mmoc.github.io/posts/18746405/></a></article><article class=post-entry><header class=entry-header><h2 class=entry-hint-parent>Windows 剪贴板 编程原理学习</h2></header><div class=entry-content><p>前言 好累，终于码完一篇字了。
+<a href=/posts/index.xml title=RSS aria-label=RSS><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" height="23"><path d="M4 11a9 9 0 019 9"/><path d="M4 4a16 16 0 0116 16"/><circle cx="5" cy="19" r="1"/></svg></a></h1></header><article class=post-entry><header class=entry-header><h2 class=entry-hint-parent>Windows 剪贴板 编程原理学习</h2></header><div class=entry-content><p>前言 好累，终于码完一篇字了。
 进入正题吧
 与AI对话 https://learn.microsoft.com/zh-cn/windows/win32/dataxchg/standard-clipboard-formats
 提问是个好习惯，询问AI可以快速得到回答。
@@ -68,7 +54,7 @@ dll难道都类似于include一样，每一个exe都复制自己的dll吗
 ...</p></div><footer class=entry-footer><span title='2025-02-25 00:00:00 +0000 UTC'>February 25, 2025</span>&nbsp;·&nbsp;<span>4 min</span></footer><a class=entry-link aria-label="post link to Windows内核学习笔记（三）" href=https://t1mmoc.github.io/posts/18737052/></a></article><article class=post-entry><header class=entry-header><h2 class=entry-hint-parent>Windows内核学习笔记（二）</h2></header><div class=entry-content><p>Windows内核执行体组件概述 看看就好，反正也记不住，以后再回头看。
 Windows内核执行体（Executive）是Windows操作系统的核心组件之一，它提供了系统运行所需的各种高级服务和管理功能。执行体中除了函数组成，还包含了以下多个重要的组件：
 1. 内存管理器 功能：实现虚拟内存管理，负责系统地址空间的内存管理，并为每个进程提供一个私有的地址空间。同时支持进程之间的内存共享，并为缓存管理器提供底层支持。 相关知识：Windows的内存管理器通过分页机制和段页式管理，优化了内存的使用效率，减少了内存碎片。 2. 缓存管理器 功能：为文件系统提供统一的数据缓存支持，允许文件系统驱动程序将磁盘上的数据映射到内存中，并通过内存管理器协调物理内存的分配。 相关知识：缓存管理器通过LRU（最近最少使用）算法优化缓存数据的淘汰策略，提高系统的读写性能。 3. 文件系统 功能：管理文件和目录的创建、读写和组织，提供文件存储的逻辑结构和物理结构。 相关知识：常见的Windows文件系统包括NTFS、FAT32等，其中NTFS支持高级特性如文件加密、压缩和事务处理。 4. 进程和线程管理器 功能：负责进程和线程的创建、调度和终止。在Windows中，内核层提供了底层支持，执行体在此基础上增加了语义和功能。 相关知识：线程是进程内的最小执行单元，多个线程可以共享进程的资源，但线程切换的开销比进程小。 5. 即插即用管理器 功能：负责列举设备，加载并初始化设备所需的驱动程序，检测系统中的设备变化。 相关知识：即插即用管理器能够动态分配硬件资源，并在设备插入或拔出时自动调整资源分配。 6. 安全引用监视器（SRM） 功能：强制在本地计算机上实施安全策略，守护操作系统的资源，执行对象的保护和审计。 相关知识：SRM通过访问控制列表（ACL）和安全描述符（Security Descriptor）来管理对象的安全性。 7. 配置管理器 功能：管理系统注册表，提供系统配置和启动信息。 相关知识：注册表是Windows系统的核心配置数据库，存储了系统和应用程序的设置信息。 8. I/O管理器 功能：实现与设备无关的输入和输出功能，负责将I/O请求分发给正确的设备驱动程序。 相关知识：I/O管理器通过设备驱动程序与硬件设备交互，支持同步和异步I/O操作。 9. 对象管理器 功能：负责创建、管理和删除Windows执行体对象，以及用于表达操作系统资源的抽象数据类型。 相关知识：对象管理器通过对象命名空间和目录结构来组织和管理对象，支持对象的安全性和访问控制。 10. 局域网管理器（本地过程调用，LPC） 功能：负责处理进程之间的通信，管理消息传递和远程过程调用。 相关知识：LPC通过消息队列和通信端口实现进程间的高效通信，支持同步和异步通信模式。 这些组件共同构成了Windows内核执行体的核心部分，它们相互协作，确保操作系统能够高效、稳定地运行，为用户提供强大的功能和良好的用户体验。
-...</p></div><footer class=entry-footer><span title='2025-02-25 00:00:00 +0000 UTC'>February 25, 2025</span>&nbsp;·&nbsp;<span>2 min</span></footer><a class=entry-link aria-label="post link to Windows内核学习笔记（二）" href=https://t1mmoc.github.io/posts/18736797/></a></article><article class=post-entry><header class=entry-header><h2 class=entry-hint-parent>【草稿】图片上传2</h2></header><div class=entry-content><p>本随笔用于上传图片 博客园居然不压缩图片，有点太良心了，我还得手动去压缩一遍。</p></div><footer class=entry-footer><span title='2025-02-24 00:00:00 +0000 UTC'>February 24, 2025</span>&nbsp;·&nbsp;<span>1 min</span></footer><a class=entry-link aria-label="post link to 【草稿】图片上传2" href=https://t1mmoc.github.io/posts/18733453/></a></article><article class=post-entry><header class=entry-header><h2 class=entry-hint-parent>PECMD的解包</h2></header><div class=entry-content><p>新脚本 F12检查到一个管道，别的虽然也挺令人在意，但还没有什么实际能看出来的。
+...</p></div><footer class=entry-footer><span title='2025-02-25 00:00:00 +0000 UTC'>February 25, 2025</span>&nbsp;·&nbsp;<span>2 min</span></footer><a class=entry-link aria-label="post link to Windows内核学习笔记（二）" href=https://t1mmoc.github.io/posts/18736797/></a></article><article class=post-entry><header class=entry-header><h2 class=entry-hint-parent>PECMD的解包</h2></header><div class=entry-content><p>新脚本 F12检查到一个管道，别的虽然也挺令人在意，但还没有什么实际能看出来的。
 老规矩，先断LoadResource。
 堆栈跟踪到sub_472E88
 调试的时候跑飞了，没想到这样本还怪好的，还提醒我反反调试没做好：
@@ -82,7 +68,35 @@ Windows内核执行体（Executive）是Windows操作系统的核心组件之一
 可能是作者后门（纯猜测），检查到这个文件/文件夹后不执行病毒之类的。
 在上述排查中，和逆向分析得到的结果一样，只发现那三个文件（或者说，一个7z文件）
 那么现在的首要任务：
-...</p></div><footer class=entry-footer><span title='2025-02-24 00:00:00 +0000 UTC'>February 24, 2025</span>&nbsp;·&nbsp;<span>1 min</span></footer><a class=entry-link aria-label="post link to PECMD的解包" href=https://t1mmoc.github.io/posts/18733511/></a></article><article class=post-entry><header class=entry-header><h2 class=entry-hint-parent>vite build 打包的文件取消hash码</h2></header><div class=entry-content><p>build: { rollupOptions: { output: { entryFileNames: `assets/[name].js`, // 打包后的入口文件名 chunkFileNames: `assets/[name].js`, // 打包后的代码块文件名 assetFileNames: `assets/[name].[ext]`, // 打包后的静态资源文件名 }, }, }, 增加这段代码即可，加的位置需要注意。</p></div><footer class=entry-footer><span title='2025-02-24 00:00:00 +0000 UTC'>February 24, 2025</span>&nbsp;·&nbsp;<span>1 min</span></footer><a class=entry-link aria-label="post link to vite build 打包的文件取消hash码" href=https://t1mmoc.github.io/posts/18733488/></a></article><footer class=page-footer><nav class=pagination><a class=prev href=https://t1mmoc.github.io/posts/page/3/>«&nbsp;Prev&nbsp;
+...</p></div><footer class=entry-footer><span title='2025-02-24 00:00:00 +0000 UTC'>February 24, 2025</span>&nbsp;·&nbsp;<span>1 min</span></footer><a class=entry-link aria-label="post link to PECMD的解包" href=https://t1mmoc.github.io/posts/18733511/></a></article><article class=post-entry><header class=entry-header><h2 class=entry-hint-parent>vite build 打包的文件取消hash码</h2></header><div class=entry-content><p>build: { rollupOptions: { output: { entryFileNames: `assets/[name].js`, // 打包后的入口文件名 chunkFileNames: `assets/[name].js`, // 打包后的代码块文件名 assetFileNames: `assets/[name].[ext]`, // 打包后的静态资源文件名 }, }, }, 增加这段代码即可，加的位置需要注意。</p></div><footer class=entry-footer><span title='2025-02-24 00:00:00 +0000 UTC'>February 24, 2025</span>&nbsp;·&nbsp;<span>1 min</span></footer><a class=entry-link aria-label="post link to vite build 打包的文件取消hash码" href=https://t1mmoc.github.io/posts/18733488/></a></article><article class=post-entry><header class=entry-header><h2 class=entry-hint-parent>再战博客园美化（真正的五）——实际发布</h2></header><div class=entry-content><p>25-02-24 补充 这一篇偶然在我的草稿箱里面被发现。
+也就是说，从五开始，少了一篇，而我却没有发现
+迭代太快了。
+以下是原始文章
+我不免想到一个问题——如果我弄了这么多以后，发现根本不能用，那咋办？ 所以我必须先尝试发布一次，得在博客园上实际看到效果。
+有一个文件上MB了，可能是ElementUI我全部引入导致的，不过没关系，先提交！
+打包完成 一个html是不需要的，一个js，一个css，一个jpg。
+得益于博客园没有自动边缘换行策略，我可以直接粘贴在最顶上，这样也方便我后面打包新的css以后直接替换。
+js的话就用script包起来。
+寄咯，要是用文件的话那我怎么快速调整呢（思索）
+算了，css没超过大小，js用文件试试看，先整出效果后面在调整。
+自然地，没有任何反应。 因为这里不是vue环境，没有app这个元素。
+那怎么办，当然是新增一个app元素！
+好吧我乱说的，不妨看看这个：
+什么是app？不过是一个div罢了。
+对了。
+before也是不需要的。
+这样整个html只需要一个script引入即可。
+...</p></div><footer class=entry-footer><span title='2025-02-24 00:00:00 +0000 UTC'>February 24, 2025</span>&nbsp;·&nbsp;<span>1 min</span></footer><a class=entry-link aria-label="post link to 再战博客园美化（真正的五）——实际发布" href=https://t1mmoc.github.io/posts/18632676/></a></article><article class=post-entry><header class=entry-header><h2 class=entry-hint-parent>挑战用AI生成勒索病毒</h2></header><div class=entry-content><p>免责声明：随笔内容仅供安全学习使用，本随笔进行的所有操作均在授权或虚拟环境下进行。任何读者利用随笔中技术进行违法行为，本作者不承担任何责任。 本随笔不提供相关代码，只提供思路。 代码就这么多
+非常简洁。
+运行效果 有的人看到这张图已经开始直呼诈骗了吧，而有的人还在默默的看
+原理 向ai提问，使用openGPG python 加密文件 即可。
+根据非对称加密原理，使用这种方法加密的文件，只有程序制作者可以解密
+即使整个程序被破解了，也依旧没辙。
+弊端 该笑还是要笑的，这里有个很大的弊端，那就是用户必须拥有gpg环境，可以调用gpg命令行
+另外gpg使用的压缩算法压缩数据非常久，因此完全不适合分秒必争的勒索病毒，而勒索病毒完全不关心用户的磁盘容量。
+所以说，这只是一种非常 简单 的编写方式
+本来是想贴代码的，但是我已经被删过一篇随笔了，还是算了
+...</p></div><footer class=entry-footer><span title='2025-02-24 00:00:00 +0000 UTC'>February 24, 2025</span>&nbsp;·&nbsp;<span>1 min</span></footer><a class=entry-link aria-label="post link to 挑战用AI生成勒索病毒" href=https://t1mmoc.github.io/posts/18734504/></a></article><footer class=page-footer><nav class=pagination><a class=prev href=https://t1mmoc.github.io/posts/page/3/>«&nbsp;Prev&nbsp;
 </a><a class=next href=https://t1mmoc.github.io/posts/page/5/>Next&nbsp;&nbsp;»</a></nav></footer></main><footer class=footer><span>&copy; 2026 <a href=https://t1mmoc.github.io/>Timmoc's Blog</a></span> ·
 <span>Powered by
 <a href="https://gohugo.io/?utm_source=papermod" rel=noopener target=_blank>Hugo</a> &
