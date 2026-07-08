@@ -22,12 +22,5 @@
       <guid>https://t1mmoc.github.io/posts/hugo-papermod-pitfalls/</guid>
       <description>从零搭建 Hugo 博客到 GitHub Pages，PaperMod v8 配置兼容、部署方案选型等踩坑实录</description>
     </item>
-    <item>
-      <title>Hello World</title>
-      <link>https://t1mmoc.github.io/posts/hello-world/</link>
-      <pubDate>Sun, 05 Jul 2026 16:25:20 +0800</pubDate>
-      <guid>https://t1mmoc.github.io/posts/hello-world/</guid>
-      <description>我的第一篇博客文章</description>
-    </item>
   </channel>
 </rss>

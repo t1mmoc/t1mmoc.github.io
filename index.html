@@ -4,19 +4,9 @@
 更离谱的是：GitHub Actions 全绿，Pages 设置显示 “Your site is live”，但 curl 回来永远是 404 Not Found。
 这篇文章记录后续排查中踩的更多坑。
 坑 4：缺少 .nojekyll GitHub Pages 默认会用 Jekyll 处理静态文件。Hugo 生成的 assets/ 目录下有带 hash 的文件名，Jekyll 可能会忽略或错误处理这些文件。
-解法：在 Hugo 的 static/ 目录下放一个空的 .nojekyll 文件，构建时会自动复制到 public/ 根目录，告诉 GitHub “别用 Jekyll，直接原样发布”。
-touch static/.nojekyll 不加这个文件，轻则样式加载不了，重则整个站点白屏 / 404。
-坑 5：deploy-pages 全绿但站点不存在 这是最坑的一个。用官方推荐的 actions/deploy-pages@v4 方案：
-- uses: actions/upload-pages-artifact@v3 with: path: ./public - uses: actions/deploy-pages@v4 Workflow 日志：
-build → success ✅ deploy → Deploy to GitHub Pages → success ✅ Artifact 也上传了（github-pages 182 KB），看起来一切正常。
 ...</p></div><footer class=entry-footer><span title='2026-07-05 18:45:00 +0800 +0800'>July 5, 2026</span>&nbsp;·&nbsp;<span>3 min</span></footer><a class=entry-link aria-label="post link to 【AIGC】GitHub Pages 全绿却 404？一次离谱的部署 Debug 实录" href=https://t1mmoc.github.io/posts/github-pages-404-debug/></a></article><article class=post-entry><header class=entry-header><h2 class=entry-hint-parent>【AIGC】Hugo + PaperMod + GitHub Pages 搭建踩坑全记录</h2></header><div class=entry-content><p>周末想搭个个人博客，选型 Hugo + PaperMod + GitHub Pages。看起来简单的三板斧，实际踩了几个坑，记录一下。
 坑 1：PaperMod v8 的 TOML 配置变了 hugo new site 生成的是空模板，照着网上的 PaperMod 配置教程贴进去，hugo 直接报错：
-unmarshal failed: toml: key homeInfoParams should be a table, not a value unmarshal failed: toml: expected editPost to be a table, not a value PaperMod 从 v8 开始，editPost、homeInfoParams 等参数从简单的 key=value 改成了 table 结构：
-# 旧写法（弃用） homeInfoParams = true editPost = true editPostURL = "..." # 新写法 [params.homeInfoParams] Title = "..." Content = "..." [params.editPost] URL = "..." Text = "..." appendFilePath = true 同样的问题 profileMode 也需要写成 [params.profileMode] enabled = false，否则模板里 site.Params.profileMode.enabled 会报 can't evaluate field enabled in type bool。
-...</p></div><footer class=entry-footer><span title='2026-07-05 16:45:00 +0800 +0800'>July 5, 2026</span>&nbsp;·&nbsp;<span>2 min</span></footer><a class=entry-link aria-label="post link to 【AIGC】Hugo + PaperMod + GitHub Pages 搭建踩坑全记录" href=https://t1mmoc.github.io/posts/hugo-papermod-pitfalls/></a></article><article class=post-entry><header class=entry-header><h2 class=entry-hint-parent>Hello World</h2></header><div class=entry-content><p>欢迎来到我的博客！🎉
-这个博客使用 Hugo 构建，主题是 PaperMod，托管在 GitHub Pages 上。
-为什么选择 Hugo？ 极快的构建速度 — 即使上百篇文章也是秒级生成 纯 Markdown — 用你喜欢的编辑器写文章 零依赖部署 — 生成纯静态文件，扔到 GitHub Pages 就完事 接下来 后续会在这里记录一些技术笔记、踩坑记录和日常思考。
-Stay tuned!</p></div><footer class=entry-footer><span title='2026-07-05 16:25:20 +0800 +0800'>July 5, 2026</span>&nbsp;·&nbsp;<span>1 min</span></footer><a class=entry-link aria-label="post link to Hello World" href=https://t1mmoc.github.io/posts/hello-world/></a></article></main><footer class=footer><span>&copy; 2026 <a href=https://t1mmoc.github.io/>Timmoc's Blog</a></span> ·
+...</p></div><footer class=entry-footer><span title='2026-07-05 16:45:00 +0800 +0800'>July 5, 2026</span>&nbsp;·&nbsp;<span>2 min</span></footer><a class=entry-link aria-label="post link to 【AIGC】Hugo + PaperMod + GitHub Pages 搭建踩坑全记录" href=https://t1mmoc.github.io/posts/hugo-papermod-pitfalls/></a></article></main><footer class=footer><span>&copy; 2026 <a href=https://t1mmoc.github.io/>Timmoc's Blog</a></span> ·
 <span>Powered by
 <a href="https://gohugo.io/?utm_source=papermod" rel=noopener target=_blank>Hugo</a> &
 <a href=https://github.com/adityatelange/hugo-PaperMod/ rel=noopener target=_blank>PaperMod</a></span></footer><a href=#top id=top-link class="top-link hidden" aria-label="go to top" title="Go to Top (Alt + G)" accesskey=g><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevrons-up"><polyline points="17 11 12 6 7 11"/><polyline points="17 18 12 13 7 18"/></svg>
