@@ -1,3 +1,6 @@
 /public/
 /resources/
 .hugo_build.lock
+
+# Migration scratch (cnblogs HTML dumps, convert scripts)
+.migrate/
