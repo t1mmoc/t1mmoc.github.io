@@ -1,5 +1,5 @@
 baseURL = 'https://t1mmoc.github.io/'
-title = "Timmoc's Blog"
+title = "Timmoc 的技术小屋"
 # Hugo 0.158+ 用 locale 替代已弃用的 languageCode
 locale = 'zh-cn'
 theme = 'PaperMod'
@@ -23,7 +23,7 @@ summaryLength = 20
   disableThemeToggle = false
 
   ShowReadingTime = true
-  ShowShareButtons = true
+  ShowShareButtons = false
   ShowPostNavLinks = true
   ShowBreadCrumbs = true
   ShowCodeCopyButtons = true
@@ -31,10 +31,25 @@ summaryLength = 20
   TocOpen = false
   ShowRssButtonInSectionTermList = true
 
-  # 首页欢迎区
-  [params.homeInfoParams]
-    Title = "嗨，我是 Timmoc 👋"
-    Content = "这里记录技术笔记和日常思考。欢迎常来逛逛。"
+  # 首页 profile 模式（居中头像式 hero）
+  [params.profileMode]
+    enabled = true
+    title = "Timmoc 的技术小屋"
+    subtitle = "这里记录技术笔记与日常思考，欢迎常来逛逛 👋"
+    imageUrl = "/images/avatar.svg"
+    imageWidth = 160
+    imageHeight = 160
+    imageTitle = "Timmoc"
+    buttons = [
+      { name = "文章", url = "/posts/" },
+      { name = "标签", url = "/tags/" },
+      { name = "搜索", url = "/search/" },
+      { name = "订阅", url = "/index.xml" },
+    ]
+
+  # 网站图标
+  [params.assets]
+    favicon = "/favicon.svg"
 
   # 编辑此页链接
   [params.editPost]
@@ -42,7 +57,7 @@ summaryLength = 20
     Text = '编辑此页'
     appendFilePath = true
 
-  # 社交图标
+  # 社交图标（仅保留必要的技术相关联系方式）
   [[params.socialIcons]]
     name = 'github'
     url = 'https://github.com/t1mmoc'
