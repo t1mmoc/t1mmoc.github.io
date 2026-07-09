@@ -35,12 +35,17 @@ summaryLength = 20
   comments = true
 
   # Giscus 评论（基于 GitHub Discussions，无后端）
-  # repo-id 已填；categoryId 需先启用 Discussions + 安装 giscus App + 建分类后从 giscus.app 复制填入
+  # 前置：仓库已开 Discussions + 安装 giscus App + 分类选 General（非 Announcements，否则访客无法发首评）
   [params.giscus]
     repo = "t1mmoc/t1mmoc.github.io"
     repoId = "R_kgDOTODPTw"
     category = "General"
-    categoryId = ""   # TODO: 启用 Discussions 并安装 giscus App 后，从 giscus.app 复制 data-category-id 填入此处
+    categoryId = "DIC_kwDOTODPT84DAzVn"
+    mapping = "pathname"
+    strict = false
+    reactionsEnabled = true
+    emitMetadata = false
+    inputPosition = "top"
     lang = "zh-CN"
 
   # 首页 profile 模式（居中头像式 hero）
