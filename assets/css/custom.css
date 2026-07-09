@@ -1,5 +1,13 @@
 /* ===== Timmoc 的技术小屋 · 美化样式 ===== */
 
+/* auto 主题在 JS 解析出具体明暗前，data-theme="auto" 无对应变量定义，
+   会回退到浅色（白底）。这里按系统配色补上页面底色 --theme，
+   保证头像边框等依赖 --theme 的元素在首屏/无 JS 时也正确，不闪白边。 */
+:root[data-theme="auto"] { --theme: rgb(255, 255, 255); }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] { --theme: rgb(29, 30, 32); }
+}
+
 /* 首页站点头图 hero：头图 + 圆形头像 + 站点名 + 简介 */
 .site-hero {
   margin-bottom: 2rem;
