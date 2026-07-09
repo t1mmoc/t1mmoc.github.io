@@ -1,4 +1,12 @@
-# 【AIGC】博客全站二次元背景改版 · 技术总结
+---
+title: "【AIGC】博客全站二次元背景改版 · 技术总结"
+date: 2026-07-09
+lastmod: 2026-07-09
+draft: false
+tags: ["Hugo", "前端", "二次元", "博客美化"]
+slug: "site-bg-redesign"
+---
+
 
 > 项目：`t1mmoc.github.io`（Hugo + PaperMod，GitHub Pages 部署）
 > 范围：本日博客美化包含头像重做、友链页、Giscus 评论、首页改版与全站背景；本文聚焦**最新上线的全站二次元背景改版**。
@@ -75,7 +83,7 @@
 |---|---|---|
 | 浏览器全裂图 | 源防盗链（referer 校验） | `<meta name="referrer" content="no-referrer">` + JS `img.referrerPolicy` 双保险 |
 | 切页/刷新自动换图（缓存失效） | uapis.cn **无 CORS 头**，前端拿不到 302 后的真实地址，缓存的是 API 地址本身（每次随机重定向） | 后端预抓 38 张真实直链内置图池，首次池内选一张固定 24h |
-| 预览里点文章跳线上 | `index.html` 用 `.Permalink`（绝对地址带死 baseURL） | 改 `.RelPermalink` + 预览服务 `hugo server -b http://localhost:1313/`，点哪留哪 |
+| 预览里点文章跳线上 | `index.html` 用 `.Permalink`（绝对地址带死 baseURL） | 改 `.RelPermalink`（相对链接），预览服务指定 baseURL，点哪留哪 |
 | 深色模式头像白边 | PaperMod **无 `--background` 变量**（页面底色叫 `--theme`） | 改用 `--theme`；CSS 走 Hugo `fingerprint` 防旧缓存 |
 | 首屏瞬态白边 | `auto` 主题 JS 解析前无变量定义回退浅色 | 补 `:root[data-theme="auto"]` 的 `--theme` + `prefers-color-scheme:dark` 媒体查询 |
 
@@ -112,7 +120,7 @@ git push origin main        # GitHub Actions 自动构建部署
 
 ## 7. 可复用经验
 
-1. 给用户看 Hugo 草稿，**只 present `hugo server -b http://localhost:1313/` 的 localhost 地址**，绝不要拿生产站 URL 当预览。
+1. 给用户看 Hugo 草稿，**只用本地相对链接预览**（预览服务指定 baseURL 让主题链接也留本地），绝不要拿生产站 URL 当预览。
 2. 图源连通性**以用户浏览器为准**——沙箱网络受限会误判"源不可用"。
 3. 改 PaperMod 主题依赖的 CSS 变量，用其内置名（`--theme/--entry/--primary/--secondary/--border`），别自造。
 4. 外链 CSS 一律走 `resources.Get | minify | fingerprint`，内容一变 URL 即变，杜绝旧缓存。
