@@ -48,21 +48,14 @@ summaryLength = 20
     inputPosition = "top"
     lang = "zh-CN"
 
-  # 首页 profile 模式（居中头像式 hero）
-  [params.profileMode]
-    enabled = true
-    title = "Timmoc 的技术小屋"
+  # 首页展示的文章分类（profileMode 关闭后，首页为文章列表）
+  mainSections = ["posts"]
+
+  # 首页站点头图 hero（头图 + 圆形头像 + 站点名 + 简介）
+  [params.hero]
+    avatar = "/images/avatar.svg"
+    banner = "/images/banner.svg"
     subtitle = "这里记录技术笔记与日常思考，欢迎常来逛逛 👋"
-    imageUrl = "/images/avatar.svg"
-    imageWidth = 160
-    imageHeight = 160
-    imageTitle = "Timmoc"
-    buttons = [
-      { name = "文章", url = "/posts/" },
-      { name = "标签", url = "/tags/" },
-      { name = "搜索", url = "/search/" },
-      { name = "关于", url = "/about/" },
-    ]
 
   # 网站图标
   [params.assets]
