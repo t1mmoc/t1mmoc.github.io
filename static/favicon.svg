@@ -1,13 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Timmoc 的技术小屋">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#2563eb"/>
-      <stop offset="100%" stop-color="#7c3aed"/>
+    <radialGradient id="bg" cx="0.5" cy="0.36" r="0.9">
+      <stop offset="0" stop-color="#101a3a"/>
+      <stop offset="1" stop-color="#04060f"/>
+    </radialGradient>
+    <linearGradient id="neon" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="0.5" stop-color="#818cf8"/>
+      <stop offset="1" stop-color="#e879f9"/>
     </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
-  <rect width="32" height="32" rx="7" fill="url(#g)"/>
-  <g fill="#ffffff">
-    <rect x="8.5" y="8.5" width="15" height="3.6" rx="1.6"/>
-    <rect x="13.2" y="8.5" width="3.6" height="15.5" rx="1.6"/>
-  </g>
+  <rect width="32" height="32" rx="7" fill="url(#bg)"/>
+  <path filter="url(#glow)" fill="none" stroke="url(#neon)" stroke-width="2"
+        stroke-linejoin="round" stroke-linecap="round"
+        d="M6 7.5 H26 V12.25 H18.5 V25 H13.5 V12.25 H6 Z"/>
 </svg>
