@@ -242,3 +242,14 @@ body.bg-ready::before { opacity: 1; }
 @media (max-width: 600px) {
   .bg-switch { right: 10px; bottom: 10px; padding: 6px 11px; }
 }
+
+/* 翻页按钮：背景跟随主题(--entry 浅色浅/深色深)，文字用强调色(--primary)，
+   修正主题默认用 --primary 当背景导致深浅反了的 bug */
+.pagination a {
+  color: var(--primary);
+  background: var(--entry);
+  border: 1px solid var(--border);
+}
+.pagination a:hover {
+  background: var(--tertiary);
+}
