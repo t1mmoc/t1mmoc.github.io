@@ -44,7 +44,7 @@ summaryLength = 20
       { name = "文章", url = "/posts/" },
       { name = "标签", url = "/tags/" },
       { name = "搜索", url = "/search/" },
-      { name = "订阅", url = "/index.xml" },
+      { name = "关于", url = "/about/" },
     ]
 
   # 网站图标
@@ -78,6 +78,11 @@ summaryLength = 20
     name = '搜索'
     url = '/search/'
     weight = 30
+  [[menu.main]]
+    identifier = 'about'
+    name = '关于'
+    url = '/about/'
+    weight = 40
 
 [markup]
   [markup.goldmark]
