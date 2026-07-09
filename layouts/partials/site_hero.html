@@ -1,15 +1,14 @@
-{{- /* 首页站点头图 hero：头图 + 圆形头像 + 站点名 + 简介 */ -}}
+{{- /* 首页 hero：圆形头像 + 站点名 + 简介，包进一张与文章卡片同宽的大毛玻璃卡片 */ -}}
 <div class="site-hero">
-  <div class="site-hero__banner">
-    <img src="{{ .Site.Params.hero.banner | default "/images/banner.svg" | relURL }}" alt="banner" />
-  </div>
-  <div class="site-hero__avatar">
-    <img src="{{ .Site.Params.hero.avatar | default "/images/avatar.svg" | relURL }}" alt="{{ .Site.Title }}" />
-  </div>
-  <div class="site-hero__meta">
-    <h1 class="site-hero__title">{{ .Site.Title }}</h1>
-    {{- with .Site.Params.hero.subtitle }}
-    <p class="site-hero__subtitle">{{ . }}</p>
-    {{- end }}
+  <div class="site-hero__card">
+    <div class="site-hero__avatar">
+      <img src="{{ .Site.Params.hero.avatar | default "/images/avatar.svg" | relURL }}" alt="{{ .Site.Title }}" />
+    </div>
+    <div class="site-hero__meta">
+      <h1 class="site-hero__title">{{ .Site.Title }}</h1>
+      {{- with .Site.Params.hero.subtitle }}
+      <p class="site-hero__subtitle">{{ . }}</p>
+      {{- end }}
+    </div>
   </div>
 </div>

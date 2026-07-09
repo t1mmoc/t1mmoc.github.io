@@ -1,0 +1,135 @@
+{{/* 全站二次元背景：内置 uapis.cn 直链图池 + localStorage 固定 24h（切页不换图、不请求 API） */}}
+<script>
+(function () {
+  var POOL = [
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkg94nzbj31kw0w0hcf.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjl0jx89j21hc0u0k5s.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjcxohq6j21hc0u0qfo.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxk3mu0ztj31hc0u07m5.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkfgr4ckj31hc0u0h0r.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjn0z1laj21hc0u0k0x.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1fodqnep3wpj31jk0ujnpd.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkifyvznj31hc0u0e1h.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afely1fnt9lhboa7j21hc0u0alq.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjjphlyyj21hc0u0h4m.jpg",
+  "https://uapis.cn/assets/acg/pc/107915727_p0.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkjjz8vbj31hc0u0k80.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjy0951rj21hc0u0nay.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvj3xv31fj21hc0u07wh.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxlhvnh9qj31hc0u0tmu.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxln98mdaj31hc0u018i.jpg",
+  "https://uapis.cn/assets/acg/mb/110394591_p2.jpg",
+  "https://uapis.cn/assets/acg/pc/005FzdTdgy1gegf7m1ungj31hc0u0ahu.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkijia91j31kw0w0e6g.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvizjlwi5j21hc0u0npd.jpg",
+  "https://uapis.cn/assets/acg/pc/110240189_p1_master1200.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvj2mu43nj21hc0u0nca.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvje4goq3j21hc0u0x1e.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkcf9mfnj31hc0u0h7p.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvk4kw38bj21hc0u0qiq.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkc8ob14j31hc0u016f.jpg",
+  "https://uapis.cn/assets/acg/pc/110335000_p0_master1200.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvj22mfbbj21hc0u0h3o.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvj0v6ehqj21hc0u0aky.jpg",
+  "https://uapis.cn/assets/acg/pc/7f0c40d4gy1fqbfhg624uj21hc0u0adm.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvj4872o5j21hc0u0b29.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxki5aet4j31kw0w0kib.jpg",
+  "https://uapis.cn/assets/acg/pc/0076R7yAgy1fq8ds3ulsmj31hc0u04i0.jpg",
+  "https://uapis.cn/assets/acg/mb/109686488_p0.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjb5ej2uj21hc0u07se.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjkvb5l3j21hc0u0wp9.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkf6k4jrj31hc0u0k6b.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvk8x6gadj21hc0u0kjl.jpg"
+];
+  var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
+  var KEY_CNT = "tmoc_bg_cnt", KEY_DATE = "tmoc_bg_date";
+  var TTL = 24 * 3600 * 1000;   // 缓存 24 小时，期间切页复用同一张
+  var MAX_PER_DAY = 12;         // 每天手动换图上限
+  var COOLDOWN = 2500;          // 两次手动换图最小间隔(ms)
+
+  function pick(exclude) {
+    if (POOL.length <= 1) return POOL[0];
+    var u;
+    do { u = POOL[Math.floor(Math.random() * POOL.length)]; } while (u === exclude);
+    return u;
+  }
+  function preload(url, cb) {
+    var img = new Image();
+    img.referrerPolicy = "no-referrer";
+    img.onload = function () { cb(true); };
+    img.onerror = function () { cb(false); };
+    img.src = url;
+  }
+  function setBg(url) {
+    document.documentElement.style.setProperty("--site-bg-url", 'url("' + url + '")');
+    document.body.classList.add("bg-ready");
+  }
+  function today() { return new Date().toISOString().slice(0, 10); }
+
+  function currentCached() {
+    try {
+      var url = localStorage.getItem(KEY_URL);
+      var ts = parseInt(localStorage.getItem(KEY_TS) || "0", 10);
+      if (url && POOL.indexOf(url) !== -1 && Date.now() - ts < TTL) return url;
+    } catch (e) {}
+    return null;
+  }
+  function save(url) {
+    try {
+      localStorage.setItem(KEY_URL, url);
+      localStorage.setItem(KEY_TS, String(Date.now()));
+    } catch (e) {}
+  }
+
+  function change(btn) {
+    var d = today(), cnt = 0, dt = "";
+    try {
+      cnt = parseInt(localStorage.getItem(KEY_CNT) || "0", 10);
+      dt = localStorage.getItem(KEY_DATE) || "";
+    } catch (e) {}
+    if (dt !== d) { cnt = 0; dt = d; }
+    if (cnt >= MAX_PER_DAY) {
+      btn.textContent = "今日已达上限";
+      setTimeout(function () { btn.textContent = "换背景 ❤"; }, 1500);
+      return;
+    }
+    var next = pick(currentCached());
+    btn.disabled = true;
+    preload(next, function (ok) {
+      btn.disabled = false;
+      if (!ok) return;
+      setBg(next); save(next);
+      try {
+        localStorage.setItem(KEY_CNT, String(cnt + 1));
+        localStorage.setItem(KEY_DATE, dt);
+      } catch (e) {}
+    });
+  }
+
+  function addBtn() {
+    var btn = document.createElement("button");
+    btn.className = "bg-switch";
+    btn.type = "button";
+    btn.textContent = "换背景 ❤";
+    btn.title = "换一张二次元背景（每天最多 " + MAX_PER_DAY + " 次）";
+    var last = 0;
+    btn.addEventListener("click", function () {
+      var now = Date.now();
+      if (now - last < COOLDOWN) return;
+      last = now;
+      change(btn);
+    });
+    document.body.appendChild(btn);
+  }
+
+  function init() {
+    var url = currentCached();
+    if (!url) { url = pick(null); save(url); }   // 首次或过期：池内随机选一张并固定
+    setBg(url);
+    addBtn();
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
+</script>
