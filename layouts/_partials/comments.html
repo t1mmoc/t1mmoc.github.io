@@ -1,0 +1,51 @@
+{{/* Giscus 评论区（基于 GitHub Discussions，无后端、无追踪） */}}
+{{ with .Site.Params.giscus }}
+{{/* 守卫：categoryId 为空时不渲染，避免线上出现加载失败的破框 */}}
+{{ if .categoryId }}
+<section class="giscus-comments">
+  <script src="https://giscus.app/client.js"
+          data-repo="{{ .repo }}"
+          data-repo-id="{{ .repoId }}"
+          data-category="{{ .category }}"
+          data-category-id="{{ .categoryId }}"
+          data-mapping="pathname"
+          data-strict="0"
+          data-reactions-enabled="1"
+          data-emit-metadata="0"
+          data-input-position="bottom"
+          data-theme="preferred_color_scheme"
+          data-lang="{{ .lang | default "zh-CN" }}"
+          crossorigin="anonymous"
+          async>
+  </script>
+  <script>
+  (function () {
+    // 跟随 PaperMod 的主题切换（<html data-theme="light|dark">）
+    function currentTheme() {
+      var t = document.documentElement.getAttribute('data-theme');
+      return (t === 'dark') ? 'dark' : 'light';
+    }
+    function syncGiscus() {
+      var frame = document.querySelector('iframe.giscus-frame');
+      if (!frame || !frame.contentWindow) return;
+      frame.contentWindow.postMessage(
+        { giscus: { setConfig: { theme: currentTheme() } } },
+        'https://giscus.app'
+      );
+    }
+    var observer = new MutationObserver(function (records) {
+      records.forEach(function (r) {
+        if (r.attributeName === 'data-theme') syncGiscus();
+      });
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    // giscus 加载/resize 完成后应用一次当前主题
+    window.addEventListener('message', function (e) {
+      if (e.origin !== 'https://giscus.app') return;
+      if (e.data && e.data.giscus && e.data.giscus.resizeHeight) syncGiscus();
+    });
+  })();
+  </script>
+</section>
+{{ end }}
+{{ end }}
