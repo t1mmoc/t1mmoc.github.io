@@ -30,3 +30,10 @@
 .profile_inner .social-icons {
   margin-top: 0.4rem;
 }
+
+/* 评论区与正文之间留白 */
+.giscus-comments {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border, #e5e7eb);
+}
