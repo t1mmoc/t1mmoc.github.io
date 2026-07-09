@@ -74,9 +74,9 @@ summaryLength = 20
 
 [menu]
   [[menu.main]]
-    identifier = 'posts'
-    name = '文章'
-    url = '/posts/'
+    identifier = 'home'
+    name = '首页'
+    url = '/'
     weight = 10
   [[menu.main]]
     identifier = 'tags'
