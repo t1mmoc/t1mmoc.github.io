@@ -31,6 +31,18 @@ summaryLength = 20
   TocOpen = false
   ShowRssButtonInSectionTermList = true
 
+  # 全站开启评论区（由 layouts/_partials/comments.html 渲染）
+  comments = true
+
+  # Giscus 评论（基于 GitHub Discussions，无后端）
+  # repo-id 已填；categoryId 需先启用 Discussions + 安装 giscus App + 建分类后从 giscus.app 复制填入
+  [params.giscus]
+    repo = "t1mmoc/t1mmoc.github.io"
+    repoId = "R_kgDOTODPTw"
+    category = "General"
+    categoryId = ""   # TODO: 启用 Discussions 并安装 giscus App 后，从 giscus.app 复制 data-category-id 填入此处
+    lang = "zh-CN"
+
   # 首页 profile 模式（居中头像式 hero）
   [params.profileMode]
     enabled = true
