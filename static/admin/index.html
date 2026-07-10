@@ -40,17 +40,12 @@
   </div>
 
   <div class="card">
-    <h3>读者名册（候选池）</h3>
-    <p class="muted" style="margin:0 0 10px">这里只是<b>候选读者池</b>，供下方文章 ACL 快速选人。加入名册 <b>不等于</b> 授权——仍需把该用户加入具体文章的 ACL，对方才能真正解锁。</p>
-    <div class="row">
-      <input type="text" id="newUser" placeholder="GitHub 用户名，如 alice" list="userCandidates">
-      <button class="primary" id="addUser">加入名册</button>
-    </div>
-    <div id="userList" class="row"></div>
-  </div>
-
-  <div class="card">
     <h3>文章列表</h3>
+    <div class="sub">
+      <h3 style="font-size:14px;margin:0 0 6px">读者名册（自动汇总）</h3>
+      <p class="muted" style="margin:0 0 8px">由下方各文章 ACL 中的读者去重汇总，纯前端浏览器内派生，不单独存储。</p>
+      <div id="rosterList" class="row"></div>
+    </div>
     <details>
       <summary>注册新文章（密钥由发布工具生成；正常发文请用 author 工具，此表单用于手动注册/迁移）</summary>
       <div class="sub">
@@ -97,35 +92,26 @@ function showLogin() {
   };
 }
 
-// ---------- 授权读者目录：增 / 删 / 查 ----------
-async function renderUsers() {
-  const ul = document.getElementById('userList');
-  const r = await api('/api/admin/users');
-  const users = (r.body && r.body.items) || [];
-  const dl = document.getElementById('userCandidates');
-  if (dl) { dl.innerHTML = ''; users.forEach(u => { const o = document.createElement('option'); o.value = u.github_id; dl.appendChild(o); }); }
-  if (!users.length) { ul.innerHTML = '<span class="muted">暂无读者</span>'; return; }
-  ul.innerHTML = '';
-  users.forEach(u => {
-    const tag = document.createElement('span');
-    tag.className = 'tag';
-    tag.innerHTML = esc(u.github_id) + ' <span class="x" title="移除">×</span>';
-    tag.querySelector('.x').onclick = async () => {
-      if (!confirm('从读者目录移除 ' + u.github_id + '？')) return;
-      const d = await api('/api/admin/user/' + encodeURIComponent(u.github_id), { method: 'DELETE' });
-      if (d.ok) renderUsers(); else alert('删除失败');
-    };
-    ul.appendChild(tag);
-  });
-}
-
-// ---------- 文章列表：查 / 删 + 注册(增) ----------
+// ---------- 文章列表：查 / 删 + 注册(增) + 派生读者名册 ----------
 async function renderArticles() {
   const al = document.getElementById('articleList');
   const r = await api('/api/admin/articles');
   const items = (r.body && r.body.items) || [];
   al.innerHTML = '';
   if (!items.length) { al.innerHTML = '<p class="muted">暂无文章（用 author 工具发布后会出现）。</p>'; return; }
+
+  // 由所有文章 ACL 去重派生读者名册，填充自动补全 datalist 与展示区
+  const allReaders = new Set();
+  items.forEach(a => (a.acl || []).forEach(g => allReaders.add(g)));
+  const dl = document.getElementById('userCandidates');
+  if (dl) { dl.innerHTML = ''; [...allReaders].forEach(g => { const o = document.createElement('option'); o.value = g; dl.appendChild(o); }); }
+  const rl = document.getElementById('rosterList');
+  if (rl) {
+    rl.innerHTML = '';
+    if (!allReaders.size) rl.innerHTML = '<span class="muted">暂无读者</span>';
+    else [...allReaders].forEach(g => { const t = document.createElement('span'); t.className = 'tag'; t.textContent = g; rl.appendChild(t); });
+  }
+
   items.forEach(art => {
     const card = document.createElement('div');
     card.className = 'card';
@@ -194,17 +180,6 @@ async function renderArticles() {
   const probe = await api('/api/admin/articles');
   if (probe.status === 403) { localStorage.removeItem(SKEY); return showLogin(); }
 
-  document.getElementById('addUser').onclick = async () => {
-    const v = document.getElementById('newUser').value.trim();
-    if (!v) return;
-    const r = await api('/api/admin/user', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ github_id: v })
-    });
-    if (r.ok) { document.getElementById('newUser').value = ''; renderUsers(); }
-    else alert('添加失败');
-  };
-
   document.getElementById('addArt').onclick = async () => {
     const id = document.getElementById('newArtId').value.trim();
     const k = document.getElementById('newArtK').value.trim();
@@ -225,7 +200,6 @@ async function renderArticles() {
     } else flash(m, '注册失败：' + ((r.body && r.body.error) || r.status), false);
   };
 
-  renderUsers();
   renderArticles();
 })();
 </script>
