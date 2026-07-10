@@ -54,15 +54,32 @@
       iframe.contentWindow.postMessage({ type: 'blog:session', article: ARTICLE, session: session }, IFRAME_ORIGIN);
     }
   }
+  // 把站点主题（深/浅色）同步给 iframe，使解锁框背景与正文一致
+  function sendTheme() {
+    const t = document.documentElement.getAttribute('data-theme');
+    const theme = (t === 'dark') ? 'dark' : 'light';
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage({ type: 'blog:theme', article: ARTICLE, theme: theme }, IFRAME_ORIGIN);
+    }
+  }
   window.addEventListener('message', function (ev) {
     const d = ev.data || {};
     if (d.type === 'blog:key' && d.article === ARTICLE) {
       decryptAndRender(d.k, d.iv);
     } else if (d.type === 'blog:ready' && d.article === ARTICLE) {
       sendSession();
+      sendTheme();
+    } else if (d.type === 'blog:resize' && d.article === ARTICLE) {
+      // iframe 回报真实内容高度，动态调整避免滚动条/截断
+      iframe.style.height = (d.height + 4) + 'px';
     }
   });
   // iframe 可能先就绪（父脚本后执行），这里主动发一次；iframe 就绪后会再发 blog:ready 触发补发
   sendSession();
+  // 站点主题切换时同步给 iframe（深色模式背景）
+  const themeObs = new MutationObserver(function (muts) {
+    muts.forEach(function (m) { if (m.attributeName === 'data-theme') sendTheme(); });
+  });
+  themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 })();
 </script>
