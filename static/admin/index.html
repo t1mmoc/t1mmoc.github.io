@@ -40,10 +40,11 @@
   </div>
 
   <div class="card">
-    <h3>授权读者目录</h3>
+    <h3>读者名册（候选池）</h3>
+    <p class="muted" style="margin:0 0 10px">这里只是<b>候选读者池</b>，供下方文章 ACL 快速选人。加入名册 <b>不等于</b> 授权——仍需把该用户加入具体文章的 ACL，对方才能真正解锁。</p>
     <div class="row">
-      <input type="text" id="newUser" placeholder="GitHub 用户名，如 alice">
-      <button class="primary" id="addUser">加入目录</button>
+      <input type="text" id="newUser" placeholder="GitHub 用户名，如 alice" list="userCandidates">
+      <button class="primary" id="addUser">加入名册</button>
     </div>
     <div id="userList" class="row"></div>
   </div>
@@ -63,6 +64,8 @@
     <div id="articleList"></div>
   </div>
 </div>
+
+<datalist id="userCandidates"></datalist>
 
 <script>
 const BLOG = 'https://blog.tmoc.qzz.io';
@@ -99,6 +102,8 @@ async function renderUsers() {
   const ul = document.getElementById('userList');
   const r = await api('/api/admin/users');
   const users = (r.body && r.body.items) || [];
+  const dl = document.getElementById('userCandidates');
+  if (dl) { dl.innerHTML = ''; users.forEach(u => { const o = document.createElement('option'); o.value = u.github_id; dl.appendChild(o); }); }
   if (!users.length) { ul.innerHTML = '<span class="muted">暂无读者</span>'; return; }
   ul.innerHTML = '';
   users.forEach(u => {
@@ -132,7 +137,7 @@ async function renderArticles() {
       '</div>' +
       '<div class="row">ACL 读者：<span class="aclTags"></span></div>' +
       '<div class="row">' +
-        '<input type="text" placeholder="添加 GitHub 用户名到本文">' +
+        '<input type="text" placeholder="添加 GitHub 用户名到本文" list="userCandidates">' +
         '<button class="primary" data-add>添加读者</button>' +
         '<span class="msg"></span>' +
       '</div>';
