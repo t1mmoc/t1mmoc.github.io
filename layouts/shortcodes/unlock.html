@@ -1,0 +1,38 @@
+<div class="blog-protected" id="bp-{{ .Get "article_id" }}">
+  <iframe src="https://blog.tmoc.qzz.io/reader?article={{ .Get "article_id" }}" style="width:100%;height:72px;border:none" title="解锁加密文章"></iframe>
+  <div class="bp-content" style="white-space:pre-wrap;line-height:1.8;margin-top:12px"></div>
+</div>
+<script>
+(function () {
+  const ARTICLE = "{{ .Get "article_id" }}";
+  const wrap = document.getElementById('bp-' + ARTICLE);
+  const box = wrap.querySelector('.bp-content');
+
+  function b64ToBytes(b) {
+    const bin = atob(b);
+    const u = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    return u;
+  }
+
+  async function decryptAndRender(k, iv) {
+    try {
+      const resp = await fetch('/cipher/' + ARTICLE + '.bin');
+      if (!resp.ok) { box.textContent = '密文加载失败（确认 static/cipher/' + ARTICLE + '.bin 已发布）'; return; }
+      const buf = new Uint8Array(await resp.arrayBuffer());
+      const key = await crypto.subtle.importKey('raw', b64ToBytes(k), { name: 'AES-GCM' }, false, ['decrypt']);
+      const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64ToBytes(iv) }, key, buf);
+      box.textContent = new TextDecoder().decode(pt);
+    } catch (e) {
+      box.textContent = '解密失败：' + e;
+    }
+  }
+
+  window.addEventListener('message', function (ev) {
+    const d = ev.data || {};
+    if (d.type === 'blog:key' && d.article === ARTICLE) {
+      decryptAndRender(d.k, d.iv);
+    }
+  });
+})();
+</script>
