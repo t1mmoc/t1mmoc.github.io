@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>博客加密 · 管理</title>
+<style>
+  body { font-family: system-ui, -apple-system, "PingFang SC", sans-serif; max-width: 880px; margin: 24px auto; padding: 0 16px; color: #222; }
+  h1 { font-size: 20px; }
+  button { padding: 6px 12px; cursor: pointer; }
+  .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin: 10px 0; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  input[type=text] { padding: 6px; flex: 1; min-width: 160px; }
+  .acl { font-size: 13px; color: #555; }
+  .tag { display: inline-block; background: #eef; border: 1px solid #ccd; border-radius: 4px; padding: 2px 6px; margin: 2px; }
+  .muted { color: #999; font-size: 12px; }
+  #login { text-align: center; padding: 60px 0; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<h1>博客加密文章 · 管理后台</h1>
+
+<div id="login" class="hidden">
+  <p>请先以 <b>timmoc</b> 身份登录 GitHub。</p>
+  <button id="loginBtn">🔐 用 GitHub 登录（管理员）</button>
+  <p class="muted">登录态仅存于本域 localStorage，15 分钟有效。</p>
+</div>
+
+<div id="app" class="hidden">
+  <div class="row" style="justify-content:space-between">
+    <span class="muted">已登录为 <b id="me"></b></span>
+    <button id="logout">退出</button>
+  </div>
+
+  <div class="card">
+    <h3>授权读者目录</h3>
+    <div class="row">
+      <input type="text" id="newUser" placeholder="GitHub 用户名，如 alice">
+      <button id="addUser">加入目录</button>
+    </div>
+    <div id="userList" class="acl"></div>
+  </div>
+
+  <div class="card">
+    <h3>文章 ↔ 读者（ACL）</h3>
+    <div id="articleList"></div>
+  </div>
+</div>
+
+<script>
+const BLOG = 'https://blog.tmoc.qzz.io';
+const SKEY = 'blog_admin_session';
+
+function api(path, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({ 'x-session': localStorage.getItem(SKEY) }, opts.headers || {});
+  return fetch(BLOG + path, opts).then(r => r.json());
+}
+
+function showLogin() {
+  document.getElementById('login').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('loginBtn').onclick = () => {
+    const back = location.origin + location.pathname;
+    location.href = BLOG + '/api/auth/authorize?redirect=' + encodeURIComponent(back) + '&admin=1';
+  };
+}
+
+(async function init() {
+  const params = new URLSearchParams(location.search);
+  if (params.has('session')) {
+    localStorage.setItem(SKEY, params.get('session'));
+    history.replaceState({}, '', location.pathname);
+  }
+  const sess = localStorage.getItem(SKEY);
+  if (!sess) return showLogin();
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+
+  document.getElementById('logout').onclick = () => { localStorage.removeItem(SKEY); location.reload(); };
+
+  // 拉数据
+  let articles = [], users = [];
+  try {
+    const a = await api('/api/admin/articles');
+    if (a.error === 'forbidden') { localStorage.removeItem(SKEY); return showLogin(); }
+    articles = a.items || [];
+  } catch (e) { alert('拉取文章失败'); }
+  try { users = (await api('/api/admin/users')).items || []; } catch (e) {}
+
+  document.getElementById('me').textContent = '（管理员）';
+
+  // 用户目录
+  const ul = document.getElementById('userList');
+  ul.innerHTML = users.map(u => '<span class="tag">' + escapeHtml(u.github_id) + '</span>').join('') || '<span class="muted">暂无</span>';
+  document.getElementById('addUser').onclick = async () => {
+    const v = document.getElementById('newUser').value.trim();
+    if (!v) return;
+    await api('/api/admin/user', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ github_id: v }) });
+    location.reload();
+  };
+
+  // 文章列表 + ACL 编辑
+  const al = document.getElementById('articleList');
+  al.innerHTML = '';
+  articles.forEach(art => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const aclStr = (art.acl || []).join(', ');
+    card.innerHTML = '<div class="row" style="justify-content:space-between"><b>' + escapeHtml(art.id) + '</b>' +
+      '<span class="muted">' + (art.acl || []).length + ' 人</span></div>' +
+      '<div class="row"><input type="text" value="' + escapeHtml(aclStr) + '" placeholder="github_id 逗号分隔"></div>' +
+      '<div class="row"><button>保存</button><span class="msg muted"></span></div>';
+    const input = card.querySelector('input');
+    card.querySelector('button').onclick = async () => {
+      const want = input.value.split(',').map(s => s.trim()).filter(Boolean);
+      const have = art.acl || [];
+      const add = want.filter(x => !have.includes(x));
+      const rem = have.filter(x => !want.includes(x));
+      let okAll = true;
+      for (const g of add) {
+        const r = await api('/api/admin/article/' + encodeURIComponent(art.id) + '/acl', {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ op: 'add', github_id: g })
+        });
+        if (!r.ok) okAll = false;
+      }
+      for (const g of rem) {
+        const r = await api('/api/admin/article/' + encodeURIComponent(art.id) + '/acl', {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ op: 'remove', github_id: g })
+        });
+        if (!r.ok) okAll = false;
+      }
+      card.querySelector('.msg').textContent = okAll ? '已保存' : '部分失败';
+      setTimeout(() => { card.querySelector('.msg').textContent = ''; }, 2000);
+      if (okAll) art.acl = want;
+    };
+    al.appendChild(card);
+  });
+  if (!articles.length) al.innerHTML = '<p class="muted">暂无文章（用 author 工具发布后会出现）。</p>';
+})();
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+</script>
+</body>
+</html>
