@@ -5,17 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>博客加密 · 管理</title>
 <style>
-  body { font-family: system-ui, -apple-system, "PingFang SC", sans-serif; max-width: 880px; margin: 24px auto; padding: 0 16px; color: #222; }
-  h1 { font-size: 20px; }
-  button { padding: 6px 12px; cursor: pointer; }
-  .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin: 10px 0; }
-  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  input[type=text] { padding: 6px; flex: 1; min-width: 160px; }
-  .acl { font-size: 13px; color: #555; }
-  .tag { display: inline-block; background: #eef; border: 1px solid #ccd; border-radius: 4px; padding: 2px 6px; margin: 2px; }
+  body { font-family: system-ui, -apple-system, "PingFang SC", sans-serif; max-width: 920px; margin: 24px auto; padding: 0 16px; color: #222; }
+  h1 { font-size: 20px; } h3 { margin: 0 0 10px; font-size: 15px; }
+  button { padding: 6px 12px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 6px; font-size: 13px; }
+  button.primary { background: #24292f; color: #fff; border-color: #24292f; }
+  button.danger { color: #c00; border-color: #e5b3b3; }
+  .card { border: 1px solid #ddd; border-radius: 8px; padding: 14px; margin: 14px 0; }
+  .sub { border: 1px solid #eee; border-radius: 6px; padding: 10px; margin-top: 10px; background: #fafafa; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+  input[type=text] { padding: 6px; flex: 1; min-width: 160px; border: 1px solid #ccc; border-radius: 6px; }
+  .tag { display: inline-flex; align-items: center; gap: 6px; background: #eef; border: 1px solid #ccd; border-radius: 4px; padding: 3px 8px; margin: 3px; font-size: 13px; }
+  .tag .x { cursor: pointer; color: #c33; font-weight: bold; }
   .muted { color: #999; font-size: 12px; }
+  .msg { font-size: 12px; }
+  .ok { color: #0a0; } .err { color: #c00; }
   #login { text-align: center; padding: 60px 0; }
   .hidden { display: none; }
+  details summary { cursor: pointer; color: #555; font-size: 13px; margin: 4px 0; }
 </style>
 </head>
 <body>
@@ -29,7 +35,7 @@
 
 <div id="app" class="hidden">
   <div class="row" style="justify-content:space-between">
-    <span class="muted">已登录为 <b id="me"></b></span>
+    <span class="muted">已登录为 <b>管理员</b></span>
     <button id="logout">退出</button>
   </div>
 
@@ -37,13 +43,23 @@
     <h3>授权读者目录</h3>
     <div class="row">
       <input type="text" id="newUser" placeholder="GitHub 用户名，如 alice">
-      <button id="addUser">加入目录</button>
+      <button class="primary" id="addUser">加入目录</button>
     </div>
-    <div id="userList" class="acl"></div>
+    <div id="userList" class="row"></div>
   </div>
 
   <div class="card">
-    <h3>文章 ↔ 读者（ACL）</h3>
+    <h3>文章列表</h3>
+    <details>
+      <summary>注册新文章（密钥由发布工具生成；正常发文请用 author 工具，此表单用于手动注册/迁移）</summary>
+      <div class="sub">
+        <div class="row"><input type="text" id="newArtId" placeholder="文章 id（与 .bin 文件名一致，如 secret-note）"></div>
+        <div class="row"><input type="text" id="newArtK" placeholder="k_article（base64，由 author 工具输出）"></div>
+        <div class="row"><input type="text" id="newArtIv" placeholder="iv（base64）"></div>
+        <div class="row"><input type="text" id="newArtAcl" placeholder="acl，逗号分隔，如 t1mmoc,alice"></div>
+        <div class="row"><button class="primary" id="addArt">注册文章</button><span id="addArtMsg" class="msg"></span></div>
+      </div>
+    </details>
     <div id="articleList"></div>
   </div>
 </div>
@@ -55,7 +71,18 @@ const SKEY = 'blog_admin_session';
 function api(path, opts) {
   opts = opts || {};
   opts.headers = Object.assign({ 'x-session': localStorage.getItem(SKEY) }, opts.headers || {});
-  return fetch(BLOG + path, opts).then(r => r.json());
+  return fetch(BLOG + path, opts).then(async r => {
+    let j = null; try { j = await r.json(); } catch (e) {}
+    return { ok: r.ok, status: r.status, body: j };
+  });
+}
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+function flash(el, text, good) {
+  el.textContent = text;
+  el.className = 'msg ' + (good ? 'ok' : 'err');
+  setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 2500);
 }
 
 function showLogin() {
@@ -65,6 +92,85 @@ function showLogin() {
     const back = location.origin + location.pathname;
     location.href = BLOG + '/api/auth/authorize?redirect=' + encodeURIComponent(back) + '&admin=1';
   };
+}
+
+// ---------- 授权读者目录：增 / 删 / 查 ----------
+async function renderUsers() {
+  const ul = document.getElementById('userList');
+  const r = await api('/api/admin/users');
+  const users = (r.body && r.body.items) || [];
+  if (!users.length) { ul.innerHTML = '<span class="muted">暂无读者</span>'; return; }
+  ul.innerHTML = '';
+  users.forEach(u => {
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.innerHTML = esc(u.github_id) + ' <span class="x" title="移除">×</span>';
+    tag.querySelector('.x').onclick = async () => {
+      if (!confirm('从读者目录移除 ' + u.github_id + '？')) return;
+      const d = await api('/api/admin/user/' + encodeURIComponent(u.github_id), { method: 'DELETE' });
+      if (d.ok) renderUsers(); else alert('删除失败');
+    };
+    ul.appendChild(tag);
+  });
+}
+
+// ---------- 文章列表：查 / 删 + 注册(增) ----------
+async function renderArticles() {
+  const al = document.getElementById('articleList');
+  const r = await api('/api/admin/articles');
+  const items = (r.body && r.body.items) || [];
+  al.innerHTML = '';
+  if (!items.length) { al.innerHTML = '<p class="muted">暂无文章（用 author 工具发布后会出现）。</p>'; return; }
+  items.forEach(art => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<div class="row" style="justify-content:space-between">' +
+        '<b>' + esc(art.id) + '</b>' +
+        '<span><span class="muted">' + (art.acl || []).length + ' 人可读</span> ' +
+        '<button class="danger" data-del>删除文章</button></span>' +
+      '</div>' +
+      '<div class="row">ACL 读者：<span class="aclTags"></span></div>' +
+      '<div class="row">' +
+        '<input type="text" placeholder="添加 GitHub 用户名到本文">' +
+        '<button class="primary" data-add>添加读者</button>' +
+        '<span class="msg"></span>' +
+      '</div>';
+    const aclTags = card.querySelector('.aclTags');
+    (art.acl || []).forEach(g => {
+      const t = document.createElement('span');
+      t.className = 'tag';
+      t.innerHTML = esc(g) + ' <span class="x" title="移除">×</span>';
+      t.querySelector('.x').onclick = async () => {
+        if (!confirm('移除 ' + g + ' 对本文的访问？')) return;
+        const d = await api('/api/admin/article/' + encodeURIComponent(art.id) + '/acl', {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ op: 'remove', github_id: g })
+        });
+        if (d.ok) renderArticles(); else alert('移除失败');
+      };
+      aclTags.appendChild(t);
+    });
+    if (!(art.acl || []).length) aclTags.innerHTML = '<span class="muted">无</span>';
+    card.querySelector('[data-add]').onclick = async () => {
+      const inp = card.querySelector('input');
+      const v = inp.value.trim();
+      if (!v) return;
+      const m = card.querySelector('.msg');
+      const d = await api('/api/admin/article/' + encodeURIComponent(art.id) + '/acl', {
+        method: 'PATCH', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ op: 'add', github_id: v })
+      });
+      if (d.ok) { inp.value = ''; renderArticles(); flash(m, '已添加', true); }
+      else flash(m, '添加失败', false);
+    };
+    card.querySelector('[data-del]').onclick = async () => {
+      if (!confirm('删除文章 ' + art.id + '？\n密钥记录将从 KV 移除；仓库里的密文 .bin 仍需你手动删除，否则读者会卡在 forbidden。')) return;
+      const d = await api('/api/admin/article/' + encodeURIComponent(art.id), { method: 'DELETE' });
+      if (d.ok) renderArticles(); else alert('删除失败');
+    };
+    al.appendChild(card);
+  });
 }
 
 (async function init() {
@@ -77,74 +183,46 @@ function showLogin() {
   if (!sess) return showLogin();
   document.getElementById('login').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
-
   document.getElementById('logout').onclick = () => { localStorage.removeItem(SKEY); location.reload(); };
 
-  // 拉数据
-  let articles = [], users = [];
-  try {
-    const a = await api('/api/admin/articles');
-    if (a.error === 'forbidden') { localStorage.removeItem(SKEY); return showLogin(); }
-    articles = a.items || [];
-  } catch (e) { alert('拉取文章失败'); }
-  try { users = (await api('/api/admin/users')).items || []; } catch (e) {}
+  // 接口若未授权则退回登录
+  const probe = await api('/api/admin/articles');
+  if (probe.status === 403) { localStorage.removeItem(SKEY); return showLogin(); }
 
-  document.getElementById('me').textContent = '（管理员）';
-
-  // 用户目录
-  const ul = document.getElementById('userList');
-  ul.innerHTML = users.map(u => '<span class="tag">' + escapeHtml(u.github_id) + '</span>').join('') || '<span class="muted">暂无</span>';
   document.getElementById('addUser').onclick = async () => {
     const v = document.getElementById('newUser').value.trim();
     if (!v) return;
-    await api('/api/admin/user', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ github_id: v }) });
-    location.reload();
+    const r = await api('/api/admin/user', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ github_id: v })
+    });
+    if (r.ok) { document.getElementById('newUser').value = ''; renderUsers(); }
+    else alert('添加失败');
   };
 
-  // 文章列表 + ACL 编辑
-  const al = document.getElementById('articleList');
-  al.innerHTML = '';
-  articles.forEach(art => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    const aclStr = (art.acl || []).join(', ');
-    card.innerHTML = '<div class="row" style="justify-content:space-between"><b>' + escapeHtml(art.id) + '</b>' +
-      '<span class="muted">' + (art.acl || []).length + ' 人</span></div>' +
-      '<div class="row"><input type="text" value="' + escapeHtml(aclStr) + '" placeholder="github_id 逗号分隔"></div>' +
-      '<div class="row"><button>保存</button><span class="msg muted"></span></div>';
-    const input = card.querySelector('input');
-    card.querySelector('button').onclick = async () => {
-      const want = input.value.split(',').map(s => s.trim()).filter(Boolean);
-      const have = art.acl || [];
-      const add = want.filter(x => !have.includes(x));
-      const rem = have.filter(x => !want.includes(x));
-      let okAll = true;
-      for (const g of add) {
-        const r = await api('/api/admin/article/' + encodeURIComponent(art.id) + '/acl', {
-          method: 'PATCH', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ op: 'add', github_id: g })
-        });
-        if (!r.ok) okAll = false;
-      }
-      for (const g of rem) {
-        const r = await api('/api/admin/article/' + encodeURIComponent(art.id) + '/acl', {
-          method: 'PATCH', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ op: 'remove', github_id: g })
-        });
-        if (!r.ok) okAll = false;
-      }
-      card.querySelector('.msg').textContent = okAll ? '已保存' : '部分失败';
-      setTimeout(() => { card.querySelector('.msg').textContent = ''; }, 2000);
-      if (okAll) art.acl = want;
-    };
-    al.appendChild(card);
-  });
-  if (!articles.length) al.innerHTML = '<p class="muted">暂无文章（用 author 工具发布后会出现）。</p>';
-})();
+  document.getElementById('addArt').onclick = async () => {
+    const id = document.getElementById('newArtId').value.trim();
+    const k = document.getElementById('newArtK').value.trim();
+    const iv = document.getElementById('newArtIv').value.trim();
+    const acl = document.getElementById('newArtAcl').value.split(',').map(s => s.trim()).filter(Boolean);
+    const m = document.getElementById('addArtMsg');
+    if (!id || !k || !iv) { flash(m, 'id / k / iv 必填', false); return; }
+    const r = await api('/api/admin/article', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id, k_article: k, iv, acl })
+    });
+    if (r.ok) {
+      document.getElementById('newArtId').value = '';
+      document.getElementById('newArtK').value = '';
+      document.getElementById('newArtIv').value = '';
+      document.getElementById('newArtAcl').value = '';
+      renderArticles(); flash(m, '已注册', true);
+    } else flash(m, '注册失败：' + ((r.body && r.body.error) || r.status), false);
+  };
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-}
+  renderUsers();
+  renderArticles();
+})();
 </script>
 </body>
 </html>
