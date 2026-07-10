@@ -17,7 +17,7 @@
     return u;
   }
 
-  // 解密产物已是编译好的 HTML（发布期由 author 工具 marked 渲染），直接注入并继承主题 .post-content 样式
+  // 解密产物已是编译好的 HTML（发布期由 author 工具用本地 Hugo 渲染，与全站一致，含 chroma 高亮），直接注入并继承主题 .post-content 样式
   function renderText(html) {
     box.innerHTML = html;
   }
