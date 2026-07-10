@@ -74,7 +74,7 @@ categories: ["折腾记录"]
 3. 在文章里插 shortcode：
 
 ```html
-{{< unlock article_id="<id>" >}}
+{{</* unlock article_id="<id>" */>}}
 ```
 
 4. `git push`，GitHub Pages 重建即生效。
