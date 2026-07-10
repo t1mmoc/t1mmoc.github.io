@@ -6,7 +6,9 @@
 (function () {
   const ARTICLE = "{{ .Get "article_id" }}";
   const wrap = document.getElementById('bp-' + ARTICLE);
+  const iframe = wrap.querySelector('iframe');
   const box = wrap.querySelector('.bp-content');
+  const IFRAME_ORIGIN = 'https://blog.tmoc.qzz.io';
 
   function b64ToBytes(b) {
     const bin = atob(b);
@@ -28,11 +30,34 @@
     }
   }
 
+  // 1) 登录回跳带 ?session= → 收下，存 github.io 第一方 localStorage（刷新免登），并从地址栏抹掉
+  let session = null;
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('session')) {
+    session = params.get('session');
+    try { localStorage.setItem('blog_session', session); } catch (e) {}
+    params.delete('session');
+    const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash;
+    history.replaceState(null, '', newUrl);
+  } else {
+    try { session = localStorage.getItem('blog_session'); } catch (e) {}
+  }
+
+  // 2) 把 session 转交给 iframe（postMessage 跨域，绕过 localStorage 分区）
+  function sendSession() {
+    if (session && iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage({ type: 'blog:session', article: ARTICLE, session: session }, IFRAME_ORIGIN);
+    }
+  }
   window.addEventListener('message', function (ev) {
     const d = ev.data || {};
     if (d.type === 'blog:key' && d.article === ARTICLE) {
       decryptAndRender(d.k, d.iv);
+    } else if (d.type === 'blog:ready' && d.article === ARTICLE) {
+      sendSession();
     }
   });
+  // iframe 可能先就绪（父脚本后执行），这里主动发一次；iframe 就绪后会再发 blog:ready 触发补发
+  sendSession();
 })();
 </script>
