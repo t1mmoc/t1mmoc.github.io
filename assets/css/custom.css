@@ -253,3 +253,27 @@ body.bg-ready::before { opacity: 1; }
 .pagination a:hover {
   background: var(--tertiary);
 }
+
+/* ===== 文章目录(TOC)：大屏(≥1280px)固定到左侧常驻，不随滚动消失 =====
+   复用全站毛玻璃风格，与 .post-single 卡片视觉一致；窄屏(<1280px)回退为内嵌折叠(主题默认) */
+@media (min-width: 1280px) {
+  details.toc {
+    position: fixed;
+    top: 5rem;
+    left: 1.5rem;
+    width: 240px;
+    max-height: calc(100vh - 7rem);
+    overflow-y: auto;
+    z-index: 20;
+    margin: 0;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(14px) saturate(1.1);
+    -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  }
+  :root[data-theme="dark"] details.toc {
+    background: rgba(29, 30, 32, 0.84);
+  }
+  /* 固定后列表撑满卡片，去掉默认内边距限制 */
+  details.toc .inner { padding: 0.3rem 0; }
+  details.toc ul { margin: 0; }
+}
