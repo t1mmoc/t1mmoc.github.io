@@ -1,8 +1,9 @@
 ---
 title: "【AIGC】给 Hugo 博客加一段「GitHub 登录才解密」的私货"
 date: 2026-07-11T00:50:00+08:00
+lastmod: 2026-07-12T00:04:00+08:00
 draft: false
-tags: ["Hugo", "Cloudflare Worker", "加密", "GitHub OAuth"]
+tags: ["Hugo", "Cloudflare Worker", "加密", "GitHub OAuth", "Git LFS", "TOC"]
 categories: ["折腾记录"]
 ---
 
@@ -85,6 +86,55 @@ categories: ["折腾记录"]
 - 登录态是服务端密钥 AES-GCM 加密的密文，浏览器和 XSS 都解不开、也伪造不出他人身份。
 - 浏览器内解密 = 明文必在 DOM，这是固有属性；方案把它限制在单篇 + 短窗口。
 - 受保护页建议配 CSP、不挂第三方脚本。
+
+## 后续升级一：密文托管上 Git LFS
+
+密文 `.bin` 是随博客公开发布的二进制。文字类碎片通常几十 KB 还好，但一旦往里塞加密图片、表情包甚至短视频，单文件就能到几 MB 甚至几十 MB。直接进 git 历史，仓库会被二进制撑大，`clone` / CI checkout 越来越慢。
+
+解法：把 `static/cipher/*.bin` 交给 Git LFS。
+
+```gitattributes
+# .gitattributes
+static/cipher/*.bin filter=lfs diff=lfs merge=lfs -text
+```
+
+```yaml
+# .github/workflows/hugo.yml（Actions checkout 必须开 lfs）
+- uses: actions/checkout@v4
+  with:
+    lfs: true
+```
+
+关键点（都是踩出来的）：
+
+- **LFS 只瘦 git 历史，不碰 Pages 产物。** git 历史里 `.bin` 变成一段几十字节的 pointer 文本；真实字节存在 LFS 存储。Hugo 构建时 `checkout(lfs:true)` 把真实字节拉回，照常 `cp` 进 `public/cipher/`，Pages 服务的依然是真实密文。所以「LFS 不还是进了 git 吗」这个担心是误会——它进的是 LFS 存储，不是 git 对象库。
+- **`lfs: true` 是命门。** 只写 `.gitattributes` 不够；如果用分支部署 / checkout 没开 LFS，Actions 拉到的是 pointer 文本，Pages 上线后解密必失败（拿到的是 pointer 不是密文）。用 `actions/checkout@v4` + `lfs: true` 才稳。
+- **迁移已有文件要重接。** LFS 只对「改后 `git add`」的文件生效；已提交的非 LFS 文件不会自动接管。要 `git rm --cached <file>` + `git add <file>` 让它重新走 LFS filter。
+- **配额（GitHub 官方）**：免费额度 10GiB 存储 + 10GiB 带宽/月，单文件 ≤2GiB。正常博客阅读有 CF 边缘缓存挡回源，基本不耗 LFS 带宽。
+- **验证**：上线后 `curl` 一下 `.bin`，确认返回的是真实二进制（首字节不是 `version https://git-lfs` 开头的 pointer 文本）。
+
+## 后续升级二：边缘常驻文章导航
+
+PaperMod 自带 TOC（`<details class="toc">`），但只在正文有 `##`~`######` 标题时才生成。我想做成「大屏固定到屏幕左侧、滚到底也不消失」的常驻目录。
+
+静态实现很简单：
+
+```css
+@media (min-width: 1280px) {
+  details.toc { position: fixed; top: 7rem; left: 1.5rem; width: 18.5rem; /* … */ }
+}
+```
+
+但两个坑把我卡了一轮：
+
+**坑 1：`backdrop-filter` 劫持 fixed。** 文章卡片 `.post-single` 上有 `backdrop-filter: blur(14px)`。按 CSS 规范，`filter` / `backdrop-filter` / `transform` / `perspective` 会创建新的包含块（containing block），导致它内部所有 `position: fixed` 子元素都相对**该卡片**定位，而不是视口。结果 TOC 贴着文章卡片左边缘，而不是屏幕左边。
+修复：宽屏下用一小段 JS 把 `details.toc` 从 `.post-single` 里**挪到 `<body>`**，脱离包含块；窄屏再还原回去。
+
+**坑 2：硬断点会重叠。** 纯 `@media (min-width:1280px)` 断点和卡片实际位置对不齐，缩窗口时 TOC 和正文会重叠。改成 JS 动态测距：实时算 TOC 右边缘与文章卡片左边缘的间距，**间距 < 2rem 就立刻切回内嵌折叠目录**，留足缓冲，不再出现重叠。
+
+细节打磨：宽 18.5rem、16px 圆角与卡片统一、滚动条做成贴边的极简矩形（去掉胶囊圆角和上下 margin，避免方形滚动条在圆形卡片上露出尖角）。
+
+最终效果：宽屏左侧常驻目录，滚动时纹丝不动；窗口变窄或空间不足时自动塌成内嵌折叠目录——既好看又不挡正文。这篇本身现在就有导航了（右上角 / 左侧，取决于屏宽），可以实地感受。
 
 ---
 
