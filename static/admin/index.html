@@ -41,7 +41,7 @@
 
   <div class="card" style="border-color:#c4d4ff;background:#f5f8ff">
     <h3>① 生成密钥（web 流程 · 免 author 工具 token）</h3>
-    <p class="muted">GitHub 登录后，填加密块 id 与允许解锁的 GitHub 用户名，点按即由服务端生成密钥并写入 KV，返回密钥 JSON。把该 JSON 交给 <code>author.mjs --key-json</code> 本地加密即可，无需 admin token。注意：服务端会回传明文密钥（仅经 HTTPS），请妥善保存该 JSON。</p>
+    <p class="muted">GitHub 登录后，填加密块 id 与允许解锁的 GitHub 用户名，点按即由服务端生成密钥并写入 KV，返回密钥 JSON。把该 JSON 交给 <code>author.mjs --key-json</code> 本地加密即可，无需 admin token。最省事：复制后直接 <code>Get-Clipboard | node author.mjs --file 正文.md --key-json</code>（从剪贴板管道读，无需存文件）；或点「复制单行」后内联粘贴 <code>--key-json '&lt;JSON&gt;'</code>。注意：服务端会回传明文密钥（仅经 HTTPS），请妥善保存该 JSON。</p>
     <div class="row"><input type="text" id="genId" placeholder="加密块 id（留空则自动生成 ULID，如 01J9X...；填写则与 .bin 文件名一致）"></div>
     <div class="row"><input type="text" id="genAcl" placeholder="允许解锁的 GitHub 用户名，逗号分隔，如 t1mmoc,alice"></div>
     <div class="row"><button class="primary" id="genBtn">🔑 生成密钥 JSON</button><span id="genMsg" class="msg"></span></div>
@@ -50,6 +50,7 @@
     </div>
     <div class="row" id="genActions" style="display:none">
       <button id="genCopy">复制 JSON</button>
+      <button id="genCopyOne">复制单行</button>
       <button id="genDownload">下载 .json</button>
     </div>
   </div>
@@ -212,6 +213,13 @@ async function renderArticles() {
   document.getElementById('genCopy').onclick = () => {
     const t = document.getElementById('genJson').value;
     navigator.clipboard.writeText(t).then(() => flash(document.getElementById('genMsg'), '已复制', true), () => alert('复制失败，请手动选择'));
+  };
+  document.getElementById('genCopyOne').onclick = () => {
+    const t = document.getElementById('genJson').value;
+    // 压缩成单行紧凑 JSON（去缩进/换行），方便直接 --key-json '<粘贴>' 内联使用
+    let compact;
+    try { compact = JSON.stringify(JSON.parse(t)); } catch (e) { compact = t.replace(/\s+/g, ' '); }
+    navigator.clipboard.writeText(compact).then(() => flash(document.getElementById('genMsg'), '已复制单行（可内联粘贴）', true), () => alert('复制失败，请手动选择'));
   };
   document.getElementById('genDownload').onclick = () => {
     const t = document.getElementById('genJson').value;
