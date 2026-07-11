@@ -129,7 +129,13 @@
     addBtn();
   }
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
-  else init();
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+else init();
+})();
+</script>
+{{/* TOC 固定左侧：将 details.toc 从 .post-single 移到 <body>，避免 backdrop-filter 劫持 fixed 定位 */}}
+<script>
+(function(){
+function fixToc(){var t=document.querySelector("details.toc");if(!t)return;if(window.innerWidth>=1280&&t.parentNode!==document.body){t._origParent=t.parentNode;t._origNext=t.nextElementSibling;document.body.appendChild(t);t.setAttribute("data-reparented","1")}else if(window.innerWidth<1280&&t.getAttribute("data-reparented")==="1"&&t._origParent){t._origParent.insertBefore(t,t._origNext);t.removeAttribute("data-reparented")}}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",fixToc);window.addEventListener("resize",fixToc)}else{fixToc();window.addEventListener("resize",fixToc)}
 })();
 </script>
