@@ -1,4 +1,4 @@
-baseURL = 'https://t1mmoc.github.io/'
+baseURL = 'https://blog.tmoc.qzz.io/'
 title = "Timmoc 的技术小屋"
 # Hugo 0.158+ 用 locale 替代已弃用的 languageCode
 locale = 'zh-cn'
