@@ -30,7 +30,7 @@
 <div id="login" class="hidden">
   <p>请先以 <b>timmoc</b> 身份登录 GitHub。</p>
   <button id="loginBtn">🔐 用 GitHub 登录（管理员）</button>
-  <p class="muted">登录态仅存于本域 localStorage，15 分钟有效。</p>
+  <p class="muted">登录态仅存于本域 localStorage，30 天有效。</p>
 </div>
 
 <div id="app" class="hidden">
@@ -42,7 +42,7 @@
   <div class="card" style="border-color:#c4d4ff;background:#f5f8ff">
     <h3>① 生成密钥（web 流程 · 免 author 工具 token）</h3>
     <p class="muted">GitHub 登录后，填加密块 id 与允许解锁的 GitHub 用户名，点按即由服务端生成密钥并写入 KV，返回密钥 JSON。把该 JSON 交给 <code>author.mjs --key-json</code> 本地加密即可，无需 admin token。注意：服务端会回传明文密钥（仅经 HTTPS），请妥善保存该 JSON。</p>
-    <div class="row"><input type="text" id="genId" placeholder="加密块 id（与 .bin 文件名一致，如 secret-note）"></div>
+    <div class="row"><input type="text" id="genId" placeholder="加密块 id（留空则自动生成 ULID，如 01J9X...；填写则与 .bin 文件名一致）"></div>
     <div class="row"><input type="text" id="genAcl" placeholder="允许解锁的 GitHub 用户名，逗号分隔，如 t1mmoc,alice"></div>
     <div class="row"><button class="primary" id="genBtn">🔑 生成密钥 JSON</button><span id="genMsg" class="msg"></span></div>
     <div class="row" id="genOut" style="display:none">
@@ -196,7 +196,7 @@ async function renderArticles() {
     const id = document.getElementById('genId').value.trim();
     const acl = document.getElementById('genAcl').value.split(',').map(s => s.trim()).filter(Boolean);
     const m = document.getElementById('genMsg');
-    if (!id) { flash(m, 'id 必填', false); return; }
+    // id 允许留空：留空时 worker 自动生成 ULID 并在返回 JSON 中带回
     const r = await api('/api/admin/article', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ id, acl })
