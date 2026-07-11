@@ -98,6 +98,14 @@ function flash(el, text, good) {
   el.className = 'msg ' + (good ? 'ok' : 'err');
   setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 2500);
 }
+// 按钮处理中态：禁用 + 改文案，返回还原函数。消除「点了没反应/卡了」的体感
+function busy(btn, label) {
+  if (!btn) return () => {};
+  const old = btn.textContent;
+  btn.disabled = true;
+  if (label) btn.textContent = label;
+  return () => { btn.disabled = false; btn.textContent = old; };
+}
 
 function showLogin() {
   document.getElementById('login').classList.remove('hidden');
@@ -148,32 +156,41 @@ async function renderArticles() {
       const t = document.createElement('span');
       t.className = 'tag';
       t.innerHTML = esc(g) + ' <span class="x" title="移除">×</span>';
-      t.querySelector('.x').onclick = async () => {
+      t.querySelector('.x').onclick = async (e) => {
         if (!confirm('移除 ' + g + ' 对本文的访问？')) return;
+        const btn = e.currentTarget;
+        const done = busy(btn, '×');
         const d = await api('/api/admin/article/' + encodeURIComponent(art.id) + '/acl', {
           method: 'PATCH', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ op: 'remove', github_id: g })
         });
+        done();
         if (d.ok) renderArticles(); else alert('移除失败');
       };
       aclTags.appendChild(t);
     });
     if (!(art.acl || []).length) aclTags.innerHTML = '<span class="muted">无</span>';
-    card.querySelector('[data-add]').onclick = async () => {
+    card.querySelector('[data-add]').onclick = async (e) => {
+      const btn = e.currentTarget;
+      const done = busy(btn, '添加中…');
       const inp = card.querySelector('input');
       const v = inp.value.trim();
-      if (!v) return;
+      if (!v) { done(); return; }
       const m = card.querySelector('.msg');
       const d = await api('/api/admin/article/' + encodeURIComponent(art.id) + '/acl', {
         method: 'PATCH', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ op: 'add', github_id: v })
       });
+      done();
       if (d.ok) { inp.value = ''; renderArticles(); flash(m, '已添加', true); }
       else flash(m, '添加失败', false);
     };
-    card.querySelector('[data-del]').onclick = async () => {
+    card.querySelector('[data-del]').onclick = async (e) => {
       if (!confirm('删除文章 ' + art.id + '？\n密钥记录将从 KV 移除；仓库里的密文 .bin 仍需你手动删除，否则读者会卡在 forbidden。')) return;
+      const btn = e.currentTarget;
+      const done = busy(btn, '删除中…');
       const d = await api('/api/admin/article/' + encodeURIComponent(art.id), { method: 'DELETE' });
+      done();
       if (d.ok) renderArticles(); else alert('删除失败');
     };
     al.appendChild(card);
@@ -193,21 +210,31 @@ async function renderArticles() {
   document.getElementById('logout').onclick = () => { localStorage.removeItem(SKEY); location.reload(); };
 
   // ---------- 生成密钥（web 流程）：填 id+人员 → worker 生成密钥 JSON ----------
-  document.getElementById('genBtn').onclick = async () => {
+  document.getElementById('genBtn').onclick = async (e) => {
+    const btn = e.currentTarget;
+    const done = busy(btn, '生成中…');
     const id = document.getElementById('genId').value.trim();
     const acl = document.getElementById('genAcl').value.split(',').map(s => s.trim()).filter(Boolean);
     const m = document.getElementById('genMsg');
     // id 允许留空：留空时 worker 自动生成 ULID 并在返回 JSON 中带回
-    const r = await api('/api/admin/article', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id, acl })
-    });
+    let r;
+    try {
+      r = await api('/api/admin/article', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id, acl })
+      });
+    } catch (err) {
+      done();
+      return flash(m, '网络错误：' + err.message, false);
+    }
+    done();
     if (r.ok && r.body && r.body.k_article) {
       const out = { id: r.body.id, k_article: r.body.k_article, iv: r.body.iv, acl: r.body.acl || [] };
       document.getElementById('genJson').value = JSON.stringify(out, null, 2);
       document.getElementById('genOut').style.display = '';
       document.getElementById('genActions').style.display = '';
       flash(m, '已生成（密钥已写入 KV），复制/下载后交给 author.mjs --key-json', true);
+      renderArticles(); // 生成即注册了文章，刷新列表与读者名册
     } else flash(m, '生成失败：' + ((r.body && r.body.error) || r.status), false);
   };
   document.getElementById('genCopy').onclick = () => {
@@ -235,17 +262,20 @@ async function renderArticles() {
   const probe = await api('/api/admin/articles');
   if (probe.status === 403) { localStorage.removeItem(SKEY); return showLogin(); }
 
-  document.getElementById('addArt').onclick = async () => {
+  document.getElementById('addArt').onclick = async (e) => {
+    const btn = e.currentTarget;
+    const done = busy(btn, '注册中…');
     const id = document.getElementById('newArtId').value.trim();
     const k = document.getElementById('newArtK').value.trim();
     const iv = document.getElementById('newArtIv').value.trim();
     const acl = document.getElementById('newArtAcl').value.split(',').map(s => s.trim()).filter(Boolean);
     const m = document.getElementById('addArtMsg');
-    if (!id || !k || !iv) { flash(m, 'id / k / iv 必填', false); return; }
+    if (!id || !k || !iv) { done(); return flash(m, 'id / k / iv 必填', false); }
     const r = await api('/api/admin/article', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ id, k_article: k, iv, acl })
     });
+    done();
     if (r.ok) {
       document.getElementById('newArtId').value = '';
       document.getElementById('newArtK').value = '';
