@@ -28,7 +28,7 @@ summaryLength = 20
   ShowBreadCrumbs = true
   ShowCodeCopyButtons = true
   ShowToc = true
-  TocOpen = false
+  TocOpen = true
   ShowRssButtonInSectionTermList = true
 
   # 全站开启评论区（由 layouts/_partials/comments.html 渲染）
