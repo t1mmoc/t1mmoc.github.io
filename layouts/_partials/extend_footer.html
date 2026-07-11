@@ -133,9 +133,34 @@ if (document.readyState === "loading") document.addEventListener("DOMContentLoad
 else init();
 })();
 </script>
-{{/* TOC 固定左侧：将 details.toc 从 .post-single 移到 <body>，避免 backdrop-filter 劫持 fixed 定位 */}}
+{{/* TOC 固定左侧：动态检测间距，空间不足自动回退内嵌，避免与文章重叠 */}}
 <script>
 (function(){
-function fixToc(){var t=document.querySelector("details.toc");if(!t)return;if(window.innerWidth>=1280&&t.parentNode!==document.body){t._origParent=t.parentNode;t._origNext=t.nextElementSibling;document.body.appendChild(t);t.setAttribute("data-reparented","1")}else if(window.innerWidth<1280&&t.getAttribute("data-reparented")==="1"&&t._origParent){t._origParent.insertBefore(t,t._origNext);t.removeAttribute("data-reparented")}}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",fixToc);window.addEventListener("resize",fixToc)}else{fixToc();window.addEventListener("resize",fixToc)}
+var SAFETY = 32; /* 2rem 安全距离（px），在此之前就切换回内嵌 */
+var rafId = 0;
+function fixToc(){
+  var t=document.querySelector("details.toc");if(!t)return;
+  var article=document.querySelector(".post-single");
+  var gap=-1;
+  if(article){
+    var ar=article.getBoundingClientRect();
+    /* TOC 固定时：left=1.5rem(24px) + width=18.5rem(296px) → right≈320 */
+    var tocRight=parseFloat(getComputedStyle(document.documentElement).fontSize)*20; /* 1.5+18.5=20rem */
+    gap=ar.left-tocRight;
+  }
+  var shouldFix=gap>=SAFETY;
+  if(shouldFix&&!t.classList.contains("toc-fixed")){
+    if(t.parentNode!==document.body){t._origParent=t.parentNode;t._origNext=t.nextElementSibling}
+    document.body.appendChild(t);t.classList.add("toc-fixed");t.setAttribute("data-reparented","1")
+  }else if(!shouldFix&&t.classList.contains("toc-fixed")){
+    t.classList.remove("toc-fixed");t.removeAttribute("data-reparented");
+    if(t._origParent){t._origParent.insertBefore(t,t._origNext);t._origParent=null;t._origNext=null}
+  }
+}
+function onResize(){cancelAnimationFrame(rafId);rafId=requestAnimationFrame(fixToc)}
+if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",fixToc)}else{fixToc()}
+window.addEventListener("resize",onResize);
+/* 文章内图片等异步加载后可能改变布局，再检一次 */
+window.addEventListener("load",fixToc);
 })();
 </script>
