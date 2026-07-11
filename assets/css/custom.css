@@ -259,10 +259,10 @@ body.bg-ready::before { opacity: 1; }
 @media (min-width: 1280px) {
   details.toc {
     position: fixed;
-    top: 5rem;
+    top: 8.5rem;
     left: 1.5rem;
-    width: 240px;
-    max-height: calc(100vh - 7rem);
+    width: 280px;
+    max-height: calc(100vh - 10.5rem);
     overflow-y: auto;
     z-index: 20;
     margin: 0;
