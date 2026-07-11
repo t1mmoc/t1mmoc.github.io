@@ -277,25 +277,19 @@ details.toc.toc-fixed {
     background: rgba(29, 30, 32, 0.84);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
-details.toc.toc-fixed::-webkit-scrollbar { width: 12px; }
-details.toc.toc-fixed::-webkit-scrollbar-track { background: transparent; margin: 4px 0; }
+details.toc.toc-fixed::-webkit-scrollbar { width: 10px; }
+details.toc.toc-fixed::-webkit-scrollbar-track { background: transparent; }
 details.toc.toc-fixed::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.22);
-    border-radius: 999px;
-    border: 3px solid transparent;
-    background-clip: padding-box;
+    background: rgba(0, 0, 0, 0.18);
 }
 details.toc.toc-fixed::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.35);
-    background-clip: padding-box;
+    background: rgba(0, 0, 0, 0.32);
 }
 [data-theme="dark"] details.toc.toc-fixed::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.28);
-    background-clip: padding-box;
+    background: rgba(255, 255, 255, 0.22);
 }
 [data-theme="dark"] details.toc.toc-fixed::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.42);
-    background-clip: padding-box;
+    background: rgba(255, 255, 255, 0.38);
 }
 details.toc.toc-fixed .inner { padding: 0.3rem 0; }
 details.toc.toc-fixed ul { margin: 0; }
