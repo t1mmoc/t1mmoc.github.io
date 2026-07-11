@@ -266,12 +266,28 @@ body.bg-ready::before { opacity: 1; }
     overflow-y: auto;
     z-index: 20;
     margin: 0;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.45);
     background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(14px) saturate(1.1);
     -webkit-backdrop-filter: blur(14px) saturate(1.1);
+    /* 圆角裁切滚动条，避免方形滚动条露出尖角 */
+    overflow: hidden auto;
+    scrollbar-width: thin;
   }
   :root[data-theme="dark"] details.toc {
     background: rgba(29, 30, 32, 0.84);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  /* 圆角卡片内的细滚动条 */
+  details.toc::-webkit-scrollbar { width: 8px; }
+  details.toc::-webkit-scrollbar-track { background: transparent; margin: 4px 0; }
+  details.toc::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.18);
+    border-radius: 999px;
+  }
+  :root[data-theme="dark"] details.toc::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.22);
   }
   /* 固定后列表撑满卡片，去掉默认内边距限制 */
   details.toc .inner { padding: 0.3rem 0; }
