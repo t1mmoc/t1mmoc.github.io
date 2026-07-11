@@ -261,7 +261,7 @@ body.bg-ready::before { opacity: 1; }
     position: fixed;
     top: 7rem;
     left: 1.5rem;
-    width: 17rem;
+    width: 18.5rem;
     max-height: calc(100vh - 9rem);
     overflow-y: auto;
     z-index: 20;
@@ -279,15 +279,26 @@ body.bg-ready::before { opacity: 1; }
     background: rgba(29, 30, 32, 0.84);
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
-  /* 圆角卡片内的细滚动条 */
-  details.toc::-webkit-scrollbar { width: 8px; }
+  /* 圆角卡片内的细滚动条（加宽更易点击） */
+  details.toc::-webkit-scrollbar { width: 12px; }
   details.toc::-webkit-scrollbar-track { background: transparent; margin: 4px 0; }
   details.toc::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.18);
+    background: rgba(0, 0, 0, 0.22);
     border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  details.toc::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.35);
+    background-clip: padding-box;
   }
   :root[data-theme="dark"] details.toc::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.28);
+    background-clip: padding-box;
+  }
+  :root[data-theme="dark"] details.toc::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.42);
+    background-clip: padding-box;
   }
   /* 固定后列表撑满卡片，去掉默认内边距限制 */
   details.toc .inner { padding: 0.3rem 0; }
