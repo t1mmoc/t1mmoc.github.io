@@ -39,6 +39,21 @@
     <button id="logout">退出</button>
   </div>
 
+  <div class="card" style="border-color:#c4d4ff;background:#f5f8ff">
+    <h3>① 生成密钥（web 流程 · 免 author 工具 token）</h3>
+    <p class="muted">GitHub 登录后，填加密块 id 与允许解锁的 GitHub 用户名，点按即由服务端生成密钥并写入 KV，返回密钥 JSON。把该 JSON 交给 <code>author.mjs --key-json</code> 本地加密即可，无需 admin token。注意：服务端会回传明文密钥（仅经 HTTPS），请妥善保存该 JSON。</p>
+    <div class="row"><input type="text" id="genId" placeholder="加密块 id（与 .bin 文件名一致，如 secret-note）"></div>
+    <div class="row"><input type="text" id="genAcl" placeholder="允许解锁的 GitHub 用户名，逗号分隔，如 t1mmoc,alice"></div>
+    <div class="row"><button class="primary" id="genBtn">🔑 生成密钥 JSON</button><span id="genMsg" class="msg"></span></div>
+    <div class="row" id="genOut" style="display:none">
+      <textarea id="genJson" rows="5" readonly style="flex:1;font-family:monospace;font-size:12px;padding:8px"></textarea>
+    </div>
+    <div class="row" id="genActions" style="display:none">
+      <button id="genCopy">复制 JSON</button>
+      <button id="genDownload">下载 .json</button>
+    </div>
+  </div>
+
   <div class="card">
     <h3>文章列表</h3>
     <div class="sub">
@@ -175,6 +190,38 @@ async function renderArticles() {
   document.getElementById('login').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('logout').onclick = () => { localStorage.removeItem(SKEY); location.reload(); };
+
+  // ---------- 生成密钥（web 流程）：填 id+人员 → worker 生成密钥 JSON ----------
+  document.getElementById('genBtn').onclick = async () => {
+    const id = document.getElementById('genId').value.trim();
+    const acl = document.getElementById('genAcl').value.split(',').map(s => s.trim()).filter(Boolean);
+    const m = document.getElementById('genMsg');
+    if (!id) { flash(m, 'id 必填', false); return; }
+    const r = await api('/api/admin/article', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id, acl })
+    });
+    if (r.ok && r.body && r.body.k_article) {
+      const out = { id: r.body.id, k_article: r.body.k_article, iv: r.body.iv, acl: r.body.acl || [] };
+      document.getElementById('genJson').value = JSON.stringify(out, null, 2);
+      document.getElementById('genOut').style.display = '';
+      document.getElementById('genActions').style.display = '';
+      flash(m, '已生成（密钥已写入 KV），复制/下载后交给 author.mjs --key-json', true);
+    } else flash(m, '生成失败：' + ((r.body && r.body.error) || r.status), false);
+  };
+  document.getElementById('genCopy').onclick = () => {
+    const t = document.getElementById('genJson').value;
+    navigator.clipboard.writeText(t).then(() => flash(document.getElementById('genMsg'), '已复制', true), () => alert('复制失败，请手动选择'));
+  };
+  document.getElementById('genDownload').onclick = () => {
+    const t = document.getElementById('genJson').value;
+    const blob = new Blob([t], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    try { a.download = (JSON.parse(t).id || 'key') + '.key.json'; } catch (e) { a.download = 'key.json'; }
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
 
   // 接口若未授权则退回登录
   const probe = await api('/api/admin/articles');
