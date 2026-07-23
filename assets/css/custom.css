@@ -293,3 +293,11 @@ details.toc.toc-fixed::-webkit-scrollbar-thumb:hover {
 }
 details.toc.toc-fixed .inner { padding: 0.3rem 0; }
 details.toc.toc-fixed ul { margin: 0; }
+
+/* ===== medium-zoom：确保弹层在最顶层，覆盖侧边栏、按钮等一切元素 ===== */
+.medium-zoom-overlay {
+  z-index: 9999 !important;
+}
+.medium-zoom-image--opened {
+  z-index: 10000 !important;
+}
