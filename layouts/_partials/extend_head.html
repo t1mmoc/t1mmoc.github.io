@@ -2,3 +2,9 @@
 {{ with resources.Get "css/custom.css" | minify | fingerprint }}
 <link rel="stylesheet" href="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}" crossorigin="anonymous">
 {{ end }}
+{{- /* medium-zoom: 图片点击放大，鼠标提示 */ -}}
+<style>
+  .post-content img {
+    cursor: zoom-in;
+  }
+</style>
