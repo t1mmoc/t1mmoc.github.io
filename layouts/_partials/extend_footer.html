@@ -164,3 +164,12 @@ window.addEventListener("resize",onResize);
 window.addEventListener("load",fixToc);
 })();
 </script>
+{{- /* medium-zoom: 文章图片点击放大，弹出独立全屏视图 */ -}}
+<script src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js"></script>
+<script>
+  mediumZoom('.post-content img', {
+    margin: 24,
+    background: 'rgba(0, 0, 0, 0.85)',
+    scrollOffset: 0,
+  });
+</script>
