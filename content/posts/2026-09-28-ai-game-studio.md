@@ -6,9 +6,14 @@ tags: ["独立游戏", "AI", "WorkBuddy", "Cloudflare", "一人工作室"]
 draft: false
 ---
 
+<img width="1135" height="489" alt="PixPin_2026-09-28_21-15-33" src="https://github.com/user-attachments/assets/fdcd89d3-b460-4700-a082-6a0ebbaa0e80" />
+
 如果我说，一个只会写代码、不会画一张图、不会写一段旋律的人，用**两天半**时间，从零做出一款能联网对战的桌游——你大概会觉得我在吹牛。
 
 但这是真的。更关键的是：我没有雇人，没有外包，背后是一支「AI 工作室」——一个 WorkBuddy Agent，在我这个「创意总监 + 终审」的指挥下，分饰 PM、前端、后端、规则设计师、美术、音效、DevOps 八个角色。
+
+<img width="243" height="334" alt="PixPin_2026-09-28_21-16-04" src="https://github.com/user-attachments/assets/c4dd8235-c0e0-45d3-9812-36e026cc72bf" />
+<img width="961" height="708" alt="PixPin_2026-09-28_21-16-46" src="https://github.com/user-attachments/assets/adc7911b-3925-490b-b884-5a47f8d4f911" />
 
 下面是这份「两天半造一家游戏工作室」的完整复盘。
 
