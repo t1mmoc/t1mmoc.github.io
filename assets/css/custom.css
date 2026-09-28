@@ -301,3 +301,12 @@ details.toc.toc-fixed ul { margin: 0; }
 .medium-zoom-image--opened {
   z-index: 10000 !important;
 }
+
+/* 文章内图片：等比缩放 + 居中 + 左右留白，避免带 width/height 属性的 <img> 被横向压扁 */
+.post-content img {
+  max-width: calc(100% - 2rem);
+  height: auto;
+  width: auto;
+  display: block;
+  margin: 1rem auto;
+}
