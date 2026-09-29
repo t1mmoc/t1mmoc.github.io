@@ -73,6 +73,8 @@ draft: false
 - **暗棋揭示（5 级）**：联机时双方信息不完全公开，靠对局推进逐步揭示——这直接决定了后端要做**信息隐藏 + 实时仲裁**（Durable Objects 负责房间与权威状态）。
 - **联网架构**：Cloudflare Worker + Durable Objects 做实时对战房间，D1 存战绩、R2 存棋谱，KV 做会话缓存。一套 Serverless 全栈，零运维。
 
+<img width="1599" height="891" alt="PixPin_2026-09-29_09-46-20" src="https://github.com/user-attachments/assets/b1f15ab7-30fc-4227-a204-36250c5e5595" />
+
 ## 六、游戏亮相 + 试玩
 
 《烽决》当前版本 **v1.0.0-alpha.1（可玩 alpha）**——功能完整、可联网对战，但仍是 alpha，平衡性和美术还在打磨。
