@@ -6,11 +6,36 @@ tags: ["agent", "game-dev", "marketing", "烽决", "duelchess", "devlog"]
 description: "从回放解析、规则引擎模拟、渲染引擎五版迭代到音量工程与宣发策略调研——记录《烽决》宣发中，一个 Agent 如何完成四支视频从 0 到成品的全过程。"
 ---
 
+## 前言（唯一的人类部分）
+
+哦，其实并非，因为ai没有图片能力，所以图片都是我插的。
+
+<img width="653" height="822" alt="image" src="https://github.com/user-attachments/assets/c3de77f5-f423-4521-8869-26f761344088" />
+
+首先感谢豆姐，豆包工作下载即送30天会员（不是广告）
+
+豆姐都不嫌我穷，我还怎么嫌豆姐弱呢？真的，蹬了一天了，蹬不完，根本蹬不完，别看我1天快把7天的量蹬光了，但是我今天又是更新知识库，又是同步github，又是组织迁移，又是宣发，又是让豆姐处理issue，又是整理文档记忆啥的。
+
+omg，这都蹬不完，豆姐大气，太大气了，这不宣传一下真没话说。
+
+对了，b站那边我发了（只有上传和发布是我干的，其他时候全是豆姐干的，ai忠诚的手这一块）。说起来豆姐不仅有全套剪辑能力（其他的没有），还有云电脑，终于不用担心电脑风扇转太快崩掉了。
+
+太久不写md了，正在思考怎么写引用……
+
+>[【AIGC】这个对战棋，是一个人两天半肝出来的](https://www.bilibili.com/video/BV1cJa66eEfv/?spm_id_from=333.1387.homepage.video_card.click)
+>[【AIGC】30 秒学会《烽决》—— 比军棋多三个玩法](https://www.bilibili.com/video/BV1cJa66eEf7/?spm_id_from=333.1387.homepage.video_card.click)
+>[【AIGC】15 秒，看懂这盘棋有多狠](https://www.bilibili.com/video/BV1wJa66eE57/?spm_id_from=333.1387.homepage.video_card.click)
+>[【AIEC】两天半，从 0 到可玩 alpha：一个人的游戏工作室](https://www.bilibili.com/video/BV1cJa66eEkb/?spm_id_from=333.1387.homepage.video_card.click)
+
+欢迎体验，也欢迎提issue（在本博客下面留言，我会处理）
+
 ## 起因
 
 《烽决》(duelchess) 是我和我的 Agent 用两天半做出来的游戏——严格说，是一套完整的「游戏工作室管线」：**130 次提交、9,453 行代码（72 个文件）、74 个单元测试、173 张美术素材、30 个音效（15 类）、4 张地图**，当前版本 `v1.0.0-alpha.1`（可玩 alpha）。
 
 游戏做完，宣发怎么办？市场上宣发外包报价不菲，而我的团队规模是「1 个人 + 1 个 Agent」。于是我把宣发也交给了 Agent：**四支视频（15s 高光 / 30s 教学 / 60s 综合 / 3min DevLog）从素材处理到成片，全部由 Agent 完成**。这篇文章记录整个管线怎么搭的，以及踩过的坑。
+
+<img width="1646" height="911" alt="PixPin_2026-10-01_22-00-22" src="https://github.com/user-attachments/assets/f89d26a9-4a07-4cff-beb4-be4451d51c1a" />
 
 ## 一、素材：回放 JSON + 录屏帧
 
@@ -46,6 +71,8 @@ npx tsx sim_replay.ts replay_yongwang.json > sim_yongwang.json
 | v5 | 原美术素材 + 局部放大特写窗 | 放大的全是无关内容 |
 
 关键认知：**Agent 没有眼睛，但用户有**。每一版我都以为「技术上有进步」，但审美是主观且连续的——用户要的不是「更清晰」，而是「好看且看得清」。最终定稿的是 v4 重绘版（全盘 6×13 可见、44px 大字棋子数字、移动插值/爆炸/传送/胜利金光特效）+ v3 版 DevLog 长视频。
+
+<img width="557" height="639" alt="PixPin_2026-10-01_22-00-30" src="https://github.com/user-attachments/assets/f6883de5-33be-42ae-b83d-059cfa9dea29" />
 
 v4 的技术要点（PIL 渲染）：
 
