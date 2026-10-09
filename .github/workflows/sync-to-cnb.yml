@@ -12,7 +12,10 @@
 #   每次同步都要重放，所以镜像侧历史不保留 → force push。
 #
 # 前提（GitHub 仓 Settings → Secrets and variables → Actions 已配置）：
-#   Secrets:  CNB_TOKEN = CNB PAT（repo-code:rw）
+#   Secrets:  CNB_TOKEN = CNB PAT（repo-code:rw，且**属于 t1mmoc 组织**）
+#               ⚠️ 这个值最容易配错：无效/越权 token 在 CNB 侧的表现是
+#                  `remote: Repository Not Found`，与「仓不存在」无从区分。
+#                  本 flow 的 Preflight 步骤会把它变成明确报错。
 #             CNB_REPO  = t1mmoc/t1mmoc.cnb.cool
 #   Variables（可选）: CNB_SITE_BASEURL = 镜像站 baseURL，默认沿用仓库内的 CNB 地址
 name: Sync to CNB mirror
@@ -77,7 +80,10 @@ jobs:
           grep -n '^baseURL' hugo.toml
           ! grep -q 'giscus.app' layouts/_partials/comments.html
 
-      - name: Push to CNB mirror
+      # 先验凭据与目标仓，把「token 无效 / 仓写不进」这类问题变成一眼可读的报错。
+      # 不验的话 git 只会甩一句 remote: Repository Not Found（CNB 对无权写入一律这样回，
+      # 哪怕是公开仓），让人以为是仓不存在或路径写错。
+      - name: Preflight (token + repo)
         env:
           CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
           CNB_REPO: ${{ secrets.CNB_REPO }}
@@ -85,6 +91,39 @@ jobs:
           set -euo pipefail
           : "${CNB_REPO:?CNB_REPO secret missing}"
           : "${CNB_TOKEN:?CNB_TOKEN secret missing}"
+
+          api() { curl -sS -m 20 -H "Authorization: Bearer ${CNB_TOKEN}" -H "Accept: application/json" "$1"; }
+
+          # 1) token 本身是不是 CNB 认的凭据
+          who=$(api https://api.cnb.cool/user) || true
+          if ! printf '%s' "$who" | grep -q '"username"'; then
+            echo "::error::CNB_TOKEN 不是有效的 CNB 凭据（GET /user 未返回身份）。"
+            echo "CNB 侧响应：$who"
+            exit 1
+          fi
+          echo "token 身份：$(printf '%s' "$who" | python3 -c 'import json,sys;print(json.load(sys.stdin)["username"])')"
+
+          # 2) token 对目标仓有没有【写】权限。
+          # 注意：不用 git ls-remote —— 公开仓匿名也能读，坏 token 一样"通过"，验不出问题。
+          # 用 push --dry-run 到一次性 ref：dry-run 不落地任何东西，但要走写权限校验。
+          url="https://cnb:${CNB_TOKEN}@cnb.cool/${CNB_REPO}.git"
+          if ! out=$(GIT_TERMINAL_PROMPT=0 git push --dry-run "$url" HEAD:refs/heads/cnb-sync-preflight 2>&1); then
+            echo "::error::CNB_TOKEN 对 ${CNB_REPO} 没有写权限（或仓路径写错）。"
+            echo "$out" | sed 's/^/    /'
+            echo "提示：CNB 对「无权写入」的仓一律回 'Repository Not Found'，"
+            echo "哪怕是公开仓——所以别把这条读成「仓不存在」。"
+            echo "排查顺序：① CNB_REPO 拼写 ② 该 token 是否属于 t1mmoc 组织、有无 repo-code:rw"
+            echo "③ 该 token 是否已失效（GET /user 有身份 ≠ 对目标仓有权限）。"
+            exit 1
+          fi
+          echo "写权限已确认：${CNB_REPO}"
+
+      - name: Push to CNB mirror
+        env:
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+          CNB_REPO: ${{ secrets.CNB_REPO }}
+        run: |
+          set -euo pipefail
           git config user.name  "timmocagent"
           git config user.email "agent@tmoc.qzz.io"
           git add -A
