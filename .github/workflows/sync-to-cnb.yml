@@ -40,11 +40,24 @@ jobs:
           lfs: true               # ⚠️ 必写：密文 *.bin 走 LFS
 
       - name: 主题内容化（镜像仓不解析 submodule）
+        # 镜像仓留 gitlink 会在 clone --recurse-submodules 时拉不到主题，构建直接没有样式；
+        # 改成普通目录（blob）入库。
+        #
+        # ⚠️ 老写法 `git rm --cached` + `git add -f` 是**空操作**：
+        #   子模块目录里存在 .git，git 会再次把它识别成 embedded repo 并还原成 gitlink，
+        #   暂存区里依然是 160000，推上去等于没改。要先把内层 .git 与 .gitmodules 去掉。
         run: |
           set -euo pipefail
-          # 镜像仓留 gitlink 会在 clone --recurse-submodules 时拉不到主题；改成普通目录。
-          git rm -q --cached themes/PaperMod || true
+          git rm -q -f --cached themes/PaperMod || true
+          git rm -q -f --cached .gitmodules || true
+          rm -rf .gitmodules themes/PaperMod/.git
           git add -f themes/PaperMod
+          # 断言：必须是普通文件（100644）而不是 gitlink（160000），否则别推
+          if git ls-files -s themes/PaperMod | grep -q '^160000'; then
+            echo "::error::themes/PaperMod 仍是 gitlink（160000），主题内容化失败"
+            exit 1
+          fi
+          echo "themes/PaperMod 已内容化：$(git ls-files themes/PaperMod | wc -l) 个文件"
 
       - name: 取回全历史 LFS 对象
         # 必须做：checkout 的 lfs:true 只取「最近引用」的 LFS 对象，历史深处的拿不到，
