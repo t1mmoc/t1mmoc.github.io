@@ -3,6 +3,7 @@
 # 为什么是 1:1：源站 baseURL 已定 t1mmoc.github.io、评论走 giscus、正文引用全为根路径，
 # 镜像站原样可用。镜像侧若靠 workflow 每次重放改写（改 baseURL / 去 giscus / 去前导
 # 斜杠），迟早与源站漂移，还会静默覆盖镜像侧手改 —— 那是长期维护税，不是功能。
+# 镜像仓已无自有文件（原 CloudBase 部署线 2026-10-09 移除），所以同步不需要保留任何东西。
 #
 # 两个必踩的坑，改这个 workflow 时别退回：
 #   1) fetch-depth: 0 —— CNB 服务端开 receive.shallowUpdate，**默认拒绝浅仓 push**
@@ -37,8 +38,9 @@ jobs:
       - name: 主题内容化（镜像仓不解析 submodule）
         run: |
           set -euo pipefail
+          # 镜像仓留 gitlink 会在 clone --recurse-submodules 时拉不到主题；改成普通目录。
           git rm -q --cached themes/PaperMod || true
-          git add -f themes/PaperMod .gitmodules
+          git add -f themes/PaperMod
 
       - name: Push to CNB mirror
         env:
@@ -48,24 +50,7 @@ jobs:
           set -euo pipefail
           : "${CNB_REPO:?CNB_REPO secret missing}"
           : "${CNB_TOKEN:?CNB_TOKEN secret missing}"
-          URL="https://cnb:${CNB_TOKEN}@cnb.cool/${CNB_REPO}.git"
-
           git config user.name  timmocagent
           git config user.email agent@tmoc.qzz.io
-
-          # 镜像侧自有文件（源仓没有）先暂存，同步后盖回，别让 force push 抹掉
-          git clone -q --depth 1 --branch main "$URL" /tmp/mirror 2>/dev/null || true
-          KEEP=".cnb.yml .cnb/secrets.example.yml README.md"
-          mkdir -p /tmp/stash
-          for f in $KEEP; do
-            [ -f "/tmp/mirror/$f" ] && { mkdir -p "/tmp/stash/$(dirname "$f")"; cp "/tmp/mirror/$f" "/tmp/stash/$f"; }
-          done
-
           git commit -m "sync: ${GITHUB_SHA::8} from github.com/${GITHUB_REPOSITORY}" || echo "no changes"
-          git push --force "$URL" HEAD:main
-
-          cd /tmp/mirror
-          git config user.name  timmocagent
-          git config user.email agent@tmoc.qzz.io
-          cp -r /tmp/stash/. .
-          git add -A && { git commit -m "chore: 保留镜像仓自有文件" && git push origin HEAD:main; } || echo "nothing to restore"
+          git push --force "https://cnb:${CNB_TOKEN}@cnb.cool/${CNB_REPO}.git" HEAD:main
