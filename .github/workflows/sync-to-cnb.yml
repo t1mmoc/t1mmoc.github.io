@@ -8,8 +8,12 @@
 # 两个必踩的坑，改这个 workflow 时别退回：
 #   1) fetch-depth: 0 —— CNB 服务端开 receive.shallowUpdate，**默认拒绝浅仓 push**
 #      （报 `shallow update not allowed`）。actions/checkout 默认只拉 1 层，必须显式关掉。
-#   2) lfs: true —— 加密文章密文 static/cipher/*.bin 走 Git LFS；
-#      不带它 checkout 只拿得到 pointer 文本，镜像仓的密文就废了。
+#   2) lfs: true + `git lfs fetch origin --all` —— 加密文章密文 static/cipher/*.bin 走 Git LFS。
+#      不带 lfs:true，checkout 只拿得到 pointer 文本；
+#      但**只写 lfs:true 仍然不够**：actions/checkout 拉的是「最近引用」的 LFS 对象，
+#      历史深处（旧版本 pointer）的对象拿不到，push 时 git-lfs 会报
+#      `(missing) static/cipher/xxx.bin ... Uploading LFS objects: 0% (0/3)` 并拒绝整个 push。
+#      所以 Push 之前必须单独跑一次全历史 LFS 取回。
 #
 # 前提（GitHub 仓 Settings → Secrets and variables → Actions）：
 #   Secrets: CNB_TOKEN = CNB PAT（repo-code:rw，属 t1mmoc 组织）
@@ -41,6 +45,17 @@ jobs:
           # 镜像仓留 gitlink 会在 clone --recurse-submodules 时拉不到主题；改成普通目录。
           git rm -q --cached themes/PaperMod || true
           git add -f themes/PaperMod
+
+      - name: 取回全历史 LFS 对象
+        # 必须做：checkout 的 lfs:true 只取「最近引用」的 LFS 对象，历史深处的拿不到，
+        # push 到 CNB 时 git-lfs 会以 (missing) 拒绝整个 push。
+        # 源仓 t1mmoc.github.io 的 static/cipher/260711-1.bin 历史上换过两版内容
+        # （848669 → 1019812 字节），旧那版正是藏在这里的对象。
+        run: |
+          set -euo pipefail
+          git lfs fetch origin --all
+          # 校验：当前工作区里每个 pointer 实体都已落到本地，否则宁可不推
+          git lfs fsck --pointers
 
       - name: Push to CNB mirror
         env:
