@@ -1,20 +1,19 @@
-# 把本仓（Hugo 源站，GitHub Pages = 权威源）单向同步到 CNB 镜像仓 t1mmoc/t1mmoc.cnb.cool
+# 本仓（Hugo 源站，GitHub Pages = 权威源）→ CNB 镜像仓 t1mmoc/t1mmoc.cnb.cool，单向、1:1。
 #
-# 方向：GitHub（源）→ CNB（镜像）。CNB 侧不反向回推，避免回环。
-# 机制：checkout → 应用镜像侧改写 → force push 到 CNB main。
+# 为什么是 1:1：源站 baseURL 已定 t1mmoc.github.io、评论走 giscus、正文引用全为根路径，
+# 镜像站原样可用。镜像侧若靠 workflow 每次重放改写（改 baseURL / 去 giscus / 去前导
+# 斜杠），迟早与源站漂移，还会静默覆盖镜像侧手改 —— 那是长期维护税，不是功能。
+# 镜像仓已无自有文件（原 CloudBase 部署线 2026-10-09 移除），所以同步不需要保留任何东西。
 #
-# 为什么要「改写 + force push」而不是直接 push：
-#   CNB 镜像不是 1:1 副本，镜像侧形态由本 flow 单方面决定，差异是固定的四类改写：
-#     1) 主题 PaperMod 内联进仓（源站走 git submodule；CNB 侧拉不到子模块 → 必须去掉 gitlink）
-#     2) baseURL 改指 CNB 站点（源站是 GitHub Pages 地址）
-#     3) 去掉 giscus 评论配置与外链（镜像站不接 GitHub Discussions）
-#     4) 站内引用去掉前导 `/`（含 /blog/ 子路径时绝对路径会 404）
-#   每次同步都要重放，所以镜像侧历史不保留 → force push。
+# 两个必踩的坑，改这个 workflow 时别退回：
+#   1) fetch-depth: 0 —— CNB 服务端开 receive.shallowUpdate，**默认拒绝浅仓 push**
+#      （报 `shallow update not allowed`）。actions/checkout 默认只拉 1 层，必须显式关掉。
+#   2) lfs: true —— 加密文章密文 static/cipher/*.bin 走 Git LFS；
+#      不带它 checkout 只拿得到 pointer 文本，镜像仓的密文就废了。
 #
-# 前提（GitHub 仓 Settings → Secrets and variables → Actions 已配置）：
-#   Secrets:  CNB_TOKEN = CNB PAT（repo-code:rw）
-#             CNB_REPO  = t1mmoc/t1mmoc.cnb.cool
-#   Variables（可选）: CNB_SITE_BASEURL = 镜像站 baseURL，默认沿用仓库内的 CNB 地址
+# 前提（GitHub 仓 Settings → Secrets and variables → Actions）：
+#   Secrets: CNB_TOKEN = CNB PAT（repo-code:rw，属 t1mmoc 组织）
+#            CNB_REPO  = t1mmoc/t1mmoc.cnb.cool
 name: Sync to CNB mirror
 
 on:
@@ -30,52 +29,18 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          submodules: recursive   # 主题子模块内容要取回，再内联
-          lfs: true               # 密文 static/cipher/*.bin 走 LFS
+          fetch-depth: 0          # ⚠️ 必写：CNB 拒浅仓 push
+          submodules: recursive
+          lfs: true               # ⚠️ 必写：密文 *.bin 走 LFS
 
-      - name: Inline theme (remove gitlink)
+      - name: 主题内容化（镜像仓不解析 submodule）
         run: |
           set -euo pipefail
-          rm -f .gitmodules
-          git rm --cached -r themes/PaperMod >/dev/null 2>&1 || true
+          # 镜像仓留 gitlink 会在 clone --recurse-submodules 时拉不到主题；改成普通目录。
+          git rm -q --cached themes/PaperMod || true
           git add -f themes/PaperMod
-
-      - name: Rewrite for CNB mirror
-        env:
-          CNB_SITE_BASEURL: ${{ vars.CNB_SITE_BASEURL }}
-        run: |
-          set -euo pipefail
-          BASEURL="${CNB_SITE_BASEURL:-https://t1mmoc.cnb.cool/}"
-
-          # 1) baseURL 指向镜像站
-          sed -i "s#^baseURL = .*#baseURL = '${BASEURL}'#" hugo.toml
-
-          # 2) 去掉 giscus 段落（[params.giscus] 到下一个顶层 [ 之前）
-          python3 - <<'PY'
-          import re, pathlib
-          p = pathlib.Path("hugo.toml")
-          s = p.read_text()
-          # 删掉 [params.giscus] 整段
-          s = re.sub(r"\n\s*#\s*Giscus[^\n]*\n(\s*#[^\n]*\n)*\s*\[params\.giscus\][\s\S]*?(?=\n\s*\[|\Z)", "\n", s)
-          p.write_text(s)
-          for f in ("layouts/_partials/comments.html",):
-              q = pathlib.Path(f)
-              if q.exists():
-                  q.write_text("{{/* 评论区：本站为 CNB 镜像，不接 giscus；要接评论请贴自托管实例脚本 */}}\n")
-          PY
-
-          # 3) 站内绝对路径去前导 /（子路径下会 404）
-          sed -i -E 's#(avatar|banner|favicon) = "/#\1 = "#' hugo.toml
-          # 正文配图与静态资源同样去前导 /
-          grep -rl '](/images/' content 2>/dev/null | xargs -r sed -i 's#](/images/#](images/#g' || true
-          grep -rl 'src="/images/' content layouts 2>/dev/null | xargs -r sed -i 's#src="/images/#src="images/#g' || true
-
-          echo "--- 改写后自检 ---"
-          grep -n '^baseURL' hugo.toml
-          ! grep -q 'giscus.app' layouts/_partials/comments.html
 
       - name: Push to CNB mirror
         env:
@@ -85,10 +50,7 @@ jobs:
           set -euo pipefail
           : "${CNB_REPO:?CNB_REPO secret missing}"
           : "${CNB_TOKEN:?CNB_TOKEN secret missing}"
-          git config user.name  "timmocagent"
-          git config user.email "agent@tmoc.qzz.io"
-          git add -A
-          git commit -m "sync: ${GITHUB_SHA::8} from github.com/${GITHUB_REPOSITORY}" || echo "no changes to commit"
-          git remote remove cnb 2>/dev/null || true
-          git remote add cnb "https://cnb:${CNB_TOKEN}@cnb.cool/${CNB_REPO}.git"
-          git push --force cnb HEAD:main
+          git config user.name  timmocagent
+          git config user.email agent@tmoc.qzz.io
+          git commit -m "sync: ${GITHUB_SHA::8} from github.com/${GITHUB_REPOSITORY}" || echo "no changes"
+          git push --force "https://cnb:${CNB_TOKEN}@cnb.cool/${CNB_REPO}.git" HEAD:main
