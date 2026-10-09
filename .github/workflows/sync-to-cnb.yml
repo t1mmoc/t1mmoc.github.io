@@ -118,6 +118,26 @@ jobs:
           fi
           echo "写权限已确认：${CNB_REPO}"
 
+      # 镜像仓有几样「只属于镜像侧」的东西，源仓没有：CNB 自己的流水线（.cnb.yml）、
+      # 密钥模板、站点 README、镜像侧项目记忆。直接 git add -A + force push 会把它们删掉。
+      # 做法：先把镜像侧这几个路径存下来，同步后再盖回去（同步=源站内容为准，但不动镜像侧资产）。
+      - name: Snapshot mirror-owned files
+        env:
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+          CNB_REPO: ${{ secrets.CNB_REPO }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/mirror-owned
+          GIT_TERMINAL_PROMPT=0 git clone -q --depth 1 \
+            "https://cnb:${CNB_TOKEN}@cnb.cool/${CNB_REPO}.git" /tmp/mirror-head
+          # 这两个路径若不存在则跳过（用 tar 的 -C 与 || true 兜住）
+          for path in .cnb .cnb.yml README.md; do
+            if [ -e "/tmp/mirror-head/$path" ]; then
+              cp -a "/tmp/mirror-head/$path" /tmp/mirror-owned/
+            fi
+          done
+          ls -la /tmp/mirror-owned
+
       - name: Push to CNB mirror
         env:
           CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
@@ -126,6 +146,12 @@ jobs:
           set -euo pipefail
           git config user.name  "timmocagent"
           git config user.email "agent@tmoc.qzz.io"
+
+          # 盖回镜像侧自有文件
+          for path in .cnb .cnb.yml README.md; do
+            [ -e "/tmp/mirror-owned/$path" ] && cp -a "/tmp/mirror-owned/$path" .
+          done
+
           git add -A
           git commit -m "sync: ${GITHUB_SHA::8} from github.com/${GITHUB_REPOSITORY}" || echo "no changes to commit"
           git remote remove cnb 2>/dev/null || true
