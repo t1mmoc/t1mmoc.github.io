@@ -108,9 +108,11 @@
   opacity: 0.85;
 }
 /* 权重必须高于 .post-content img（width/height:auto、margin:1rem auto），
-   否则友链头像会按原图尺寸铺满整张卡片 */
+   否则友链头像会按原图尺寸铺满整张卡片。
+   兜底那条要多带一层 .friend-grid：`.friend-card img` 只有 (0,1,1)，
+   与 .post-content img 同权重且位置更靠前，会静默输掉。 */
 .friend-card .friend-avatar,
-.friend-card img {
+.friend-grid .friend-card img {
   width: 3rem;
   height: 3rem;
   margin: 0;
