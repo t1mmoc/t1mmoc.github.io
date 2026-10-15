@@ -107,9 +107,13 @@
   border-style: dashed;
   opacity: 0.85;
 }
-.friend-avatar {
-  width: 48px;
-  height: 48px;
+/* 权重必须高于 .post-content img（width/height:auto、margin:1rem auto），
+   否则友链头像会按原图尺寸铺满整张卡片 */
+.friend-card .friend-avatar,
+.friend-card img {
+  width: 3rem;
+  height: 3rem;
+  margin: 0;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
