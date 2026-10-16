@@ -34,9 +34,11 @@
   width: 92px;
   height: 92px;
   border-radius: 50%;
-  border: 4px solid var(--theme, #fff);
-  box-shadow: 0 8px 24px rgba(255, 255, 255, 0.65);
-  background: var(--theme, #fff);
+  border: 3px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 4px 16px rgba(255, 255, 255, 0.35),
+    0 0 32px rgba(255, 255, 255, 0.18);
+  background: #fff;
 }
 .site-hero__meta {
   min-width: 0;
