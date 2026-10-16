@@ -53,7 +53,7 @@ summaryLength = 20
 
   # 首页站点头图 hero（头图 + 圆形头像 + 站点名 + 简介）
   [params.hero]
-    avatar = "/images/avatar.svg"
+    avatar = "/images/avatar.jpg"
     banner = "/images/banner.svg"
     subtitle = "这里记录技术笔记与日常思考，欢迎常来逛逛 👋"
 
