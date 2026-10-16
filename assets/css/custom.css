@@ -359,16 +359,28 @@ details.toc.toc-fixed ul { margin: 0; }
   border-color: var(--primary, #4f46e5);
 }
 .searchResults {
-  margin-top: 1rem;
+  margin: 1rem 0 0;
   padding: 0;
   list-style: none;
+  display: block;
 }
 .searchResults li {
-  padding: 0.8rem 0;
-  border-bottom: 1px solid var(--border, #e5e7eb);
+  list-style: none;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0.8rem 1rem !important;
+  margin: 0;
+  gap: 0;
+  transition: none;
 }
-.searchResults li:last-child {
-  border-bottom: none;
+.searchResults li:hover,
+.searchResults li:focus-within {
+  transform: none;
+  background: rgba(255, 255, 255, 0.06);
+}
+.searchResults li:not(:last-child) {
+  border-bottom: 1px solid var(--border, #e5e7eb) !important;
 }
 @media (max-width: 600px) {
   .searchbox--card { padding: 1.2rem 1.2rem; }
