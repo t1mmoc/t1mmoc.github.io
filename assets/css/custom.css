@@ -370,6 +370,23 @@ details.toc.toc-fixed ul { margin: 0; }
   list-style: none;
   padding: 0.7rem 1rem !important;
   margin: 0;
+  position: relative;
+}
+/* 隐藏主题默认箭头，换成右侧半透明大箭头背景装饰 */
+.searchResults li svg {
+  display: none;
+}
+.searchResults li::after {
+  content: "»";
+  position: absolute;
+  right: 0.9rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.6rem;
+  font-weight: 300;
+  opacity: 0.18;
+  pointer-events: none;
+  line-height: 1;
 }
 :root[data-theme="dark"] .searchResults li {
   background: var(--theme) !important;
