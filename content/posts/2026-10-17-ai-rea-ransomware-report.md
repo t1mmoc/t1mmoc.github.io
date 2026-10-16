@@ -12,7 +12,7 @@ description: "一句「拉 agent-mail 里面最新的逆向任务，注意是恶
 
 ![一句话的原始指令](/images/2026-10-17-ai-rea-ransomware-report/PixPin_2026-10-17_00-16-26.jpg)
 
-就这一句。16 分 50 秒之后我收到一份成品的勒索软件静态分析报告，外加一张行为链信息图。
+就这一句。16 分 50 秒之后我收到一份成品的勒索软件静态分析报告，外加一张行为链信息图。报告和样本（GPG 加密）放在 [h39-weaxor-static-report](https://cnb.cool/t1mmoc/tspace/pwngore/h39-weaxor-static-report)。
 
 这篇讲这一句之后发生了什么，以及哪几处是下次要盯的。样本本身的技术结论在报告里，我不在这里重讲一遍。
 
@@ -123,7 +123,7 @@ AI 给的报告不能读一遍就收。做法很朴素：**报告里每一个数
 
 我**没有**为了复核报告里那个 SHA-256 去解压它。一旦明文落盘，Defender 会当场把它处置掉，而且这本来就是我给自己定的规矩：样本明文不落盘。真要验哈希，等确实需要的时候走管道算，不写盘。
 
-现在这个 zip 已经 gpg 成 `e21cbdbf….zip.gpg`（334,226 字节）放在 `39weaxor\` 目录里了。
+现在这个 zip 已经 gpg 成 `e21cbdbf….zip.gpg`（334,226 字节），和报告一起放进仓库了：**[h39-weaxor-static-report](https://cnb.cool/t1mmoc/tspace/pwngore/h39-weaxor-static-report)**。仓是 public，但没有解密私钥的人拿到的只是密文——样本不会因为仓库公开而扩散。README 里另外记了三件事：这份报告是 agent 产出而不是人工 writeup、反编译发生在 agent 沙箱而非本机、以及我复核时挑出的那几处问题。
 
 ---
 
