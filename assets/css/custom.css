@@ -371,25 +371,21 @@ details.toc.toc-fixed ul { margin: 0; }
   padding: 0.7rem 1rem !important;
   margin: 0;
   position: relative;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 100' preserveAspectRatio='none'%3E%3Cpolyline points='5,8 10,50 5,92' stroke='currentColor' stroke-width='1.5' fill='none' opacity='0.22'/%3E%3Cpolyline points='12,8 17,50 12,92' stroke='currentColor' stroke-width='1.5' fill='none' opacity='0.22'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  background-size: 18px 100%;
 }
-/* 隐藏主题默认箭头，换成右侧半透明大箭头背景装饰 */
+/* 隐藏主题默认箭头 */
 .searchResults li svg {
   display: none;
 }
-.searchResults li::after {
-  content: "»";
-  position: absolute;
-  right: 0.9rem;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 1.6rem;
-  font-weight: 300;
-  opacity: 0.18;
-  pointer-events: none;
-  line-height: 1;
-}
 :root[data-theme="dark"] .searchResults li {
   background: var(--theme) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 100' preserveAspectRatio='none'%3E%3Cpolyline points='5,8 10,50 5,92' stroke='white' stroke-width='1.5' fill='none' opacity='0.22'/%3E%3Cpolyline points='12,8 17,50 12,92' stroke='white' stroke-width='1.5' fill='none' opacity='0.22'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  background-size: 18px 100%;
 }
 .searchResults li:not(:last-child) {
   border-bottom: none !important;
