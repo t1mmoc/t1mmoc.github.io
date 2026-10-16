@@ -52,7 +52,7 @@ ida跟随，得到程序包装的loadRes+resSize+malloc+memcpy一套组合拳
 
 最底下存在一些指针数据，但一起打包输出好了。
 
-> 解密是原地输出的，直接把那块内存整段打出来就是 `data.bin`（1,792 字节）。它属于明文载荷，不放在这里，在仓库的加密容器里。
+> 解密是原地输出的，直接把那块内存整段打出来就是 `data.bin`（1,792 字节）。它属于明文载荷，不放在这里，在仓库的加密容器里：[h31-resource-restore](https://cnb.cool/t1mmoc/tspace/pwngore/h31-resource-restore)。
 
 
 
