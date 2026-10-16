@@ -228,6 +228,13 @@ body.bg-ready::before { opacity: 1; }
   background: rgba(29, 30, 32, 0.72) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
+/* 移动端顶栏：标题与菜单之间间距收紧 */
+@media (max-width: 600px) {
+  .header { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+  .header-nav { gap: 0.15rem; }
+  .logo { margin-bottom: 0 !important; padding-bottom: 0 !important; }
+  .menu { margin-top: 0 !important; padding-top: 0 !important; }
+}
 /* 代码块保持较高不透明度，避免花哨背景干扰阅读代码 */
 :root[data-theme="dark"] .entry-content pre {
   background: rgba(28, 29, 33, 0.94) !important;
