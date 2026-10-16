@@ -4,3 +4,6 @@
 
 # Migration scratch (cnblogs HTML dumps, convert scripts)
 .migrate/
+
+# 本地留存，不入库
+tmp/
