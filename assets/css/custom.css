@@ -229,10 +229,10 @@ body.bg-ready::before { opacity: 1; }
 /* 移动端顶栏：标题与菜单之间间距收紧 */
 @media (max-width: 600px) {
   .header-nav {
-    line-height: 1.5;
-    row-gap: 0.25rem;
-    padding-top: 0.6rem;
-    padding-bottom: 0.6rem;
+    line-height: 1.8;
+    row-gap: 0.5rem;
+    padding-top: 0.8rem;
+    padding-bottom: 0.8rem;
   }
 }
 /* 代码块保持较高不透明度，避免花哨背景干扰阅读代码 */
@@ -329,4 +329,47 @@ details.toc.toc-fixed ul { margin: 0; }
   width: auto;
   display: block;
   margin: 1rem auto;
+}
+
+/* ===== 搜索页：输入框+结果复用正文毛玻璃卡片样式，去掉大标题卡片 ===== */
+.searchbox--card {
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  border-radius: 16px !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  padding: 1.5rem 1.9rem;
+}
+:root[data-theme="dark"] .searchbox--card {
+  background: rgba(29, 30, 32, 0.84) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+.searchbox--card #searchInput {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  font-size: 1rem;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  background: var(--theme, #fff);
+  color: inherit;
+  box-sizing: border-box;
+}
+.searchbox--card #searchInput:focus {
+  outline: none;
+  border-color: var(--primary, #4f46e5);
+}
+.searchResults {
+  margin-top: 1rem;
+  padding: 0;
+  list-style: none;
+}
+.searchResults li {
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+.searchResults li:last-child {
+  border-bottom: none;
+}
+@media (max-width: 600px) {
+  .searchbox--card { padding: 1.2rem 1.2rem; }
 }

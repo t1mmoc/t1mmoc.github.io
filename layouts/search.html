@@ -1,0 +1,9 @@
+{{- define "main" }}
+
+<div id="searchbox" class="searchbox searchbox--card">
+    <input id="searchInput" disabled placeholder="{{ .Params.placeholder | default (printf "%s ↵" .Title) }}"
+        aria-label="search" type="search" autocomplete="off" maxlength="64">
+    <ul id="searchResults" class="searchResults" aria-label="search results"></ul>
+</div>
+
+{{- end }}{{/* end main */}}
