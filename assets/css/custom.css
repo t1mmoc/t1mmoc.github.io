@@ -371,6 +371,9 @@ details.toc.toc-fixed ul { margin: 0; }
   padding: 0.7rem 1rem !important;
   margin: 0;
 }
+:root[data-theme="dark"] .searchResults li {
+  background: var(--theme) !important;
+}
 .searchResults li:not(:last-child) {
   border-bottom: none !important;
 }
