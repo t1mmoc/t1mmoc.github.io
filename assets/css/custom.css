@@ -584,6 +584,14 @@ a.pm-tag:hover,
 .pm-tag.pm-hide {
   display: none;
 }
+/* 文章内 meta 行：标签放不下时不截断，整组另起一行 —— 第一行仍是「日期 … 阅读时长 | 编辑此页」。
+   order:9 把标签组挪到视觉末尾（否则它会插在日期和阅读时长之间，换行位置就错了），
+   flex-basis:100% 让它独占一行。是否另起一行由 extend_footer.html 量出来，不靠猜断点。 */
+.post-meta.pm-tags-below .pm-tags {
+  order: 9;
+  flex-basis: 100%;
+  margin-top: 0.35rem;
+}
 
 /* ===== 搜索页：语义检索状态提示（搜索栏下方，完成/失败后隐藏） ===== */
 .search-status {
