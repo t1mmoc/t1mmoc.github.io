@@ -15,7 +15,8 @@
  * 需要环境变量：CLOUDFLARE_ACCOUNT_ID、CLOUDFLARE_API_TOKEN（Workers AI 调用权限）
  */
 
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -31,6 +32,8 @@ const outArg = args.find((a) => a.startsWith('--out='))?.split('=')[1]
   || (args.includes('--out') ? args[args.indexOf('--out') + 1] : null);
 const OUT = path.resolve(ROOT, outArg || 'static/search-vectors.json');
 const INDEX = path.resolve(ROOT, 'public/index.json');
+// 已有的索引（仓库里提交的种子/上次生成的结果）：内容没变就直接复用，不再调 API
+const CACHED = path.resolve(ROOT, 'static/search-vectors.json');
 
 // 用 ::warning:: 让软失败在 GitHub Actions 里以 annotation 形式显式暴露（否则会静默降级）
 const warn = (...m) => {
@@ -79,9 +82,12 @@ async function embedOnce(texts) {
   );
   const body = await res.json().catch(() => ({}));
   if (!res.ok || body.success === false) {
-    const err = new Error(`${res.status} ${JSON.stringify(body.errors || body).slice(0, 280)}`);
+    const detail = JSON.stringify(body.errors || body);
+    const err = new Error(`${res.status} ${detail.slice(0, 280)}`);
     err.status = res.status;
-    err.retryable = res.status === 408 || res.status === 429 || res.status >= 500;
+    // 日额度耗尽：重试和逐条兜底都没意义，直接放弃本次生成（保留旧索引兜底）
+    err.quotaExhausted = /daily free allocation/i.test(detail);
+    err.retryable = !err.quotaExhausted && (res.status === 408 || res.status === 429 || res.status >= 500);
     throw err;
   }
   const data = body.result?.data;
@@ -99,6 +105,7 @@ async function embed(texts) {
       return await embedOnce(texts);
     } catch (err) {
       lastErr = err;
+      if (err.quotaExhausted) throw err;
       if (!err.retryable) break;
       warn(`第 ${attempt} 次请求失败（${String(err.message).slice(0, 80)}），重试…`);
       await sleep(attempt * 1500);
@@ -138,6 +145,28 @@ async function main() {
       .join('\n'),
   }));
 
+  // 内容指纹：标题/正文没变就不重建，避免「只改 CSS 也全量烧一遍额度」
+  const contentHash = createHash('sha256')
+    .update(docs.map((d) => `${d.u}|${d.title}|${d.body}`).join('\n'))
+    .digest('hex');
+
+  if (existsSync(CACHED)) {
+    try {
+      const cached = JSON.parse(await readFile(CACHED, 'utf8'));
+      if (cached.contentHash === contentHash && Array.isArray(cached.items) && cached.items.length === docs.length) {
+        if (path.resolve(OUT) !== path.resolve(CACHED)) {
+          await mkdir(path.dirname(OUT), { recursive: true });
+          await copyFile(CACHED, OUT);
+        }
+        console.log(`[gen-vectors] 正文未变，复用已有索引（${cached.items.length} 篇，未调用 API）`);
+        return;
+      }
+      warn(`索引与当前正文不一致（${cached.items?.length ?? 0}/${docs.length} 篇），重建`);
+    } catch (err) {
+      warn('旧索引无法解析，重建:', String(err).slice(0, 120));
+    }
+  }
+
   const items = [];
   let tokens = 0;
   for (let i = 0; i < docs.length; i += BATCH) {
@@ -157,6 +186,7 @@ async function main() {
   const payload = {
     model: MODEL,
     dim: DIM,
+    contentHash,
     generated: new Date().toISOString(),
     count: items.length,
     items,
@@ -171,7 +201,7 @@ async function main() {
 try {
   await main();
 } catch (err) {
-  // 软降级：构建不应因向量生成失败而中断
-  warn('向量生成失败，跳过（语义检索自动禁用）:', String(err).slice(0, 300));
+  // 软降级：构建不应因向量生成失败而中断；hugo 已把 static/ 里的旧索引复制进 public/，语义检索仍可用
+  warn('向量生成失败，沿用已有索引兜底（索引缺失的文章只走关键词）:', String(err).slice(0, 300));
 }
 process.exit(0);
