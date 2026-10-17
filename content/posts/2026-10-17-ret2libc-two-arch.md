@@ -16,7 +16,7 @@ description: "2023 年 2 月到 3 月，两道 ret2libc 练习把我按在地上
 
 三年半后把东西翻出来归档，这句话半真半假。**流程确实忘不掉，但当时卡住我的地方，和我以为的完全不是一回事。**
 
-两个样本、两份脚本，现在一起放在 [r5-ret2libc](https://cnb.cool/t1mmoc/tspace/pwngore/r5-ret2libc)。
+两个样本、两份脚本，现在一起放在 [ret2libc](https://cnb.cool/t1mmoc/tspace/pwngore/ret2libc)。
 
 ---
 
@@ -255,4 +255,8 @@ printf_addr = u64(p.recvuntil("\x7f")[-6:].ljust(8, b'\x00'))
 2. **64 位 ret2libc 的失败，八成不是链子写错，是栈没对齐。** 先垫一条 `ret`，再怀疑地址。
 3. **ret2libc 的确定性只到「漏洞」为止，libc 版本永远是不确定项。** 拿到 libc 就是算术题，拿不到就是概率题。
 
-样本、两份脚本（原样，未美化）和这些地址表都在仓库里：[r5-ret2libc](https://cnb.cool/t1mmoc/tspace/pwngore/r5-ret2libc)。有问题随时问。
+样本、两份脚本（原样，未美化）和这些地址表都在仓库里：
+
+**<https://cnb.cool/t1mmoc/tspace/pwngore/ret2libc>**
+
+有问题随时问。
