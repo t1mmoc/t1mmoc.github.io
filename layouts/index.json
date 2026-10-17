@@ -1,0 +1,23 @@
+{{- /*
+  搜索/语义检索的 JSON 索引（覆盖主题同名模板）。
+  在主题字段基础上补 date / tags / readingTime，供搜索结果卡片复用首页 post-entry 的排版。
+*/ -}}
+{{- $.Scratch.Add "index" slice -}}
+{{- range site.RegularPages -}}
+    {{- if and (not .Params.searchHidden) (ne .Layout `archives`) (ne .Layout `search`) -}}
+    {{- $tags := slice -}}
+    {{- range .GetTerms "tags" -}}
+        {{- $tags = $tags | append (dict "t" .LinkTitle "u" .RelPermalink) -}}
+    {{- end -}}
+    {{- $.Scratch.Add "index" (dict
+        "title" .Title
+        "content" .Plain
+        "permalink" .Permalink
+        "summary" (.Summary | plainify | htmlUnescape)
+        "date" (.Date.Format "2006-01-02")
+        "tags" $tags
+        "readingTime" .ReadingTime
+    ) -}}
+    {{- end -}}
+{{- end -}}
+{{- $.Scratch.Get "index" | jsonify -}}

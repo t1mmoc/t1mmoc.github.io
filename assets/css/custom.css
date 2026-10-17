@@ -358,27 +358,16 @@ details.toc.toc-fixed ul { margin: 0; }
   outline: none;
   border-color: var(--primary, #4f46e5);
 }
+/* 结果列表：每项都是首页同款 .post-entry 卡片，这里只负责竖排间距 */
 .searchResults {
   margin: 1rem 0 0;
   padding: 0;
-  list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--gap);
 }
-.searchResults li {
-  list-style: none;
-  padding: 0.7rem 1rem !important;
-  margin: 0;
-}
-.searchResults li svg {
-  display: none;
-}
-:root[data-theme="dark"] .searchResults li {
-  background: var(--theme) !important;
-}
-.searchResults li:not(:last-child) {
-  border-bottom: none !important;
+.searchResults .post-entry {
+  margin-bottom: 0;
 }
 @media (max-width: 600px) {
   .searchbox--card { padding: 1.2rem 1.2rem; }

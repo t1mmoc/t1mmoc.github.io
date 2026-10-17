@@ -25,13 +25,14 @@ const SEM_MIN_COS = 0.36;
 const RRF_K = 15;
 const W_KW = 1.0;
 const W_SEM = 1.15;
-const MAX_SHOWN = 12;
+const MAX_SHOWN = 10;
 
 const FORCE_FAIL = new URLSearchParams(location.search).has('semfail');
 
 let fuse = null;
 let dataIndex = []; // index.json 原始数组（fuse 的 refIndex 指向它）
 let titleMap = new Map(); // path → title
+let itemByPath = new Map(); // path → index.json 原始条目（渲染卡片用）
 let vecByPath = new Map(); // path → { bv,bn(正文), tv,tn(标题) }
 let vecLoading = false;
 
@@ -126,16 +127,81 @@ const setStatus = (on) => {
   statusEl.hidden = !on;
 };
 
-const makeRow = (title, href) => {
-  const li = document.createElement('li');
+// 与 layouts/_partials/post_meta.html 同款图标，保证搜索结果卡片和首页一致
+const ICON_DATE =
+  '<svg class="pm-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+const ICON_CLOCK =
+  '<svg class="pm-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+
+const plain = (s) =>
+  String(s || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/** 结果卡片 = 首页 post-entry 的同构 DOM（标题 + 摘要 + 日期/标签/阅读时长） */
+const makeCard = (hit) => {
+  const item = itemByPath.get(hit.key) || {};
+  const title = item.title || hit.title || hit.key;
+
+  const article = document.createElement('article');
+  article.className = 'post-entry';
+
+  const header = document.createElement('header');
+  header.className = 'entry-header';
+  const h2 = document.createElement('h2');
+  h2.className = 'entry-hint-parent';
+  h2.textContent = title;
+  header.appendChild(h2);
+  article.appendChild(header);
+
+  const summary = plain(item.summary);
+  if (summary) {
+    const content = document.createElement('div');
+    content.className = 'entry-content';
+    const p = document.createElement('p');
+    p.textContent = summary;
+    content.appendChild(p);
+    article.appendChild(content);
+  }
+
+  const footer = document.createElement('footer');
+  footer.className = 'entry-footer';
+  if (item.date) {
+    const span = document.createElement('span');
+    span.className = 'pm-date';
+    span.innerHTML = ICON_DATE + item.date;
+    footer.appendChild(span);
+  }
+  for (const tag of (item.tags || []).slice(0, 2)) {
+    const a = document.createElement('a');
+    a.className = 'pm-tag';
+    a.href = tag.u;
+    a.textContent = '#' + tag.t;
+    footer.appendChild(a);
+  }
+  if ((item.tags || []).length > 2) {
+    const more = document.createElement('span');
+    more.className = 'pm-tag pm-tag-more';
+    more.title = `还有 ${item.tags.length - 2} 个标签`;
+    more.textContent = '#...';
+    footer.appendChild(more);
+  }
+  if (item.readingTime) {
+    const span = document.createElement('span');
+    span.className = 'pm-reading';
+    span.innerHTML = ICON_CLOCK + item.readingTime + ' min';
+    footer.appendChild(span);
+  }
+  if (footer.childElementCount) article.appendChild(footer);
+
   const link = document.createElement('a');
   link.className = 'entry-link';
-  link.href = href;
-  link.setAttribute('aria-label', title);
+  link.href = hit.href || item.permalink || hit.key;
+  link.setAttribute('aria-label', 'post link to ' + title);
+  article.appendChild(link);
 
-  li.appendChild(document.createTextNode(title));
-  li.appendChild(link);
-  return li;
+  return article;
 };
 
 const renderRows = (rows) => {
@@ -145,7 +211,7 @@ const renderRows = (rows) => {
     return;
   }
   const fragment = document.createDocumentFragment();
-  for (const r of rows) fragment.appendChild(makeRow(r.title, r.href));
+  for (const r of rows) fragment.appendChild(makeCard(r));
   resList.innerHTML = '';
   resList.appendChild(fragment);
   firstResult = resList.firstElementChild;
@@ -332,6 +398,7 @@ const initSearch = async () => {
     if (Array.isArray(data)) {
       dataIndex = data;
       titleMap = new Map(data.map((d) => [pathOf(d.permalink), d.title]));
+      itemByPath = new Map(data.map((d) => [pathOf(d.permalink), d]));
       fuse = new Fuse(data, buildFuseOptions());
       // 索引晚到：用户已经敲进词了就先补一次关键词搜索
       if (curQuery) runKeyword();
