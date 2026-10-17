@@ -1,5 +1,6 @@
 ---
 title: "关于"
+date: 2026-07-05
 description: "关于 Timmoc 的技术小屋，以及如何订阅更新"
 draft: false
 ---
