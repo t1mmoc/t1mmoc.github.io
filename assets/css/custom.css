@@ -175,7 +175,6 @@ body.bg-ready::before { opacity: 1; }
 .post-entry,
 .page-header,
 .archive-month,
-.not-found,
 .terms-tags,
 .entry-content pre {
   background: rgba(255, 255, 255, 0.92) !important;
@@ -197,7 +196,6 @@ body.bg-ready::before { opacity: 1; }
 .post-single,
 .page-header,
 .archive-month,
-.not-found,
 .terms-tags {
   border-radius: 16px !important;
   border: 1px solid rgba(255, 255, 255, 0.45) !important;
@@ -212,7 +210,6 @@ body.bg-ready::before { opacity: 1; }
 :root[data-theme="dark"] .post-single,
 :root[data-theme="dark"] .page-header,
 :root[data-theme="dark"] .archive-month,
-:root[data-theme="dark"] .not-found,
 :root[data-theme="dark"] .terms-tags {
   background: rgba(29, 30, 32, 0.84) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
@@ -668,4 +665,142 @@ a.pm-tag:hover,
   box-shadow:
     0 2px 10px rgba(0, 0, 0, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+/* ===== 404 页：炫彩卡片 + 流光 =====
+   边框流光是「转角度」不是「转元素」：conic 色带铺满整条边框，靠 @property 注册的
+   --nf-angle 从 0deg 走到 360deg，色带才会沿边框流动；直接 rotate 一个矩形会把圆角转歪。
+   色带单独做成 .nf-ring 浮在卡片下沿，中心被遮罩挖空——
+   这样 .nf-body 的 backdrop-filter 采到的是全站背景图，而不是被彩虹糊成一片。
+   卡内是斜向彩虹光束（浅色亮粉彩、深色沉色），12s 走完一个周期；正文颜色照常继承。
+   动的三条：边框环 7s、卡内光束 12s、外发光换色 7s。 */
+@property --nf-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+.nf {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 0 3rem;
+}
+.nf-card {
+  position: relative;
+  width: 100%;
+  max-width: 42rem;
+  border-radius: 1.4rem;
+  box-shadow: 0 1.1rem 3rem rgba(139, 92, 255, 0.28);  /* 静止态兜底，减弱动效时保留光晕 */
+  animation: nf-glow 7s linear infinite;
+}
+.nf-ring {
+  position: absolute;
+  inset: 0;                         /* 绝对定位按卡片 padding box 算，卡片不留 padding，环才贴最外沿 */
+  --nf-angle: 0deg;                 /* 不支持 @property 的浏览器退化成静态彩虹边 */
+  padding: 0.18rem;                 /* 遮罩挖空后剩下的流光边圈厚度 */
+  border-radius: inherit;
+  background: conic-gradient(from var(--nf-angle), #ff4d8d, #ff9a3d, #ffd93d, #4dd97b, #3dc7ff, #8b5cff, #ff4d8d) border-box;
+  /* 两层遮罩相减：只留 padding 之外那一圈，中心透出背景 */
+  -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: nf-turn 7s linear infinite;
+  pointer-events: none;
+}
+.nf-card:hover .nf-ring {
+  animation-duration: 3s;           /* 悬停时流光加速 */
+}
+.nf-body {
+  position: relative;               /* 保证压在 .nf-ring 之上：遮罩不被支持时正文不会被彩虹盖住 */
+  margin: 0.18rem;                  /* 让正文退到流光边圈内侧 */
+  border-radius: 1.22rem;           /* = 卡片 1.4rem 减去 0.18rem 边圈 */
+  padding: 2.4rem 2rem 2.2rem;
+  text-align: center;
+  /* 卡内流光：斜向彩虹光束，会走，且没有接缝。
+     上一版的硬边来自「普通 linear-gradient 铺 200% 宽再滑」——每格平铺各自算 120deg 的轴，
+     接缝上下颜色对不齐，于是有一条边横扫过卡面。
+     改法：用 repeating-linear-gradient（它本身是无限周期图案），色标位置一律用 rem 定死，
+     周期就固定为 20rem、不随卡片尺寸变；它在水平方向的重复距离 = 20rem / sin(120°)，
+     把平铺宽度取成这个值，左右边缘天然咬合，滑满一格 = 回到原图。 */
+  background-image: repeating-linear-gradient(120deg,
+      rgba(255, 224, 236, 0.82) 0, rgba(255, 244, 214, 0.82) 5rem,
+      rgba(214, 240, 255, 0.82) 10rem, rgba(232, 220, 255, 0.82) 15rem,
+      rgba(255, 224, 236, 0.82) 20rem);
+  background-position: 0 0;
+  background-size: calc(20rem / 0.866) 200%;  /* 高度 2 倍卡高：竖向不做周期对齐，只露出一行平铺 */
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  animation: nf-beam 12s linear infinite;
+}
+:root[data-theme="dark"] .nf-body {
+  /* 深色：同一套几何，只换色标（用 background-image 而非简写，免得重置 background-size） */
+  background-image: repeating-linear-gradient(120deg,
+      rgba(58, 20, 74, 0.8) 0, rgba(16, 32, 74, 0.8) 5rem,
+      rgba(10, 60, 66, 0.8) 10rem, rgba(70, 22, 52, 0.8) 15rem,
+      rgba(58, 20, 74, 0.8) 20rem);
+}
+.nf-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--secondary);
+}
+.nf-code {
+  margin: 0.5rem 0 0;
+  font-size: clamp(5rem, 20vw, 9rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+.nf-title {
+  margin: 0.2rem 0 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+.nf-desc {
+  margin: 0.7rem auto 1.7rem;
+  max-width: 26rem;
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: var(--secondary);
+}
+.nf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.7rem;
+}
+.nf-btn {
+  padding: 0.5rem 1.15rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--entry);
+  color: var(--primary);
+  font-size: 0.92rem;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.nf-btn:hover {
+  transform: translateY(-2px);
+  border-color: transparent;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+}
+@keyframes nf-turn {
+  to { --nf-angle: 360deg; }
+}
+@keyframes nf-beam {
+  to { background-position: calc(20rem / 0.866) 0; }  /* 正好走完一格平铺 = 一个周期 */
+}
+@keyframes nf-glow {
+  0%, 100% { box-shadow: 0 1.1rem 3rem rgba(255, 77, 141, 0.30); }
+  33%      { box-shadow: 0 1.1rem 3rem rgba(61, 199, 255, 0.30); }
+  66%      { box-shadow: 0 1.1rem 3rem rgba(139, 92, 255, 0.30); }
+}
+@media (max-width: 600px) {
+  .nf-body { padding: 1.6rem 1rem 1.4rem; }
+  .nf-title { font-size: 1.1rem; }
+  .nf-desc { font-size: 0.86rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nf-card, .nf-ring, .nf-body { animation: none; }
 }
