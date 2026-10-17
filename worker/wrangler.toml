@@ -1,0 +1,12 @@
+name = "blog-search"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# 查询向量接口：Workers AI bge-m3
+[ai]
+binding = "AI"
+
+# 自定义域名（避免 workers.dev 在大陆不可达）
+[[routes]]
+pattern = "search.tmoc.qzz.io"
+custom_domain = true

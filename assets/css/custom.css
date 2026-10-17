@@ -363,27 +363,16 @@ details.toc.toc-fixed ul { margin: 0; }
   outline: none;
   border-color: var(--primary, #4f46e5);
 }
+/* 结果列表：每项都是首页同款 .post-entry 卡片，这里只负责竖排间距 */
 .searchResults {
   margin: 1rem 0 0;
   padding: 0;
-  list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--gap);
 }
-.searchResults li {
-  list-style: none;
-  padding: 0.7rem 1rem !important;
-  margin: 0;
-}
-.searchResults li svg {
-  display: none;
-}
-:root[data-theme="dark"] .searchResults li {
-  background: var(--theme) !important;
-}
-.searchResults li:not(:last-child) {
-  border-bottom: none !important;
+.searchResults .post-entry {
+  margin-bottom: 0;
 }
 @media (max-width: 600px) {
   .searchbox--card { padding: 1.2rem 1.2rem; }
@@ -451,7 +440,7 @@ a.pm-tag:hover {
    吸引力通道（全部随 --tw 单调上升）：
      与底板的感知亮度差 ΔL(0 → 0.30) → 彩度 C(0.045 → 0.18) → 填充实度(0.5 → 0.95)
      → 描边不透明度 → 外发光 → 字重(500→800) → 字号(+0.22rem)。
-   字色固定在高对比一侧（min/max 跟着填充微调），保证 114 枚全部过 WCAG AA。
+   字色固定在高对比一侧（min/max 跟着填充微调），保证 116 枚全部过 WCAG AA。
    选择器写 a.pm-tag 而不是 .pm-tag，是为了压过上面那条同权重的 a.pm-tag{color:var(--secondary)}。 */
 a.pm-tag,
 .pm-tag-more,
@@ -594,4 +583,23 @@ a.pm-tag:hover,
 }
 .pm-tag.pm-hide {
   display: none;
+}
+
+/* ===== 搜索页：语义检索状态提示（搜索栏下方，完成/失败后隐藏） ===== */
+.search-status {
+  margin: 8px 4px 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--secondary);
+  animation: search-status-pulse 1.4s ease-in-out infinite;
+}
+.search-status[hidden] {
+  display: none;
+}
+@keyframes search-status-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-status { animation: none; }
 }
