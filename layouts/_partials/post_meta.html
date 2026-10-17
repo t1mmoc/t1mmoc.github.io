@@ -12,11 +12,15 @@
 
 {{- $tagKey := .Language.Params.Taxonomies.tag | default "tags" }}
 {{- $tags := .GetTerms $tagKey }}
-{{- range first 2 $tags }}
-<a class="pm-tag" href="{{ .RelPermalink }}">#{{ .LinkTitle }}</a>
-{{- end }}
-{{- if gt (len $tags) 2 }}
-<span class="pm-tag pm-tag-more" title="还有 {{ sub (len $tags) 2 }} 个标签">#...</span>
+{{- /* 标签一律输出完整（不再截前 2 个）：卡片 meta 行放不下时由 extend_footer.html 的
+       fitTagRow 在运行时把尾部折进 #...，文章内部不折叠。没有 JS 时就是全显示。 */}}
+{{- if $tags }}
+<span class="pm-tags">
+    {{- range $tags }}
+    <a class="pm-tag" href="{{ .RelPermalink }}">#{{ .LinkTitle }}</a>
+    {{- end }}
+    <span class="pm-tag pm-tag-more">#...</span>
+</span>
 {{- end }}
 
 {{- if (.Param "ShowReadingTime") }}

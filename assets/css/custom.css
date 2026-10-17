@@ -464,18 +464,20 @@ a.pm-tag,
      实测 ink=0.30 时 72 个色相 × 21 档权重里最差 4.56:1（落在 H5 橙红），刚好过线。 */
   --tag-l: calc(0.95 - var(--tag-w) * 0.27);
   --tag-fill: calc(0.5 + var(--tag-w) * 0.45);
-  --tag-line: calc(0.35 + var(--tag-w) * 0.5);
-  --tag-rim: calc(var(--tag-l) - 0.1);
+  /* 描边不能跟着权重一起变淡：淡标签本来就要和卡片贴在一起，边一虚就"化"进卡片里
+     （他截图里 #PoC / #漏洞分析 那种）。所以 alpha 下限抬到 .65，rim 比填充再深 0.28。 */
+  --tag-line: calc(0.65 + var(--tag-w) * 0.3);
+  --tag-rim: calc(var(--tag-l) - 0.28);
   --tag-ink: 0.3;
+  --tag-ink-shift: 0.08;
   /* 玻璃底：够透才能让背后的背景图被「磨」进来，可读性交给 blur + saturate */
   --tag-glass: rgba(255, 255, 255, 0.42);
+  /* 下面两个只被「实体彩签」那条规则取用；行内 meta 标签走平涂，不引用它们 */
   --tag-sheen: linear-gradient(155deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.05) 62%);
   --tag-edge: inset 0 0.0625rem 0 rgba(255, 255, 255, 0.7);
 
   background-color: var(--tag-glass);
-  /* 第一层是斜向高光（玻璃的反光面），第二层才是标签自己的颜色 */
-  background-image: var(--tag-sheen),
-    linear-gradient(oklch(var(--tag-l) var(--tag-c) var(--tag-h) / var(--tag-fill)));
+  background-image: linear-gradient(oklch(var(--tag-l) var(--tag-c) var(--tag-h) / var(--tag-fill)));
   /* saturate 与正文卡片一致(1.1)：再高就会把背景图的颜色拧成荧光 */
   backdrop-filter: blur(0.625rem) saturate(1.1);
   -webkit-backdrop-filter: blur(0.625rem) saturate(1.1);
@@ -483,10 +485,9 @@ a.pm-tag,
   border-radius: var(--radius);
   color: oklch(var(--tag-ink) calc(var(--tag-c) * 0.8) var(--tag-h));
   font-weight: calc(500 + var(--tag-w) * 300);
-  /* 内高光是玻璃感的主要来源；外发光只随权重抬，最后一条让彩签从背景上「浮」起来 */
-  box-shadow: var(--tag-edge),
-    0 0 calc(0.1rem + var(--tag-w) * 0.7rem) oklch(calc(var(--tag-l) + 0.06) var(--tag-c) var(--tag-h) / calc(var(--tag-w) * 0.5)),
-    0 0.1rem 0.5rem rgba(0, 0, 0, 0.14);
+  /* 刻意保持 2D 平涂：不加斜向高光、顶部内高光、外发光和投影——那几层会把小标签
+     渲染成鼓起的胶囊。层次感只靠「填充色 + 一圈描边」，注意力差全部走 ΔL/彩度/字重/字号。 */
+  box-shadow: none;
   text-decoration: none;
 }
 :root[data-theme="dark"] a.pm-tag,
@@ -496,22 +497,36 @@ a.pm-tag,
   --tag-glass: rgba(29, 30, 32, 0.45);
   --tag-sheen: linear-gradient(155deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.02) 62%);
   --tag-edge: inset 0 0.0625rem 0 rgba(255, 255, 255, 0.22);
-  /* 深色：方向反过来，越重越亮，离近黑的底板越远；描边提亮当作玻璃的受光边。
+  --tag-ink-shift: -0.08;
+  /* 深色：方向反过来，越重越亮，离近黑的底板越远；描边提亮当作受光边。
      浅色字要压得住，填充只能走到 0.50（实测最差 5.11:1）——深色主题的可拉区间天生比浅色窄，
-     剩下的注意力差交给彩度、填充实度、字号和发光来扛。 */
+     剩下的注意力差交给彩度、填充实度和字号来扛。 */
   --tag-l: calc(0.32 + var(--tag-w) * 0.18);
-  --tag-rim: calc(var(--tag-l) + 0.16);
+  --tag-rim: calc(var(--tag-l) + 0.26);
   --tag-ink: 0.96;
+}
+
+/* ===== 两种厚度，按「站在哪儿」分 =====
+   实体彩签（标签盘 + 文章底部）单独摆在背景上，要玻璃的厚度：斜向高光 + 顶部内高光
+   + 随权重的外发光 + 托底投影。平涂版试过，整盘像贴纸，卡通。
+   行内 meta 标签（首页/归档/文章顶部那排 #xx）压在卡片上，必须 2D 平涂——
+   同一排里每颗都鼓起来，卡片就成了一排胶囊。 */
+.terms-tags a,
+.post-tags a {
+  background-image: var(--tag-sheen),
+    linear-gradient(oklch(var(--tag-l) var(--tag-c) var(--tag-h) / var(--tag-fill)));
+  box-shadow: var(--tag-edge),
+    0 0 calc(0.1rem + var(--tag-w) * 0.7rem) oklch(calc(var(--tag-l) + 0.06) var(--tag-c) var(--tag-h) / calc(var(--tag-w) * 0.5)),
+    0 0.1rem 0.5rem rgba(0, 0, 0, 0.14);
 }
 
 /* 文章顶部 meta 行里的标签：同一套色，但只做淡染色，不抢正文行的注意力 */
 a.pm-tag,
 .pm-tag-more {
   --tag-fill: calc(0.28 + var(--tag-w) * 0.4);
-  --tag-line: calc(0.25 + var(--tag-w) * 0.35);
+  /* meta 行的染色更淡，但描边不能跟着淡——淡边压在白卡片上就直接化掉了 */
+  --tag-line: calc(0.6 + var(--tag-w) * 0.32);
   padding: 0.1rem 0.45rem;
-  box-shadow: var(--tag-edge),
-    0 0 calc(var(--tag-w) * 0.45rem) oklch(calc(var(--tag-l) + 0.06) var(--tag-c) var(--tag-h) / calc(var(--tag-w) * 0.4));
 }
 /* 标签盘里的彩签：数字大的同时更大颗，体积和颜色一起说话 */
 .terms-tags a {
@@ -535,7 +550,7 @@ a.pm-tag,
 .terms-tags a {
   text-align: center;
 }
-/* 悬停统一加戏：更实、更艳、发光更大，替代原来的下划线 */
+/* 悬停统一加戏：只往「更实 + 更艳 + 字色更深」走，不引入阴影/高光，保持 2D */
 a.pm-tag:hover,
 .pm-tag-more:hover,
 .terms-tags a:hover,
@@ -543,13 +558,40 @@ a.pm-tag:hover,
   --tag-fill: calc(0.7 + var(--tag-w) * 0.28);
   --tag-line: 0.95;
   --tag-c: calc(0.045 + var(--tag-w) * 0.135 + 0.03);
-  box-shadow: var(--tag-edge),
-    0 0 calc(0.35rem + var(--tag-w) * 0.85rem) oklch(calc(var(--tag-l) + 0.06) var(--tag-c) var(--tag-h) / calc(0.3 + var(--tag-w) * 0.4)),
-    0 0.1rem 0.5rem rgba(0, 0, 0, 0.14);
+  color: oklch(calc(var(--tag-ink) - var(--tag-ink-shift)) calc(var(--tag-c) * 0.8) var(--tag-h));
   text-decoration: none;
 }
 /* 「#...」(还有 N 个标签) 不是标签本身：权重归零就是最淡的灰签，无需另写一套 */
 .pm-tag-more {
   --th: 260;
   --tw: 0;
+  /* 默认不出现：模板永远输出完整标签，只有 JS 真的折叠了尾部才点亮它。
+     没 JS 时整排标签本来就是完整的，不会留下一个假的 #... */
+  display: none;
+}
+.pm-tag-more.is-shown {
+  display: inline-flex;
+}
+/* meta 行的标签组：包一层便于运行时测量与折叠（逻辑见 extend_footer.html 的 fitTagRow）。
+   默认允许换行——只有需要折叠的容器才会被 JS 锁住。 */
+.pm-tags {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-width: 0;
+}
+/* 测量期才锁换行：.pm-nowrap 由 JS 只挂在会被折叠的容器上（卡片 .entry-footer、
+   归档 .archive-meta 及其 .pm-tags）。文章页的 .post-meta 拿不到这个类，
+   标签放不下就自己换第二行，永不截断。 */
+.pm-nowrap {
+  flex-wrap: nowrap;
+}
+/* 测量期标签组还不许收缩：否则它会自己缩窄换行，行的 scrollWidth 永远不超标，
+   折叠判定就永远不会触发（JS 会把 .pm-nowrap 同时挂到行和组上）。 */
+.pm-tags.pm-nowrap {
+  flex-shrink: 0;
+}
+.pm-tag.pm-hide {
+  display: none;
 }

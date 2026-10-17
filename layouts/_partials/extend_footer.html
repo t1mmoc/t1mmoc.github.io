@@ -173,3 +173,58 @@ window.addEventListener("load",fixToc);
     scrollOffset: 0,
   });
 </script>
+{{/* 卡片 meta 行的标签折叠：模板永远输出完整标签，只有「宽度真的不够」时才把尾部折进 #...。
+       判定用 scrollWidth>clientWidth，所以测量期必须给行容器挂 .pm-nowrap——
+       默认的 flex-wrap:wrap 会靠换第二行消化宽度，那样永远测不出不足。
+       单篇文章顶部的 .post-meta 不在选择器里 ⇒ 文章内部永远显示完整。 */}}
+<script>
+(function () {
+  var HIDE = "pm-hide", SHOW = "is-shown", NOWRAP = "pm-nowrap";
+
+  function fit(row) {
+    var g = row.querySelector(".pm-tags");
+    if (!g) return;
+    var tags = Array.prototype.slice.call(g.querySelectorAll("a.pm-tag"));
+    var more = g.querySelector(".pm-tag-more");
+    if (tags.length < 2 || !more) return;
+
+    tags.forEach(function (t) { t.classList.remove(HIDE); });
+    more.classList.remove(SHOW);
+    row.classList.add(NOWRAP);
+    g.classList.add(NOWRAP);
+
+    function ok() { return row.scrollWidth <= row.clientWidth + 1; }
+    if (ok()) return;
+
+    var n = tags.length;
+    more.classList.add(SHOW);
+    while (n > 1 && !ok()) {
+      tags[n - 1].classList.add(HIDE);
+      n--;
+      more.title = "还有 " + (tags.length - n) + " 个标签";
+    }
+    /* 折到只剩一枚还是放不下（超长标签名），就放弃折叠让行自己换行，别横向溢出 */
+    if (!ok()) {
+      row.classList.remove(NOWRAP);
+      g.classList.remove(NOWRAP);
+      more.classList.remove(SHOW);
+      tags.forEach(function (t) { t.classList.remove(HIDE); });
+    }
+  }
+
+  function fitAll() {
+    Array.prototype.forEach.call(
+      document.querySelectorAll(".entry-footer, .archive-meta"), fit);
+  }
+
+  var raf = 0;
+  function onResize() { cancelAnimationFrame(raf); raf = requestAnimationFrame(fitAll); }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fitAll);
+  else fitAll();
+  window.addEventListener("resize", onResize);
+  window.addEventListener("load", fitAll);
+  /* 自定义字体加载完文字宽度会变，再算一次 */
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitAll);
+})();
+</script>
