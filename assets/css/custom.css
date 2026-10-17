@@ -391,11 +391,20 @@ details.toc.toc-fixed ul { margin: 0; }
 }
 .pm-date,
 .pm-tag,
-.pm-reading {
+.pm-reading,
+.pm-edit {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
   white-space: nowrap;
+}
+/* 第一行的固定成员一律不许被压缩：日期、阅读时长、| 编辑此页。
+   能换行的只有标签组，所以「编辑此页」要么留在第一行，要么整组一起挪，
+   不会因为某个项被挤窄而掉到第二行。 */
+.pm-date,
+.pm-reading,
+.pm-edit {
+  flex-shrink: 0;
 }
 .pm-icon {
   width: 0.8rem;
@@ -583,6 +592,11 @@ a.pm-tag:hover,
 }
 .pm-tag.pm-hide {
   display: none;
+}
+/* 测量期关掉阅读时长的 margin-left:auto：否则它会被顶到行尾，
+   「最后一个子项的右缘」就恒等于行右缘，量不出真实余量（只在 JS 加类的瞬间生效）。 */
+.pm-measure .pm-reading {
+  margin-left: 0;
 }
 /* 文章内 meta 行：标签放不下时不截断，整组另起一行 —— 第一行仍是「日期 … 阅读时长 | 编辑此页」。
    order:9 把标签组挪到视觉末尾（否则它会插在日期和阅读时长之间，换行位置就错了），

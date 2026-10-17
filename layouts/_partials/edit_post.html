@@ -1,0 +1,21 @@
+{{- /* 覆盖主题同名文件：把「| 编辑此页」合并成一个不可拆的 flex 项。
+       主题原版是分开的两个节点（&nbsp;|&nbsp; 文本 + <span><a>），宽度不足时会被
+       flex 拆开放行 —— 竖线留在第一行末尾、"编辑此页"掉到第二行，正是我们要避免的样子。
+       这里整体包进 .pm-edit（CSS 里 nowrap + flex-shrink:0），它要么整块留在第一行，
+       要么整块跟着换行，不会再出现半截分隔符。 */ -}}
+{{- if and (.Param "editPost.URL") (not (.Param "editPost.disabled")) -}}
+    {{- $editURL := .Param "editPost.URL" }}
+    {{- $appendFilePath := .Param "editPost.appendFilePath" | default false }}
+    {{- $editText := .Param "editPost.Text" | default (i18n "edit_post" ) -}}
+
+    {{- if $appendFilePath -}}
+        {{- $fileUrlPath := path.Join .File.Path }}
+        {{- $editURL = printf "%s/%s" $editURL $fileUrlPath }}
+    {{- end -}}
+
+    {{- if or (.Param "author") (.Param "ShowReadingTime") (not .Date.IsZero) .IsTranslated -}}
+        <span class="pm-edit">&nbsp;|&nbsp;<a href="{{ $editURL }}" rel="noopener noreferrer edit" target="_blank">{{- $editText -}}</a></span>
+    {{- else -}}
+        <span class="pm-edit"><a href="{{ $editURL }}" rel="noopener noreferrer edit" target="_blank">{{- $editText -}}</a></span>
+    {{- end -}}
+{{- end }}

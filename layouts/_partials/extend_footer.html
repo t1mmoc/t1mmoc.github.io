@@ -199,9 +199,25 @@ window.addEventListener("load",fixToc);
      默认的 flex-wrap:wrap 会靠换第二行消化宽度，那样永远测不出不足。 */}}
 <script>
 (function () {
-  var HIDE = "pm-hide", SHOW = "is-shown", NOWRAP = "pm-nowrap", STACK = "pm-tags-below";
+  var HIDE = "pm-hide", SHOW = "is-shown", NOWRAP = "pm-nowrap", STACK = "pm-tags-below", MEASURE = "pm-measure";
+  /* 判据要留 12px 安全边距：贴边算"放得下"的话，字体加载时序差几像素就会翻车。
+     注意 scrollWidth 永远不会小于 clientWidth（不溢出时两者相等），拿它做"余量"判定
+     会变成"永远放不下"——所以这里量的是真实剩余空间：测量期用 .pm-measure 关掉
+     .pm-reading 的 margin-left:auto 让子项靠左排，行右缘减最后一个子项右缘就是余量。 */
+  var SLACK = 12;
 
-  function fits(row) { return row.scrollWidth <= row.clientWidth + 1; }
+  function measuring(row, on) {
+    row.classList.toggle(MEASURE, on);
+    row.classList.toggle(NOWRAP, on);
+    var g = row.querySelector(".pm-tags");
+    if (g) g.classList.toggle(NOWRAP, on);
+  }
+
+  function fits(row) {
+    var last = row.lastElementChild;
+    if (!last || !row.clientWidth) return true;   /* 页面不可见时视口宽度是 0，不能拿它判定 */
+    return row.getBoundingClientRect().right - last.getBoundingClientRect().right >= SLACK;
+  }
 
   function fit(row) {
     var g = row.querySelector(".pm-tags");
@@ -212,38 +228,34 @@ window.addEventListener("load",fixToc);
 
     tags.forEach(function (t) { t.classList.remove(HIDE); });
     more.classList.remove(SHOW);
-    row.classList.add(NOWRAP);
-    g.classList.add(NOWRAP);
+    measuring(row, true);
 
-    if (fits(row)) return;
-
-    var n = tags.length;
-    more.classList.add(SHOW);
-    while (n > 1 && !fits(row)) {
-      tags[n - 1].classList.add(HIDE);
-      n--;
-      more.title = "还有 " + (tags.length - n) + " 个标签";
-    }
-    /* 折到只剩一枚还是放不下（超长标签名），就放弃折叠让行自己换行，别横向溢出 */
     if (!fits(row)) {
-      row.classList.remove(NOWRAP);
-      g.classList.remove(NOWRAP);
-      more.classList.remove(SHOW);
-      tags.forEach(function (t) { t.classList.remove(HIDE); });
+      var n = tags.length;
+      more.classList.add(SHOW);
+      while (n > 1 && !fits(row)) {
+        tags[n - 1].classList.add(HIDE);
+        n--;
+        more.title = "还有 " + (tags.length - n) + " 个标签";
+      }
+      /* 折到只剩一枚还是放不下（超长标签名）：放弃折叠，让行自己换行，别横向溢出 */
+      if (!fits(row)) {
+        more.classList.remove(SHOW);
+        tags.forEach(function (t) { t.classList.remove(HIDE); });
+      }
     }
+    measuring(row, false);
   }
 
-  /* 文章内：整行（日期 + 标签 + 阅读时长 + 编辑此页）放不下时，把标签组整体挪到下一行。
+  /* 文章内：整行（日期 + 标签 + 阅读时长 + | 编辑此页）余量不足时，把标签组整体挪到下一行。
      先摘掉 STACK 再量，否则上一轮的换行结果会把这次的判定吃掉。 */
   function stack(row) {
     var g = row.querySelector(".pm-tags");
     if (!g) return;
     row.classList.remove(STACK);
-    row.classList.add(NOWRAP);
-    g.classList.add(NOWRAP);
+    measuring(row, true);
     var over = !fits(row);
-    row.classList.remove(NOWRAP);
-    g.classList.remove(NOWRAP);
+    measuring(row, false);
     if (over) row.classList.add(STACK);
   }
 
