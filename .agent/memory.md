@@ -37,3 +37,27 @@
 
 - Worker 代码仓库：tdstud1o/blog-encrypt（Worker index.js / frontend/admin.html / tools/author.mjs / tools/img2fragment.mjs）。
 - 部署：deploy.py 只读环境变量 / CF secret。
+
+# 背景图（全站二次元随机背景）的既有事实与坑
+
+> 2026-10-17 摸底（GitHub issue #19「手机博客需要来点竖图」，用户澄清：竖图指**背景**）。仍是**方案阶段**，
+> 讨论进展在 issue #19 评论区；代码未改。
+
+## 现状结构
+
+- 全部逻辑在 `layouts/_partials/extend_footer.html` 的一个 IIFE 里，**没有独立 js 文件**。
+- 图池 = 38 个 uapis.cn 静态直链，**全是 `assets/acg/pc/` 横图**（1920×1080 / 2048×1152）。
+- 缓存键：`tmoc_bg_url` + `tmoc_bg_ts`（localStorage，TTL 24h）；切页复用同一张，不请求 API。
+- 手动切换：`.bg-switch` 按钮，每天 12 次 + 2.5s 冷却。
+- CSS：`body::before` + `background-size: cover`，`--site-bg-url` 由 JS 注入。
+
+## 坑（实测）
+
+- **`/api/v1/random/image` 带 `cache-control: no-store`，每次跳不同图**（`?category=acg&type=mb` → 302 到
+  `/assets/acg/mb/xxx.jpg`，静态图是 `max-age=604800`）。所以**池里只能放 302 落点，不能放 API URL** ——
+  放 API URL 会让「换背景」当天切不回去（localStorage 里存的 URL 每次都变一张）。
+- 分类与取向：`type=mb` 抽样 20/20 全是竖图（512×768 ~ 3072×5397，单张 80–590 KB）；
+  `type=pc` 是横图。取向由 API 侧保证，前端不必自己判断图片宽高。
+- **`a15b4afegy1fmvjn0z1laj21hc0u0k0x.jpg` 是 gzip 过的 JPEG**（`content-type: image/jpeg` +
+  `content-encoding: gzip`，326 KB）：浏览器会解，但服务端错配，已从池中剔除。
+- 取图源没有「宽高比参数」，只有 pc/mb 两个子类 —— 「响应式取近似取向」只能靠这两个池，不能指望精确比例。
