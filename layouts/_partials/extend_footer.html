@@ -1,6 +1,6 @@
-{{/* 全站二次元背景：向 blogbg.tmoc.qzz.io 要随机落点（后台预取一张，换图时立刻用），
-     端点不可用/失败冷却期则退回本地清单 /bg-pool.json，清单也没加载到就用下面两个内置池；
-     localStorage 固定 24h，切页不换图。 */}}
+{{/* 全站背景双图池：acg（朋友默认，向 blogbg.tmoc.qzz.io 要随机落点）/ normal（风景，本地清单）。
+     前端首屏按 normal 渲染 → 后台查 blog-server /api/me（复用加密登录 session，不多一次登录）→
+     朋友切 acg 并写 tmoc_bg_pref，下次刷新零等待。localStorage 固定 24h，切页不换图。 */}}
 <script>
 (function () {
   var POOL_L = [
@@ -64,6 +64,11 @@ var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
   var KEY_NEXT = "tmoc_bg_next";            // 后台已经预取好、并且验过能加载的下一张
   var KEY_FAIL = "tmoc_bg_api_fail";        // 最近一次取图端点失败的时间
   var KEY_SEEN = "tmoc_bg_seen";            // 近期用过的，短期内不撞图
+  var KEY_PREF = "tmoc_bg_pref";            // 图池偏好：acg（朋友默认）| normal（默认）
+  var KEY_ME = "tmoc_bg_me";                // /api/me 结果缓存 {f:is_friend,t:ts}，24h
+  var ME_TTL = 24 * 3600 * 1000;
+  var ME_URL = "https://blog.tmoc.qzz.io/api/me";
+  var LANDING_PIC = /^https:\/\/fastly\.picsum\.photos\/id\/\d+\/\d+\/\d+\.jpg\?hmac=[\w-]+$/i;
   var TTL = 24 * 3600 * 1000;               // 缓存 24 小时，期间切页复用同一张
   var MAX_PER_DAY = 12;                     // 每天手动换图上限
   var COOLDOWN = 2500;                      // 两次手动换图最小间隔(ms)
@@ -76,14 +81,17 @@ var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
   // 端点回来的地址必须长成这样：只认这两个已知站点的图片落点形状
   var LANDING = /^https:\/\/(?:t\.alcy\.cc\/pic\/(?:pc|mp)\/|uapis\.cn\/assets\/acg\/(?:pc|mb)\/)[\w.\-%]+\.(?:webp|jpe?g|png)$/i;
 
-  var live = null;                          // /bg-pool.json 加载到的 {pc,mb}；null = 还没拿到
+  var live = null;                          // /bg-pool.json 加载到的 {pc,mb,land_pc,land_mb}；null = 还没拿到
 
   // 取向只在「取新图」的那一刻判定，不监听 resize/orientationchange（沿用原有口径）
   function bucket() { return window.innerHeight >= window.innerWidth ? "mb" : "pc"; }
+  function pref() { return read(KEY_PREF) === "acg" ? "acg" : "normal"; }
   function poolOf(b) {
-    if (live && live[b] && live[b].length) return live[b];
-    var fb = b === "mb" ? POOL_P : POOL_L;
-    return fb.length ? fb : POOL_L;         // 竖图清单缺失时退回横图，别给空池
+    var acg = pref() === "acg";
+    var lk = acg ? b : ("land_" + b);
+    if (live && live[lk] && live[lk].length) return live[lk];
+    var fb = acg ? (b === "mb" ? POOL_P : POOL_L) : [];
+    return fb;                              // normal 池未配置时给空数组（宁缺毋滥），由调用方兜底
   }
   function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -96,7 +104,7 @@ var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
     if (s.length > SEEN_MAX) s.shift();
     store(KEY_SEEN, JSON.stringify(s));
   }
-  function isUsable(u) { return !!u && (LANDING.test(u) || POOL_L.indexOf(u) !== -1 || POOL_P.indexOf(u) !== -1); }
+  function isUsable(u) { return !!u && (LANDING.test(u) || LANDING_PIC.test(u) || POOL_L.indexOf(u) !== -1 || POOL_P.indexOf(u) !== -1); }
 
   function pickFromPool(exclude) {
     var list = poolOf(bucket()), seen = seenList(), cands = [], i;
@@ -106,7 +114,7 @@ var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
     if (!cands.length) {                    // 整池都翻过了就允许重复，别空转
       for (i = 0; i < list.length; i++) if (list[i] !== exclude) cands.push(list[i]);
     }
-    if (!cands.length) return list[0];
+    if (!cands.length) return null;         // 池子为空（如 normal 未配置）：宁可不设背景
     return cands[Math.floor(Math.random() * cands.length)];
   }
 
@@ -125,7 +133,11 @@ var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
 
   function currentCached() {
     var url = read(KEY_URL), ts = parseInt(read(KEY_TS) || "0", 10);
-    return (url && isUsable(url) && Date.now() - ts < TTL) ? url : null;
+    if (!(url && isUsable(url) && Date.now() - ts < TTL)) return null;
+    // 缓存的图必须属于当前偏好的池：normal 态不吃 acg 缓存（反之亦然），否则切池后 24h 内还是旧池的图
+    var inCur = (pref() === "acg") ? (LANDING.test(url) || POOL_L.indexOf(url) !== -1 || POOL_P.indexOf(url) !== -1)
+                                   : (LANDING_PIC.test(url));
+    return inCur ? url : null;
   }
   function save(url) {
     store(KEY_URL, url);
@@ -145,7 +157,7 @@ var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
         if (x.status === 200) {
           try {
             var j = JSON.parse(x.responseText);
-            if (j && (j.pc || j.mb)) { live = { pc: j.pc || [], mb: j.mb || [] }; }
+            if (j) { live = { pc: j.pc || [], mb: j.mb || [], land_pc: j.land_pc || [], land_mb: j.land_mb || [] }; }
           } catch (e2) {}
         }
         fin();
@@ -155,8 +167,10 @@ var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
     } catch (e) { fin(); }
   }
 
-  // 后台预取一张存进 KEY_NEXT；失败则进冷却，期间完全不问端点
+  // 后台预取一张存进 KEY_NEXT；失败则进冷却，期间完全不问端点。
+  // 端点（blog-bg Worker）只出 acg 池，normal 池纯走本地清单，不预取。
   function ensureNext() {
+    if (pref() !== "acg") return;
     if (read(KEY_NEXT)) return;
     if (Date.now() - parseInt(read(KEY_FAIL) || "0", 10) < API_BACKOFF) return;
     var ctl;
@@ -182,6 +196,7 @@ var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
       if (ok || read(KEY_URL) !== u) return;
       loadPool(function () {
         var alt = pickFromPool(u);
+        if (!alt) return;
         preload(alt, function (ok2) { if (ok2 && read(KEY_URL) === u) { setBg(alt); save(alt); } });
       });
       ensureNext();
@@ -191,7 +206,7 @@ var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
   // 换图优先用预取好的那张（网络早就走完了，点下立刻换）；没有才从清单挑
   function takeNextOrPool(exclude, cb) {
     var nxt = read(KEY_NEXT);
-    if (nxt && LANDING.test(nxt)) {
+    if (pref() === "acg" && nxt && LANDING.test(nxt)) {
       store(KEY_NEXT, "");
       cb(nxt, true);
       ensureNext();
@@ -212,13 +227,16 @@ var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
     takeNextOrPool(currentCached(), function (next, prefetched) {
       function show(ok) {
         btn.disabled = false;
-        if (!ok) return;
+        if (!ok) { btn.textContent = "没图可换"; setTimeout(function () { btn.textContent = "换背景 \u2764"; }, 1500); return; }
         setBg(next); save(next);
         store(KEY_CNT, String(cnt + 1));
         store(KEY_DATE, dt);
       }
       if (prefetched) { show(true); healIfDead(next); }
-      else preload(next, show);
+      else {
+        if (!next) { show(false); return; }
+        preload(next, show);
+      }
     });
   }
 
@@ -227,7 +245,7 @@ var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
     btn.className = "bg-switch";
     btn.type = "button";
     btn.textContent = "换背景 \u2764";
-    btn.title = "换一张二次元背景（每天最多 " + MAX_PER_DAY + " 次）";
+    btn.title = "换一张背景（每天最多 " + MAX_PER_DAY + " 次）";
     var last = 0;
     btn.addEventListener("click", function () {
       var now = Date.now();
@@ -238,18 +256,64 @@ var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
     document.body.appendChild(btn);
   }
 
-  function init() {
+  // ---------- acg / normal 双池主流程 ----------
+  // 降级策略（宁快勿等）：首屏按 normal 渲染（当前=本地风景清单，池未配置则纯色底），
+  // 后台慢查 /api/me；查到朋友 → pref=acg 立即换上（本页生效），下次刷新零等待。
+  // pref 只决定背景图池，与加密/登录态完全无关；未登录或接口不可用 = 永远 normal。
+  function acgFlow() {
     var url = currentCached();
-    if (url) { setBg(url); addBtn(); ensureNext(); return; }
+    if (url) { setBg(url); ensureNext(); return; }
     var nxt = read(KEY_NEXT);
-    if (nxt && LANDING.test(nxt)) {         // 今天没有固定的那张，但后台备着——直接用
+    if (nxt && LANDING.test(nxt)) {
       store(KEY_NEXT, "");
-      setBg(nxt); save(nxt); addBtn(); ensureNext(); healIfDead(nxt); return;
+      setBg(nxt); save(nxt); ensureNext(); healIfDead(nxt); return;
     }
     loadPool(function () {
       var p = pickFromPool(null);
-      setBg(p); save(p); addBtn(); ensureNext();
+      if (!p) return;
+      preload(p, function (ok) { if (ok) { setBg(p); save(p); } ensureNext(); });
     });
+  }
+
+  function normalFlow() {
+    var url = currentCached();
+    if (url) { setBg(url); return; }
+    loadPool(function () {
+      var p = pickFromPool(null);
+      if (!p) return;                       // normal 池尚未配置：保持站点默认纯色底
+      preload(p, function (ok) { if (ok) { setBg(p); save(p); } });
+    });
+  }
+
+  function checkFriend() {
+    var cached = null;
+    try { cached = JSON.parse(read(KEY_ME) || "null"); } catch (e) {}
+    if (cached && typeof cached.t === "number" && Date.now() - cached.t < ME_TTL) { applyMe(!!cached.f); return; }
+    var sess = read("blog_session");
+    if (!sess) return;                      // 未登录：安静保持 normal
+    fetch(ME_URL, { headers: { "x-session": sess }, cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : { ok: false }; })
+      .then(function (d) {
+        if (!d || d.ok !== true) return;    // 老版本 worker / 网络失败：维持 normal
+        store(KEY_ME, JSON.stringify({ f: !!d.is_friend, t: Date.now() }));
+        applyMe(!!d.is_friend);
+      })
+      .catch(function () {});
+  }
+
+  function applyMe(friend) {
+    if (friend) {
+      if (pref() !== "acg") { store(KEY_PREF, "acg"); acgFlow(); }
+    } else {
+      store(KEY_PREF, "normal");
+    }
+  }
+
+  function init() {
+    addBtn();
+    if (pref() === "acg") { acgFlow(); return; }
+    normalFlow();
+    checkFriend();
   }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
