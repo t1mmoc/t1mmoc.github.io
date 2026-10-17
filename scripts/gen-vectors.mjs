@@ -24,7 +24,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MODEL = '@cf/baai/bge-m3';
 const DIM = 1024;
 const CONTENT_CHARS = 1500; // 每篇正文截断长度
-const BATCH = 6; // 每批文档数（每篇 2 条文本；bge-m3 单请求上限 6 万 token）
+const BATCH = 4; // 每批文档数（每篇 2 条文本；bge-m3 单请求上限 6 万 token）
 
 const args = process.argv.slice(2);
 const outArg = args.find((a) => a.startsWith('--out='))?.split('=')[1]
@@ -32,7 +32,12 @@ const outArg = args.find((a) => a.startsWith('--out='))?.split('=')[1]
 const OUT = path.resolve(ROOT, outArg || 'static/search-vectors.json');
 const INDEX = path.resolve(ROOT, 'public/index.json');
 
-const warn = (...m) => console.warn('[gen-vectors]', ...m);
+// 用 ::warning:: 让软失败在 GitHub Actions 里以 annotation 形式显式暴露（否则会静默降级）
+const warn = (...m) => {
+  const line = ['[gen-vectors]', ...m].join(' ');
+  console.warn(line);
+  if (process.env.GITHUB_ACTIONS) console.log(`::warning::${line.replace(/\n/g, ' ')}`);
+};
 
 function b64(bytes) {
   return Buffer.from(bytes).toString('base64');
@@ -60,7 +65,7 @@ function quantize(vec) {
 
 const stripTags = (s) => String(s || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
-async function embed(texts) {
+async function embedOnce(texts) {
   const res = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/ai/run/${MODEL}`,
     {
@@ -74,11 +79,38 @@ async function embed(texts) {
   );
   const body = await res.json().catch(() => ({}));
   if (!res.ok || body.success === false) {
-    throw new Error(`${res.status} ${JSON.stringify(body.errors || body).slice(0, 300)}`);
+    const err = new Error(`${res.status} ${JSON.stringify(body.errors || body).slice(0, 280)}`);
+    err.status = res.status;
+    err.retryable = res.status === 408 || res.status === 429 || res.status >= 500;
+    throw err;
   }
   const data = body.result?.data;
   if (!Array.isArray(data) || data.length !== texts.length) throw new Error('返回向量数量不匹配');
   return data;
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** 带退避重试；批次仍失败则退化为逐条请求（单条 token 少，几乎不会再超时） */
+async function embed(texts) {
+  let lastErr;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await embedOnce(texts);
+    } catch (err) {
+      lastErr = err;
+      if (!err.retryable) break;
+      warn(`第 ${attempt} 次请求失败（${String(err.message).slice(0, 80)}），重试…`);
+      await sleep(attempt * 1500);
+    }
+  }
+  if (texts.length > 1) {
+    warn('整批失败，改为逐条重试');
+    const out = [];
+    for (const t of texts) out.push(...(await embed([t])));
+    return out;
+  }
+  throw lastErr;
 }
 
 async function main() {
