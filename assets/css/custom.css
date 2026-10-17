@@ -171,10 +171,12 @@ body.bg-ready::before { opacity: 1; }
 
 /* --- 中间内容区毛玻璃：半透明 + 模糊背后背景，保证正文可读 --- */
 /* 浅色：偏白半透明；深色：偏深半透明。透明度再上调 10% 让文字更清楚。 */
+/* .terms-tags：标签页整盘装进一张正文同款毛玻璃里，彩签不再直接铺在背景图上 */
 .post-entry,
 .page-header,
 .archive-month,
 .not-found,
+.terms-tags,
 .entry-content pre {
   background: rgba(255, 255, 255, 0.92) !important;
   backdrop-filter: blur(14px) saturate(1.1);
@@ -195,20 +197,23 @@ body.bg-ready::before { opacity: 1; }
 .post-single,
 .page-header,
 .archive-month,
-.not-found {
+.not-found,
+.terms-tags {
   border-radius: 16px !important;
   border: 1px solid rgba(255, 255, 255, 0.45) !important;
 }
 /* 文章列表卡片加大内边距，让框更大更透气 */
 .post-entry,
-.page-header {
+.page-header,
+.terms-tags {
   padding: 1.6rem 1.9rem !important;
 }
 :root[data-theme="dark"] .post-entry,
 :root[data-theme="dark"] .post-single,
 :root[data-theme="dark"] .page-header,
 :root[data-theme="dark"] .archive-month,
-:root[data-theme="dark"] .not-found {
+:root[data-theme="dark"] .not-found,
+:root[data-theme="dark"] .terms-tags {
   background: rgba(29, 30, 32, 0.84) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
@@ -433,4 +438,118 @@ a.pm-tag:hover {
 .header-nav,
 .header-nav .menu {
   align-items: center;
+}
+
+/* ===== tag 彩签：五颜六色但同名必同色，数字越大越抢眼 =====
+   构建期只下发两个数（见 layouts/_partials/extend_head.html 的 #tag-palette）：
+     --th 色相(0~360) —— 只跟标签文字走，同名必同色，新增标签不会改别人的颜色；
+     --tw 权重(0~1)   —— 该标签文章数 / 全站最大文章数，所有「吸引力」通道都由它现算。
+   为什么不用 HSL：HSL 的 L 不是感知量，同样 L=58% 的黄绿比蓝紫亮一大截，
+   「数字大=更跳」会在色相之间失真（安装包⁴ 闷、逆向¹² 炸，一半是色相的锅）。
+   OKLCH 的 L 就是感知亮度、C 就是彩度，把权重直接映射到这两个量上，
+   任何色相的高数字标签都以同样幅度从毛玻璃底板里凸出来，也不用再给黄绿区打补丁。
+   吸引力通道（全部随 --tw 单调上升）：
+     与底板的感知亮度差 ΔL(0 → 0.30) → 彩度 C(0.045 → 0.18) → 填充实度(0.5 → 0.95)
+     → 描边不透明度 → 外发光 → 字重(500→800) → 字号(+0.22rem)。
+   字色固定在高对比一侧（min/max 跟着填充微调），保证 114 枚全部过 WCAG AA。
+   选择器写 a.pm-tag 而不是 .pm-tag，是为了压过上面那条同权重的 a.pm-tag{color:var(--secondary)}。 */
+a.pm-tag,
+.pm-tag-more,
+.terms-tags a,
+.post-tags a {
+  --tag-h: var(--th, 260);
+  --tag-w: var(--tw, 0.12);
+  --tag-c: calc(0.045 + var(--tag-w) * 0.135);
+  /* 浅色：越重越沉，离近白的底板越远。带的下端不是审美决定的，是「深色字要过 AA」决定的：
+     实测 ink=0.30 时 72 个色相 × 21 档权重里最差 4.56:1（落在 H5 橙红），刚好过线。 */
+  --tag-l: calc(0.95 - var(--tag-w) * 0.27);
+  --tag-fill: calc(0.5 + var(--tag-w) * 0.45);
+  --tag-line: calc(0.35 + var(--tag-w) * 0.5);
+  --tag-rim: calc(var(--tag-l) - 0.1);
+  --tag-ink: 0.3;
+  /* 玻璃底：够透才能让背后的背景图被「磨」进来，可读性交给 blur + saturate */
+  --tag-glass: rgba(255, 255, 255, 0.42);
+  --tag-sheen: linear-gradient(155deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.05) 62%);
+  --tag-edge: inset 0 0.0625rem 0 rgba(255, 255, 255, 0.7);
+
+  background-color: var(--tag-glass);
+  /* 第一层是斜向高光（玻璃的反光面），第二层才是标签自己的颜色 */
+  background-image: var(--tag-sheen),
+    linear-gradient(oklch(var(--tag-l) var(--tag-c) var(--tag-h) / var(--tag-fill)));
+  /* saturate 与正文卡片一致(1.1)：再高就会把背景图的颜色拧成荧光 */
+  backdrop-filter: blur(0.625rem) saturate(1.1);
+  -webkit-backdrop-filter: blur(0.625rem) saturate(1.1);
+  border: 0.0625rem solid oklch(var(--tag-rim) calc(var(--tag-c) * 1.15) var(--tag-h) / var(--tag-line));
+  border-radius: var(--radius);
+  color: oklch(var(--tag-ink) calc(var(--tag-c) * 0.8) var(--tag-h));
+  font-weight: calc(500 + var(--tag-w) * 300);
+  /* 内高光是玻璃感的主要来源；外发光只随权重抬，最后一条让彩签从背景上「浮」起来 */
+  box-shadow: var(--tag-edge),
+    0 0 calc(0.1rem + var(--tag-w) * 0.7rem) oklch(calc(var(--tag-l) + 0.06) var(--tag-c) var(--tag-h) / calc(var(--tag-w) * 0.5)),
+    0 0.1rem 0.5rem rgba(0, 0, 0, 0.14);
+  text-decoration: none;
+}
+:root[data-theme="dark"] a.pm-tag,
+:root[data-theme="dark"] .pm-tag-more,
+:root[data-theme="dark"] .terms-tags a,
+:root[data-theme="dark"] .post-tags a {
+  --tag-glass: rgba(29, 30, 32, 0.45);
+  --tag-sheen: linear-gradient(155deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.02) 62%);
+  --tag-edge: inset 0 0.0625rem 0 rgba(255, 255, 255, 0.22);
+  /* 深色：方向反过来，越重越亮，离近黑的底板越远；描边提亮当作玻璃的受光边。
+     浅色字要压得住，填充只能走到 0.50（实测最差 5.11:1）——深色主题的可拉区间天生比浅色窄，
+     剩下的注意力差交给彩度、填充实度、字号和发光来扛。 */
+  --tag-l: calc(0.32 + var(--tag-w) * 0.18);
+  --tag-rim: calc(var(--tag-l) + 0.16);
+  --tag-ink: 0.96;
+}
+
+/* 文章顶部 meta 行里的标签：同一套色，但只做淡染色，不抢正文行的注意力 */
+a.pm-tag,
+.pm-tag-more {
+  --tag-fill: calc(0.28 + var(--tag-w) * 0.4);
+  --tag-line: calc(0.25 + var(--tag-w) * 0.35);
+  padding: 0.1rem 0.45rem;
+  box-shadow: var(--tag-edge),
+    0 0 calc(var(--tag-w) * 0.45rem) oklch(calc(var(--tag-l) + 0.06) var(--tag-c) var(--tag-h) / calc(var(--tag-w) * 0.4));
+}
+/* 标签盘里的彩签：数字大的同时更大颗，体积和颜色一起说话 */
+.terms-tags a {
+  font-size: calc(1rem + var(--tag-w) * 0.22rem);
+  padding: calc(0.3rem + var(--tag-w) * 0.15rem) calc(0.7rem + var(--tag-w) * 0.3rem);
+}
+/* 左右拉满：flex 默认把每个 <li> 压成内容宽，行尾就留下大小不一的空位。
+   给 li 加 flex-grow，每行的剩余宽度由该行标签均分摊满，盘的左右边缘就齐了。
+   列宽不能改成等分 grid —— 标签名长短差好几倍，等分列会让长标签溢出格子。
+   max-width 是兜底：最后一行只剩一枚时，不至于被拉成一条横贯整盘的巨签。 */
+.terms-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1em;
+}
+.terms-tags li {
+  display: block;
+  flex: 1 1 auto;
+  max-width: 14rem;
+}
+.terms-tags a {
+  text-align: center;
+}
+/* 悬停统一加戏：更实、更艳、发光更大，替代原来的下划线 */
+a.pm-tag:hover,
+.pm-tag-more:hover,
+.terms-tags a:hover,
+.post-tags a:hover {
+  --tag-fill: calc(0.7 + var(--tag-w) * 0.28);
+  --tag-line: 0.95;
+  --tag-c: calc(0.045 + var(--tag-w) * 0.135 + 0.03);
+  box-shadow: var(--tag-edge),
+    0 0 calc(0.35rem + var(--tag-w) * 0.85rem) oklch(calc(var(--tag-l) + 0.06) var(--tag-c) var(--tag-h) / calc(0.3 + var(--tag-w) * 0.4)),
+    0 0.1rem 0.5rem rgba(0, 0, 0, 0.14);
+  text-decoration: none;
+}
+/* 「#...」(还有 N 个标签) 不是标签本身：权重归零就是最淡的灰签，无需另写一套 */
+.pm-tag-more {
+  --th: 260;
+  --tw: 0;
 }

@@ -1,0 +1,47 @@
+{{- /* ===== 标签盘数据：一次算完「色相 + 权重 + 排序」，供 #tag-palette 与 taxonomy.html 共用 =====
+   入参：dict "taxonomy" "tags"（缺省即 tags）
+   返回：按 score 降序的列表，每项含 name/count/score/url/title/hue/w。
+   这里只产出两个视觉量：色相 --th 和权重 --tw。彩签的感知亮度、彩度、发光、字重、字号
+   全部在 custom.css 里按 --tw 现算——权重只有一个来源，改样式不用重新构建。
+
+   score = (FNV-1a(标签文字) % 1000) + count * $weight
+     哈希底分只跟文字走 ⇒ 同一标签的底分永远不变（确定性，同名同色同位）；
+     count * $weight 把文章数大的抬到前面。底分在 0~999 均匀分布，所以文章数只差 1 的两枚
+     标签要底分相差 > $weight 才互换位置（概率 = (1 - w/1000)²）：
+       $weight=500 → 约 1/8 概率插队，整体一眼按数字递减、偶发错落；
+       $weight=250 → 约 9/16 概率插队，头部还认得出主次，第二行起基本是色相秀。
+     再小就是随机洗牌了。
+
+   hue = 黄金角步进：先取 rank = FNV-1a(文字) % 2^21（纯文字派生 ⇒ 同名必同色，
+     新增标签只多占一个 rank，不改别人的色相），再 hue = rank * 137.5072° mod 360。
+     直接 hash % 360 会把 114 枚挤得疏密不均；黄金角铺满后全局 Δ<8° 的配对数
+     正好等于理论下限 286 对——114 枚摊在 360° 上平均只差 3.2°，已经低于人眼
+     5~10° 的色相分辨门槛，色相能给的区分度到此为止，剩下的差异靠亮度/彩度/字号。
+     色相取整到 1°：做 0.1° 精度只是消灭「形式上全等」的 11 对标签，肉眼看不出来，
+     还要在模板里绕开 Hugo 的整数 math.Mod，不值。
+
+   注：Hugo 的 return 只能写在 partial 顶层，不能嵌在 if/range 里，故先算 $out 再返回。 */ -}}
+{{- $type := (.taxonomy | default "tags") -}}
+{{- $weight := 250 -}}
+{{- $terms := index site.Taxonomies $type -}}
+{{- $max := 1 -}}
+{{- $scored := slice -}}
+{{- range $key, $pages := $terms -}}
+{{- if gt (len $pages) $max }}{{ $max = len $pages }}{{ end -}}
+{{- $rank := mod (hash.FNV32a (printf "%s|rank" $key)) 2097152 -}}
+{{- $scored = $scored | append (dict "name" $key "count" (len $pages)
+    "hue" (math.Round (math.Mod (mul (float $rank) 137.5072) 360.0))
+    "score" (add (mod (hash.FNV32a $key) 1000) (mul (len $pages) $weight))) -}}
+{{- end -}}
+{{- $out := slice -}}
+{{- if $scored }}{{ $scored = collections.Reverse (collections.Sort $scored "score") }}{{ end -}}
+{{- range $item := $scored -}}
+{{- $term := site.GetPage (printf "/%s/%s" $type $item.name) -}}
+{{- if $term -}}
+{{- $out = $out | append (merge $item (dict
+    "url" $term.RelPermalink
+    "title" $term.LinkTitle
+    "w" (div (float $item.count) (float $max)))) -}}
+{{- end -}}
+{{- end -}}
+{{- return $out -}}
