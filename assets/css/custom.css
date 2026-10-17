@@ -526,27 +526,27 @@ a.pm-tag,
   --tag-line: calc(0.6 + var(--tag-w) * 0.32);
   padding: 0.1rem 0.45rem;
 }
-/* 标签盘里的彩签：数字大的同时更大颗，体积和颜色一起说话 */
+/* 彩签一律等高、宽度由文字决定：权重不用字号和内边距表达（那会让一行里高低不齐、
+   长短不一），只走颜色与字重。 */
 .terms-tags a {
-  font-size: calc(1rem + var(--tag-w) * 0.22rem);
-  padding: calc(0.3rem + var(--tag-w) * 0.15rem) calc(0.7rem + var(--tag-w) * 0.3rem);
+  flex: 0 0 auto;
+  padding: 0.4rem 0.75rem;
+  line-height: 1.5;
 }
-/* 左右拉满：flex 默认把每个 <li> 压成内容宽，行尾就留下大小不一的空位。
-   给 li 加 flex-grow，每行的剩余宽度由该行标签均分摊满，盘的左右边缘就齐了。
-   列宽不能改成等分 grid —— 标签名长短差好几倍，等分列会让长标签溢出格子。
-   max-width 是兜底：最后一行只剩一枚时，不至于被拉成一条横贯整盘的巨签。 */
+/* 左右拉满靠「插间距」，不靠拉长标签：
+   justify-content:space-between 把每行的富余摊到标签之间，column-gap 是间距下限；
+   li 不再 flex-grow，标签宽度就只由文字决定。
+   末行同样两端对齐（他明确要末行也拉平，不沿用排印里"末行留白"的惯例），
+   所以这里不放 .terms-tags::after 那种吃余量的占位项。 */
 .terms-tags {
   display: flex;
   flex-wrap: wrap;
+  justify-content: space-between;
   gap: 0.75rem 1em;
 }
 .terms-tags li {
   display: block;
-  flex: 1 1 auto;
-  max-width: 14rem;
-}
-.terms-tags a {
-  text-align: center;
+  flex: 0 0 auto;
 }
 /* 悬停统一加戏：只往「更实 + 更艳 + 字色更深」走，不引入阴影/高光，保持 2D */
 a.pm-tag:hover,
