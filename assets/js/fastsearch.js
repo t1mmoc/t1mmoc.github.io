@@ -294,7 +294,7 @@ const loadVectors = async () => {
 const initSearch = async () => {
   if (!sInput || !resList) return;
 
-  sInput.disabled = false;
+  sInput.disabled = false; // 布局里已不带 disabled，这里兼容旧版页面
   sInput.focus();
 
   try {
@@ -308,6 +308,8 @@ const initSearch = async () => {
       dataIndex = data;
       titleMap = new Map(data.map((d) => [pathOf(d.permalink), d.title]));
       fuse = new Fuse(data, buildFuseOptions());
+      // 索引晚到：用户已经敲进词了就先补一次关键词搜索
+      if (curQuery) runKeyword();
     }
   } catch (error) {
     console.error(error);
@@ -348,7 +350,12 @@ const reset = () => {
   sInput.focus();
 };
 
-window.addEventListener('load', initSearch);
+// 脚本是 defer，DOM 已就绪即刻初始化，不等 window.load（背景大图会把 load 拖到几秒后）
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initSearch);
+} else {
+  initSearch();
+}
 
 sInput?.addEventListener('input', debounce(performSearch, KW_DEBOUNCE));
 
