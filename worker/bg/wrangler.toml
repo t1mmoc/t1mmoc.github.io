@@ -1,0 +1,10 @@
+name = "blog-bg"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+# 随机背景取落点接口。用「橙云 A 记录 + zone 路由」而不是 custom_domain：
+# 本项目使用的 CF API Token 没有 workers/domains 写权限（POST 返回 10405），
+# 而 blogbg.tmoc.qzz.io 已被 zone 的 *.tmoc.qzz.io 通配证书覆盖，无需单独签发。
+[[routes]]
+pattern = "blogbg.tmoc.qzz.io/*"
+script = "blog-bg"
