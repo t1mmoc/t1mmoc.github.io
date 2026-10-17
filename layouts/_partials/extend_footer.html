@@ -285,6 +285,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 window.addEventListener("resize",onResize);
 /* 文章内图片等异步加载后可能改变布局，再检一次 */
 window.addEventListener("load",fixToc);
+/* 下滑连续上移由 CSS scroll-driven animation 完成（custom.css toc-slide-up），此处无需 JS */
 })();
 </script>
 {{- /* medium-zoom: 文章图片点击放大，弹出独立全屏视图 */ -}}

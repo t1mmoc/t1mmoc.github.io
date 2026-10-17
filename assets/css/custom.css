@@ -293,15 +293,40 @@ details.toc.toc-fixed {
     backdrop-filter: blur(14px) saturate(1.1);
     -webkit-backdrop-filter: blur(14px) saturate(1.1);
     overflow: hidden auto;
-    scrollbar-width: thin;
+    /* 下滑连续上移（无 JS）：scroll-driven animation 把滚动距离线性映射到 top/max-height。
+       页顶：top=7rem（距顶条底部 7rem-60px=52px，底距 2rem）；
+       滚动 s∈[0,header-height] 期间 top=7rem-s → 与顶条底恒距 52px，几何上等价于随文档滚动；
+       顶条滚出视口瞬间（s=60px）恰好停在 top=52px，与窗口顶恒距 52px，此后不动。
+       max-height 同步从 100vh-9rem 长到 100vh-9rem+60px，底部与视口的 2rem 间距全程不变。
+       Firefox 暂不支持 scroll-timeline，回退为固定 top:7rem（无副作用）。 */
+    animation: toc-slide-up linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 var(--header-height);
+}
+@keyframes toc-slide-up {
+    from {
+        top: 7rem;
+        max-height: calc(100vh - 9rem);
+    }
+    to {
+        top: calc(7rem - var(--header-height));
+        max-height: calc(100vh - 9rem + var(--header-height));
+    }
 }
 [data-theme="dark"] details.toc.toc-fixed {
     background: rgba(29, 30, 32, 0.84);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
-details.toc.toc-fixed::-webkit-scrollbar { width: 10px; }
-details.toc.toc-fixed::-webkit-scrollbar-track { background: transparent; }
+/* 滚动条：贴卡片右缘、轨道上下留白缩短。注意不能写 scrollbar-width/scrollbar-color——
+   Chrome 121+ 一旦设置了标准属性就会整体禁用 ::-webkit-scrollbar 定制，回到原生丑滚动条；
+   Firefox 不认 webkit 伪元素，用 @supports 单独兜底 */
+details.toc.toc-fixed::-webkit-scrollbar { width: 8px; }
+details.toc.toc-fixed::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 1.5rem 0; /* 轨道上下各留 1.5rem：滚动条视觉缩短，也不被圆角裁切 */
+}
 details.toc.toc-fixed::-webkit-scrollbar-thumb {
+    border-radius: 8px;
     background: rgba(0, 0, 0, 0.18);
 }
 details.toc.toc-fixed::-webkit-scrollbar-thumb:hover {
@@ -313,8 +338,22 @@ details.toc.toc-fixed::-webkit-scrollbar-thumb:hover {
 [data-theme="dark"] details.toc.toc-fixed::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.38);
 }
+@supports (-moz-appearance: none) {
+    details.toc.toc-fixed {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+    }
+    [data-theme="dark"] details.toc.toc-fixed {
+        scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+    }
+}
 details.toc.toc-fixed .inner { padding: 0.3rem 0; }
 details.toc.toc-fixed ul { margin: 0; }
+
+/* ===== 标题锚点：h1 悬停不再显示「#」按钮（h2-h6 保持主题默认）===== */
+.md-content h1:hover .anchor {
+    display: none;
+}
 
 /* ===== medium-zoom：确保弹层在最顶层，覆盖侧边栏、按钮等一切元素 ===== */
 .medium-zoom-overlay {
