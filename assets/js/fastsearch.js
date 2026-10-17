@@ -193,12 +193,35 @@ const runKeyword = () => {
 
 const titleOf = (path) => titleMap.get(path) || path.split('/').filter(Boolean).pop() || path;
 
+// 同一查询词的向量缓存：退格重打字/来回切换时不再重复请求（省 neurons）
+const vecCache = new Map(); // query → { v, n }
+
+const scoreAll = (v, n) => {
+  const scored = [];
+  for (const [path, vec] of vecByPath) {
+    // 取 max(标题余弦, 正文余弦)：标题命中通常比正文更贴合搜索意图
+    const cos = Math.max(cosine(v, n, vec.tv, vec.tn), cosine(v, n, vec.bv, vec.bn));
+    if (cos >= SEM_MIN_COS) scored.push({ key: path, href: path, title: titleOf(path), cos });
+  }
+  return scored.sort((a, b) => b.cos - a.cos).slice(0, SEM_TOP);
+};
+
 const runSemantic = async () => {
   if (!semReady || !ENDPOINT || curQuery.length < SEM_MIN_LEN) return;
   if (FORCE_FAIL || Date.now() < semCooldownUntil) return;
 
   const mySeq = ++seq;
   const myQuery = curQuery;
+
+  // 命中缓存 → 不发请求
+  const cached = vecCache.get(myQuery);
+  if (cached) {
+    semHits = scoreAll(cached.v, cached.n);
+    semForQuery = myQuery;
+    paint();
+    setStatus(false);
+    return;
+  }
 
   inflight?.abort();
   const ctrl = new AbortController();
@@ -223,14 +246,12 @@ const runSemantic = async () => {
     if (!body?.ok || !body.d) throw new Error(body?.error || 'bad_response');
 
     const { v, n } = dequantize(body.d, body.s);
-    const scored = [];
-    for (const [path, vec] of vecByPath) {
-      // 取 max(标题余弦, 正文余弦)：标题命中通常比正文更贴合搜索意图
-      const cos = Math.max(cosine(v, n, vec.tv, vec.tn), cosine(v, n, vec.bv, vec.bn));
-      if (cos >= SEM_MIN_COS) scored.push({ key: path, href: path, title: titleOf(path), cos });
-    }
+    vecCache.set(myQuery, { v, n });
+    if (vecCache.size > 50) vecCache.delete(vecCache.keys().next().value);
+
+    const scored = scoreAll(v, n);
     if (mySeq !== seq) return; // 期间又发了新请求，丢弃本次结果
-    semHits = scored.sort((a, b) => b.cos - a.cos).slice(0, SEM_TOP);
+    semHits = scored;
     semForQuery = myQuery;
     semFailStreak = 0;
     paint();
@@ -251,7 +272,11 @@ const scheduleSemantic = debounce(runSemantic, SEM_DEBOUNCE);
 
 /* ---------------- 输入 ---------------- */
 
+// 中文/日文输入法组合期间不触发检索：否则拼音未上屏就会发请求（拿字母串算向量）
+let composing = false;
+
 const performSearch = () => {
+  if (composing) return;
   curQuery = sInput.value.trim();
   if (!curQuery) {
     inflight?.abort();
@@ -357,7 +382,18 @@ if (document.readyState === 'loading') {
   initSearch();
 }
 
-sInput?.addEventListener('input', debounce(performSearch, KW_DEBOUNCE));
+// 输入去抖：连续打字只在该词停手后检索一次（关键词 120ms / 语义再 220ms）
+const debouncedSearch = debounce(performSearch, KW_DEBOUNCE);
+
+sInput?.addEventListener('input', debouncedSearch);
+
+sInput?.addEventListener('compositionstart', () => {
+  composing = true;
+});
+sInput?.addEventListener('compositionend', () => {
+  composing = false;
+  debouncedSearch();
+});
 
 sInput?.addEventListener('search', () => {
   if (!sInput.value) {
