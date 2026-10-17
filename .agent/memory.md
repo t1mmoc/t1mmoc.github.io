@@ -72,3 +72,47 @@
   `currentCached()` 只验 TTL（24h）与「是否池内 URL」；过期后 `init()` 走 `pick(pickPool(), null)` 按当前视口重抽。
   即：有效期内横图在竖屏也照用满 24h，不强制换向。
 - 手动换背景 `change()` 从当前取向池里抽新图（排除当前那张），消耗每日 12 次配额。
+
+# 背景图 v2（2026-10-17 上线）：真随机 + 双缓冲
+
+> 上面「现行形态」那节的两个池从**主图源**降级为**内置兜底**；其余口径（24h 固定、12 次/天、
+> 2.5s 冷却、取向只在取新图那一刻判定、不监听 resize）全部保留。
+
+## 结构（三层，自动降级）
+
+1. `GET https://blogbg.tmoc.qzz.io/?type=pc|mb` → 服务端跟随 302 拿**静态落点**返回 JSON。源码 `worker/bg/`。
+2. `static/bg-pool.json` — 离线采集清单（竖 589 / 横 579，均验过 200、按实测宽高分桶、单张 ≤2MB）。
+3. 模板里的 `POOL_L`(35) / `POOL_P`(17) 内置直链。
+
+客户端（`layouts/_partials/extend_footer.html` 那个 IIFE，仍无独立 js 文件）：
+
+- 双缓冲：`tmoc_bg_next` 存**后台预取并 preload 验真**的那张。换图/到期先立刻用它（零延迟），
+  再 `ensureNext()` 后台补一张；`tmoc_bg_seen` 是长度 40 的近期已用环，避免短期撞图。
+- `tmoc_bg_api_fail` 记失败时间，**6 小时冷却**内完全不问端点，直接用清单。
+- 预取那张日后若 404（清单腐烂），`healIfDead()` 仍先用它保零延迟、后台验一次、真死了再换回清单里的一张。
+- 清单走 `XMLHttpRequest` + 1.2s 超时；等不到就用内置池，不空屏。
+
+## 这一轮踩到的硬事实（别再重新发现）
+
+- **alcy 的静态落点约 75% 不发 ACAO**（302 那一跳发，落点 20 次里 15 次不发）→ 浏览器 `fetch` 拿不到落点，
+  必须服务端参与。uapis 全链路不发 ACAO，且 `HEAD` 返 405、突发 20 并发触发 429（限流 4 req/s）。
+- **uapis 竖图总量实测只有 ~50 张量级**（30 抽 22 唯一、18 抽 12 唯一）。竖图池只能靠 alcy
+  （`/mp` 实测 ~1500+、`/pc` ~1000+）。
+- **CF 路由：同一 host 上加更精确的 zone route 不会赢过 `blog.tmoc.qzz.io/*`**。实测建了 `.../api/bg`
+  精确路由，请求仍由 blog-encrypt 返回 not_found。要加端点就另起子域名。
+- **通配证书只到一层**：`bg.blog.tmoc.qzz.io` TLS 直接握手失败（`SEC_E_ILLEGAL_MESSAGE`）；
+  `*.tmoc.qzz.io` 只覆盖单层标签。
+- **本 CF token 权限不全**：`POST /workers/domains` 报 10405，`/ssl/advanced` 与
+  `/accounts/:id/ssl/availability` 报 7003。所以走「橙云 A 记录 + zone 路由」，不是 custom domain。
+- ⚠ **`blog-encrypt` 不能从本机重新部署**：上传时 `metadata` 是必填，而 metadata 不带 `bindings`
+  会**直接清空全部绑定**（临时 Worker 实测：重传后 `PROBE_VAR` 消失）；它那三个 secret 的值不可读、
+  知识库里也没有；不传 `GH_CLIENT_SECRET` 还会把 Worker 打回 DEV 模式。动它之前必须先解决这三件事。
+- 只读图片前 4096 字节会**漏掉尺寸**：pixiv 源 JPEG 的 EXIF/XMP 能把 SOF 挤到第 8450 字节（实测），
+  同批横图 SOF 在 158 字节所以看起来正常。要么读 64KB，要么按路径分桶。
+
+## 维护动作
+
+```bash
+node scripts/bg-pool-harvest.mjs   # 重采落点 -> tmp/bg-pool/pool.json（alcy 4/s，uapis 1/1.4s 避 429）
+node scripts/bg-pool-build.mjs     # pool.json -> static/bg-pool.json（按实测宽高分桶、滤 >2MB）
+```
