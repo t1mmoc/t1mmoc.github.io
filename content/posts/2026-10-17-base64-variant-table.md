@@ -1,0 +1,126 @@
+---
+title: "【AIGC】base64 变表题里出题人换的是表，不是算法：12 行的编解码器，和两个不报错的坑"
+date: 2026-10-17T15:40:00+08:00
+lastmod: 2026-10-17T15:40:00+08:00
+draft: false
+tags: ["CTF", "base64", "Python", "Misc", "编码"]
+categories: ["技术笔记"]
+description: "base64 变表题的解法：编码流程一个字没改，换的只是那 64 个符号，所以解码器就是把密文按表换回标准字符、再走一次 b64decode——去掉空行和注释 12 行，只用标准库。这篇讲三件事：为什么这招成立（一一对应的置换必然可逆）；密文里每 4 个字符插一个 '=' 为什么照样解得开（是 b64decode 默认的非严格模式在替你兜底，加上 validate=True 当场报 Excess padding）；以及我写说明时断言「表里有重复符号会解出坏数据」，自己跑一遍却是假绿——随手构造的测试串根本没踩到丢映射的那个字符。探针能被无关信号满足，和载荷探针共用同一串字符，是同一个错误。"
+---
+
+# 手上只有两张东西
+
+一道 Misc 题留下来的素材就两样：一张 64 个符号的表，一串密文。
+
+```
+标准表  ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/
+题目表  AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz0987654321/+
+密文    mTyq=m7ws=Gs10=NDkp=OTkB=gri1=
+```
+
+题目表读法很简单：它第 1 位是 `A`，意思是「标准表第 1 个符号 `A`，在我这里写成 `A`」；它第 2 位是 `a`，意思是「标准表的 `B` 写成 `a`」。也就是把标准表整个重排了一遍，符号还是那 64 个位置，只是每个位置上的字形换了。
+
+# 为什么不用重写算法
+
+关键就一句：**出题人改的是符号表，不是编码流程。**
+
+base64 做的事情是把 3 字节摊成 4 个 6 位的数，每个数拿去表里取一个字符。变表之后，取的下标没变、位数没变、分组没变，变的只有「下标 → 字形」这一步查表。所以：
+
+```
+变表编码(明文) = 标准base64(明文) 的每个字符，按「标准符号 → 题目符号」替换一次
+```
+
+而这个替换是**一一对应**的——两张表各 64 个字符、互不重复，第 i 位对第 i 位，那么反向替换就是它的逆。于是解码也不需要重新实现 base64：
+
+```
+标准base64 = 密文 按「题目符号 → 标准符号」替换回来
+明文       = b64decode(标准base64)
+```
+
+一个方向写完，另一个方向把表倒过来就行。整套东西只用标准库：`str.maketrans` 建映射，`str.translate` 执行替换。
+
+```python
+import base64
+
+raw_table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='  # 标准表，不要改
+new_table = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz0987654321/+='  # 修改此处！！
+
+dictionary_decode = str.maketrans(new_table, raw_table)                                   # 变表 -> 标准表
+dictionary_encode = dict(zip(dictionary_decode.values(), dictionary_decode.keys()))       # 反向映射
+
+
+def encodeToNewTable(input: str) -> str:
+    return base64.b64encode(input.encode()).decode().translate(dictionary_encode)
+
+
+def decodeToSourse(input: str) -> str:
+    return base64.b64decode(input.translate(dictionary_decode)).decode()
+```
+
+去掉空行和注释 12 行。解题时只动 `new_table` 那一行，把题目给的表粘进去。
+
+注意末尾的 `=`：表是 64 个符号，但这里写成 65 个字符。因为 `str.maketrans()` 要求两个串**等长**，多出来的第 65 位就是填充符；它在两张表里都排最后，映射回自己，正好不用特殊处理。
+
+# 实测两个方向
+
+跑出来的结果，不是我推的，是 Python 3.14 打出来的：
+
+| 方向 | 输入 | 中间的标准 base64 | 输出 |
+|---|---|---|---|
+| 编码 | `123123123` | `MTIzMTIzMTIz` | `GjEzGjEzGjEz` |
+| 编码 | `dsadwq4544444444444` | `ZHNhZHdxNDU0NDQ0NDQ0NDQ0NA==` | `mdgqmdoygbK0gbI0gbI0gbI0gA==` |
+| 解码 | `mTyq=m7ws=Gs10=NDkp=OTkB=gri1=` | `Zmxh=Z3tl=Ml90=aGVf=cmVC=NjR9=` | `flag{e2_the_reB64}` |
+
+顺带一个复盘：原稿的注释里写 `123123123` 变表之后是 `EP8hEP8hEP8h`。跑一遍就知道对不上——那是**上一版表**留下的数字，表改了注释没跟着改。这种事在脚本里特别隐蔽，因为它不影响功能，只影响下一个读代码的人（这次还真的是我自己）。所以这篇里所有数字都是重跑一遍抄下来的。
+
+# 坑一：那串 `=` 根本不是变表符号
+
+第三条解码记录里，中间那步是 `Zmxh=Z3tl=Ml90=aGVf=cmVC=NjR9=`——**`=` 出现在 base64 串的正中间**，一共 6 个，每隔 4 个字符一个。这按 base64 的规矩是非法的：填充符只能待在末尾。
+
+它能解出来，是因为 `=` 在两张表里都排第 65 位、映射回自己，所以原样穿过 `translate`；而 `base64.b64decode()` 默认是**非严格模式**，看见多出来的填充符直接丢掉，一声不响地继续解。
+
+同一串加上 `validate=True` 立刻翻脸：
+
+```python
+>>> base64.b64decode('Zmxh=Z3tl=Ml90=aGVf=cmVC=NjR9=', validate=True)
+binascii.Error: Excess padding not allowed
+```
+
+也就是说，**这条链路的正确性是 `b64decode` 的宽容兜住的，不是这段代码兜住的**。碰到密文里混进分隔符、空格、题面装饰字符的，别指望宽松模式，先把不需要的字符清干净再解：
+
+```python
+base64.b64decode(input.replace('=', '').translate(dictionary_decode))
+```
+
+去掉这 6 个 `=` 之后是 24 个字符，正好对应 18 字节的明文，解出来同一个 flag。
+
+# 坑二：我上一条说错了，重新测了一遍
+
+写仓库说明的时候我断言：「表里如果有重复符号，`maketrans` 会静默合并，解出来是坏数据且不报错」。听起来很顺，然后就去找证据了。
+
+第一版证据是我随手挑的一个字符串。跑出来——**完全正常， round trip 一点没坏**。我当时的第一反应是「我这条结论错了」。
+
+但结论没错，错的是探针。我造的坏表是把表末尾两位改成 `AA`，于是 65 个位置里出现三个 `A`；`maketrans` 只保留最后一条，反转出来的编码表里就缺了 `A` 和 `/` 这两个标准符号的条目。而我随手挑的那个测试串，标准 base64 是 `ZmxhZ3tub3RfYV9yZWFsX2ZsYWd9`，`A` 和 `/` 一个都没有。探针走的路径压根不经过出问题的分支，于是它「通过」了，而我把它读成了「结论被证伪」。
+
+换成一个必定踩到的输入：3 个 `0x00` 字节的 base64 是 `AAAA`。
+
+```
+标准表 → 变表：AAAA（原样穿过，因为编码表里没有 A 的条目）
+变表 → 解码： b''        （期望 b'\x00\x00\x00'）
+```
+
+不报错，不警告，解出来是空。
+
+所以原来的结论成立，但**它当时没有被验证过**——只是「我构造了一个输入，它凑巧什么也没测出来」。这跟之前那次「载荷和探针共用同一串字符，结果目录名把文件名回显出来，全是假绿」是同一类错误：**判据必须不能被无关信号满足**。写探针的时候先问一句：这个输入走的是我要验的那条分支吗？换个必定走到的输入要多久？
+
+现在仓库里那条自检变成了一行数：粘完表先 `len(set(new_table)) == 65`，比事后靠输出碰运气便宜得多。
+
+# 这个套路能覆盖哪些题
+
+能套的是「流程没变，只是符号集换了」这一类：变表 base64、变表 base32、以及任何你自己能拿到完整字母表的单表替换。它们的共同点是**替换可逆**，所以只需要建两张表，不需要重新实现编码。
+
+套不上的也很清楚：如果题目是把 64 个符号换成不足 64 个、或者一位多写、或者压根改了分组方式（比如按 5 位取字符），那就不是一次置换能表达的，得回到比特层面重推。区分这两者的判据也简单——**数一下表里的字符**：64 个且互不重复，就是换表；不是，就不是。
+
+# 仓库
+
+脚本和说明：[cnb.cool/t1mmoc/tspace/pwngore/base64-variant-table](https://cnb.cool/t1mmoc/tspace/pwngore/base64-variant-table)
