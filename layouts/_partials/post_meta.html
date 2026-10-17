@@ -1,0 +1,28 @@
+{{/* 文章 meta 行：日历图标 + 日期 + 前 2 个标签，阅读时长带时钟图标右对齐 */}}
+
+{{- if not .Date.IsZero }}
+<span class="pm-date"><svg class="pm-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>{{ .Date.Format "2006-01-02" }}</span>
+{{- end }}
+
+{{- $tagKey := .Language.Params.Taxonomies.tag | default "tags" }}
+{{- $tags := .GetTerms $tagKey }}
+{{- range first 2 $tags }}
+<a class="pm-tag" href="{{ .RelPermalink }}">#{{ .LinkTitle }}</a>
+{{- end }}
+{{- if gt (len $tags) 2 }}
+<span class="pm-tag pm-tag-more" title="还有 {{ sub (len $tags) 2 }} 个标签">#...</span>
+{{- end }}
+
+{{- if (.Param "ShowReadingTime") }}
+<span class="pm-reading"><svg class="pm-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+    </svg>{{ i18n "read_time" .ReadingTime | default (printf "%d min" .ReadingTime) }}</span>
+{{- end }}

@@ -383,3 +383,54 @@ details.toc.toc-fixed ul { margin: 0; }
 @media (max-width: 600px) {
   .searchbox--card { padding: 1.2rem 1.2rem; }
 }
+
+/* ===== 文章 meta 行：左「日历 日期 + 标签」，右对齐「时钟 阅读时长」 =====
+   post_meta.html 的三个 span 直接做 flex 子项（纯空白文本不会生成 flex 项），
+   .pm-reading 靠 margin-left:auto 顶到行尾，右对齐只占掉剩余空间，不撑破行宽。 */
+.post-meta,
+.entry-footer,
+.archive-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.7rem;
+}
+.pm-date,
+.pm-tag,
+.pm-reading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+}
+.pm-icon {
+  width: 0.8rem;
+  height: 0.8rem;
+  flex-shrink: 0;
+}
+.pm-reading {
+  margin-left: auto;
+}
+a.pm-tag {
+  color: var(--secondary);
+  text-decoration: none;
+}
+a.pm-tag:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+/* 列表卡片/归档条目整块被 .entry-link 覆盖，标签链接抬到覆盖层之上才可点 */
+.entry-footer a.pm-tag,
+.archive-meta a.pm-tag {
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== 顶栏：标题与右侧菜单垂直居中 =====
+   ≤600px 时 .header-nav 的 line-height 改成 1.8，标题(24px)与菜单(16px)
+   行盒高度不再相等；.header-nav 默认 align-items:normal(=stretch)，
+   菜单被拉到整行高后文字按行盒顶部排，看起来比标题高半截。 */
+.header-nav,
+.header-nav .menu {
+  align-items: center;
+}
