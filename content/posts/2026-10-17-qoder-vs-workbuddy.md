@@ -22,7 +22,7 @@ categories: ["折腾记录"]
 但是更难绷的是：
 
 > 这里我让他执行的任务是
-> https://t1mmoc.github.io/posts/2026-10-15-ai-loop-2000-times/
+> /posts/2026-10-15-ai-loop-2000-times/
 
 ![](/images/2026-10-17-qoder-vs-workbuddy/20261017195411.webp)
 
