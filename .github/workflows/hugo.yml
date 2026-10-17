@@ -36,6 +36,14 @@ jobs:
       - name: Build with Hugo
         run: hugo --minify
 
+      # 站内语义检索索引：用 Workers AI (bge-m3) 给每篇文章生成标题+正文向量，写进 public/
+      # 未配置 secrets 或接口异常时脚本自行跳过/软失败 → 站点照发，前端发现索引缺失自动只走关键词
+      - name: Generate search vectors
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/gen-vectors.mjs --out public/search-vectors.json
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

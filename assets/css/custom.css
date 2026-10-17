@@ -434,3 +434,22 @@ a.pm-tag:hover {
 .header-nav .menu {
   align-items: center;
 }
+
+/* ===== 搜索页：语义检索状态提示（搜索栏下方，完成/失败后隐藏） ===== */
+.search-status {
+  margin: 8px 4px 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--secondary);
+  animation: search-status-pulse 1.4s ease-in-out infinite;
+}
+.search-status[hidden] {
+  display: none;
+}
+@keyframes search-status-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-status { animation: none; }
+}

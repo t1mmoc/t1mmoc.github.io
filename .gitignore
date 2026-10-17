@@ -7,3 +7,6 @@
 
 # 本地留存，不入库
 tmp/
+
+# 语义检索向量索引：构建时由 scripts/gen-vectors.mjs 生成
+static/search-vectors.json
