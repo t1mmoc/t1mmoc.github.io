@@ -139,6 +139,37 @@ const plain = (s) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+/* 标题哈希 → 缎带颜色：沿用博客标签那套（FNV-1a 取名次，黄金角 137.5072° 铺色相），
+   这里不追求感知亮度分档，固定 L/C 走色相环，好看即可 */
+const fnv1a = (str) => {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h >>> 0;
+};
+
+const ribbonHues = (title) => {
+  const base = ((fnv1a(title) >>> 0) * 137.5072) % 360;
+  return [base, (base + 38) % 360, (base + 76) % 360].map((h) => Math.round(h * 10) / 10);
+};
+
+const makeRibbon = (title) => {
+  const [h1, h2, h3] = ribbonHues(title);
+  const ribbon = document.createElement('span');
+  ribbon.className = 'embed-ribbon';
+  ribbon.title = '语义检索命中';
+  ribbon.setAttribute('aria-hidden', 'true');
+  ribbon.style.setProperty('--h1', h1);
+  ribbon.style.setProperty('--h2', h2);
+  ribbon.style.setProperty('--h3', h3);
+  const label = document.createElement('span');
+  label.textContent = 'Embed';
+  ribbon.appendChild(label);
+  return ribbon;
+};
+
 /** 结果卡片 = 首页 post-entry 的同构 DOM（标题 + 摘要 + 日期/标签/阅读时长） */
 const makeCard = (hit) => {
   const item = itemByPath.get(hit.key) || {};
@@ -146,6 +177,12 @@ const makeCard = (hit) => {
 
   const article = document.createElement('article');
   article.className = 'post-entry';
+
+  // 语义来源的结果挂一条“礼物缎带”：颜色由标题哈希决定，同名同色
+  if (hit.sem) {
+    article.classList.add('has-embed-ribbon');
+    article.appendChild(makeRibbon(title));
+  }
 
   const header = document.createElement('header');
   header.className = 'entry-header';
@@ -221,17 +258,24 @@ const renderRows = (rows) => {
 /** RRF 融合：关键词名次与语义名次各贡献一份，规避两种分数不可比的问题 */
 const mergedRows = () => {
   const semValid = semForQuery && semForQuery === curQuery && semHits.length > 0;
-  if (!semValid) return kwHits.slice(0, MAX_SHOWN);
+  if (!semValid) return kwHits.slice(0, MAX_SHOWN).map((h) => ({ ...h, sem: false }));
 
+  const semKeys = new Set(semHits.map((h) => h.key));
   const merged = new Map();
   kwHits.forEach((h, i) => {
-    merged.set(h.key, { key: h.key, href: h.href, title: h.title, score: W_KW / (RRF_K + i) });
+    merged.set(h.key, {
+      key: h.key,
+      href: h.href,
+      title: h.title,
+      score: W_KW / (RRF_K + i),
+      sem: semKeys.has(h.key),
+    });
   });
   semHits.forEach((h, i) => {
     const add = W_SEM / (RRF_K + i);
     const cur = merged.get(h.key);
     if (cur) cur.score += add;
-    else merged.set(h.key, { key: h.key, href: h.href, title: h.title, score: add });
+    else merged.set(h.key, { key: h.key, href: h.href, title: h.title, score: add, sem: true });
   });
   return [...merged.values()].sort((a, b) => b.score - a.score).slice(0, MAX_SHOWN);
 };

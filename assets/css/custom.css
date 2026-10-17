@@ -625,3 +625,47 @@ a.pm-tag:hover,
 @media (prefers-reduced-motion: reduce) {
   .search-status { animation: none; }
 }
+
+/* ===== 搜索结果：语义命中卡片的「Embed」礼物缎带（左上角，颜色由标题哈希决定） ===== */
+.searchResults .post-entry {
+  overflow: hidden; /* 让缎带贴着圆角裁切 */
+}
+.searchResults .post-entry.has-embed-ribbon {
+  padding-top: 2.45rem !important;
+}
+.embed-ribbon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6.4rem;
+  height: 6.4rem;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 3;
+}
+.embed-ribbon > span {
+  position: absolute;
+  display: block;
+  width: 10rem;
+  top: 0.95rem;
+  left: -2.92rem;
+  padding: 0.32rem 0 0.34rem;
+  transform: rotate(-45deg);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  background-image: linear-gradient(
+    100deg,
+    oklch(0.70 0.16 var(--h1, 250)) 0%,
+    oklch(0.63 0.19 var(--h2, 288)) 52%,
+    oklch(0.58 0.20 var(--h3, 326)) 100%
+  );
+  box-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}

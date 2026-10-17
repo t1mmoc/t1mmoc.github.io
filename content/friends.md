@@ -1,5 +1,6 @@
 ---
 title: "友链"
+date: 2026-07-05
 description: "互换友链，一起在技术世界里折腾"
 layout: "single"
 ---

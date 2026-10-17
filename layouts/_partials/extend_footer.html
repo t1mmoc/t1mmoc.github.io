@@ -1,4 +1,6 @@
-{{/* 全站二次元背景：内置 uapis.cn 直链图池 + localStorage 固定 24h（切页不换图、不请求 API） */}}
+{{/* 全站二次元背景：向 blogbg.tmoc.qzz.io 要随机落点（后台预取一张，换图时立刻用），
+     端点不可用/失败冷却期则退回本地清单 /bg-pool.json，清单也没加载到就用下面两个内置池；
+     localStorage 固定 24h，切页不换图。 */}}
 <script>
 (function () {
   var POOL_L = [
@@ -57,20 +59,57 @@
   "https://uapis.cn/assets/acg/mb/110394987_p5.jpg",
   "https://uapis.cn/assets/acg/mb/110395185_p0.jpg"
 ];
-  var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
+var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
   var KEY_CNT = "tmoc_bg_cnt", KEY_DATE = "tmoc_bg_date";
-  var TTL = 24 * 3600 * 1000;   // 缓存 24 小时，期间切页复用同一张
-  var MAX_PER_DAY = 12;         // 每天手动换图上限
-  var COOLDOWN = 2500;          // 两次手动换图最小间隔(ms)
+  var KEY_NEXT = "tmoc_bg_next";            // 后台已经预取好、并且验过能加载的下一张
+  var KEY_FAIL = "tmoc_bg_api_fail";        // 最近一次取图端点失败的时间
+  var KEY_SEEN = "tmoc_bg_seen";            // 近期用过的，短期内不撞图
+  var TTL = 24 * 3600 * 1000;               // 缓存 24 小时，期间切页复用同一张
+  var MAX_PER_DAY = 12;                     // 每天手动换图上限
+  var COOLDOWN = 2500;                      // 两次手动换图最小间隔(ms)
+  var API_URL = "https://blogbg.tmoc.qzz.io/";
+  var API_TIMEOUT = 4000;                   // 问一次端点最多等多久
+  var API_BACKOFF = 6 * 3600 * 1000;        // 端点失败后这么久内不再问，直接用本地清单
+  var POOL_FILE = "/bg-pool.json";
+  var POOL_WAIT = 1200;                     // 首屏最多等清单这么久，等不到先用内置池
+  var SEEN_MAX = 40;
+  // 端点回来的地址必须长成这样：只认这两个已知站点的图片落点形状
+  var LANDING = /^https:\/\/(?:t\.alcy\.cc\/pic\/(?:pc|mp)\/|uapis\.cn\/assets\/acg\/(?:pc|mb)\/)[\w.\-%]+\.(?:webp|jpe?g|png)$/i;
 
-  // 取向按视口定（只在「取新图」的那一刻判定，不监听 resize/orientationchange）
-  function pickPool() { return window.innerHeight >= window.innerWidth ? POOL_P : POOL_L; }
-  function pick(pool, exclude) {
-    if (pool.length <= 1) return pool[0];
-    var u;
-    do { u = pool[Math.floor(Math.random() * pool.length)]; } while (u === exclude);
-    return u;
+  var live = null;                          // /bg-pool.json 加载到的 {pc,mb}；null = 还没拿到
+
+  // 取向只在「取新图」的那一刻判定，不监听 resize/orientationchange（沿用原有口径）
+  function bucket() { return window.innerHeight >= window.innerWidth ? "mb" : "pc"; }
+  function poolOf(b) {
+    if (live && live[b] && live[b].length) return live[b];
+    var fb = b === "mb" ? POOL_P : POOL_L;
+    return fb.length ? fb : POOL_L;         // 竖图清单缺失时退回横图，别给空池
   }
+  function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+  function seenList() { try { return JSON.parse(read(KEY_SEEN) || "[]"); } catch (e) { return []; } }
+  function rememberSeen(u) {
+    var s = seenList();
+    if (s.indexOf(u) !== -1) return;
+    s.push(u);
+    if (s.length > SEEN_MAX) s.shift();
+    store(KEY_SEEN, JSON.stringify(s));
+  }
+  function isUsable(u) { return !!u && (LANDING.test(u) || POOL_L.indexOf(u) !== -1 || POOL_P.indexOf(u) !== -1); }
+
+  function pickFromPool(exclude) {
+    var list = poolOf(bucket()), seen = seenList(), cands = [], i;
+    for (i = 0; i < list.length; i++) {
+      if (list[i] !== exclude && seen.indexOf(list[i]) === -1) cands.push(list[i]);
+    }
+    if (!cands.length) {                    // 整池都翻过了就允许重复，别空转
+      for (i = 0; i < list.length; i++) if (list[i] !== exclude) cands.push(list[i]);
+    }
+    if (!cands.length) return list[0];
+    return cands[Math.floor(Math.random() * cands.length)];
+  }
+
   function preload(url, cb) {
     var img = new Image();
     img.referrerPolicy = "no-referrer";
@@ -85,43 +124,101 @@
   function today() { return new Date().toISOString().slice(0, 10); }
 
   function currentCached() {
-    try {
-      var url = localStorage.getItem(KEY_URL);
-      var ts = parseInt(localStorage.getItem(KEY_TS) || "0", 10);
-      // 只验 TTL，不验取向：缓存是横图就继续用横图，直到过期或手动换
-      if (url && (POOL_L.indexOf(url) !== -1 || POOL_P.indexOf(url) !== -1) && Date.now() - ts < TTL) return url;
-    } catch (e) {}
-    return null;
+    var url = read(KEY_URL), ts = parseInt(read(KEY_TS) || "0", 10);
+    return (url && isUsable(url) && Date.now() - ts < TTL) ? url : null;
   }
   function save(url) {
+    store(KEY_URL, url);
+    store(KEY_TS, String(Date.now()));
+    rememberSeen(url);
+  }
+
+  function loadPool(cb) {
+    if (live) { cb(); return; }
+    var done = false;
+    function fin() { if (!done) { done = true; cb(); } }
     try {
-      localStorage.setItem(KEY_URL, url);
-      localStorage.setItem(KEY_TS, String(Date.now()));
-    } catch (e) {}
+      var x = new XMLHttpRequest();
+      x.open("GET", POOL_FILE, true);
+      x.timeout = POOL_WAIT;
+      x.onload = function () {
+        if (x.status === 200) {
+          try {
+            var j = JSON.parse(x.responseText);
+            if (j && (j.pc || j.mb)) { live = { pc: j.pc || [], mb: j.mb || [] }; }
+          } catch (e2) {}
+        }
+        fin();
+      };
+      x.ontimeout = x.onerror = fin;
+      x.send();
+    } catch (e) { fin(); }
+  }
+
+  // 后台预取一张存进 KEY_NEXT；失败则进冷却，期间完全不问端点
+  function ensureNext() {
+    if (read(KEY_NEXT)) return;
+    if (Date.now() - parseInt(read(KEY_FAIL) || "0", 10) < API_BACKOFF) return;
+    var ctl;
+    try { ctl = new AbortController(); } catch (e) { return; }
+    var timer = setTimeout(function () { try { ctl.abort(); } catch (e) {} }, API_TIMEOUT);
+    fetch(API_URL + "?type=" + bucket(), { signal: ctl.signal, cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("http" + r.status)); })
+      .then(function (j) {
+        clearTimeout(timer);
+        var u = j && j.url;
+        if (!u || !LANDING.test(u)) { store(KEY_FAIL, String(Date.now())); return; }
+        preload(u, function (ok) {
+          if (ok) store(KEY_NEXT, u); else store(KEY_FAIL, String(Date.now()));
+        });
+      })
+      .catch(function () { clearTimeout(timer); store(KEY_FAIL, String(Date.now())); });
+  }
+
+  // 预取那张是之前存的地址，第三方换素材后可能 404：先立刻用上（零延迟），
+  // 再在后台验一次，确实打不开就换成清单里的另一张，不留白底。
+  function healIfDead(u) {
+    preload(u, function (ok) {
+      if (ok || read(KEY_URL) !== u) return;
+      loadPool(function () {
+        var alt = pickFromPool(u);
+        preload(alt, function (ok2) { if (ok2 && read(KEY_URL) === u) { setBg(alt); save(alt); } });
+      });
+      ensureNext();
+    });
+  }
+
+  // 换图优先用预取好的那张（网络早就走完了，点下立刻换）；没有才从清单挑
+  function takeNextOrPool(exclude, cb) {
+    var nxt = read(KEY_NEXT);
+    if (nxt && LANDING.test(nxt)) {
+      store(KEY_NEXT, "");
+      cb(nxt, true);
+      ensureNext();
+      return;
+    }
+    loadPool(function () { cb(pickFromPool(exclude), false); });
   }
 
   function change(btn) {
-    var d = today(), cnt = 0, dt = "";
-    try {
-      cnt = parseInt(localStorage.getItem(KEY_CNT) || "0", 10);
-      dt = localStorage.getItem(KEY_DATE) || "";
-    } catch (e) {}
+    var d = today(), cnt = parseInt(read(KEY_CNT) || "0", 10), dt = read(KEY_DATE) || "";
     if (dt !== d) { cnt = 0; dt = d; }
     if (cnt >= MAX_PER_DAY) {
       btn.textContent = "今日已达上限";
-      setTimeout(function () { btn.textContent = "换背景 ❤"; }, 1500);
+      setTimeout(function () { btn.textContent = "换背景 \u2764"; }, 1500);
       return;
     }
-    var next = pick(pickPool(), currentCached());
     btn.disabled = true;
-    preload(next, function (ok) {
-      btn.disabled = false;
-      if (!ok) return;
-      setBg(next); save(next);
-      try {
-        localStorage.setItem(KEY_CNT, String(cnt + 1));
-        localStorage.setItem(KEY_DATE, dt);
-      } catch (e) {}
+    takeNextOrPool(currentCached(), function (next, prefetched) {
+      function show(ok) {
+        btn.disabled = false;
+        if (!ok) return;
+        setBg(next); save(next);
+        store(KEY_CNT, String(cnt + 1));
+        store(KEY_DATE, dt);
+      }
+      if (prefetched) { show(true); healIfDead(next); }
+      else preload(next, show);
     });
   }
 
@@ -129,7 +226,7 @@
     var btn = document.createElement("button");
     btn.className = "bg-switch";
     btn.type = "button";
-    btn.textContent = "换背景 ❤";
+    btn.textContent = "换背景 \u2764";
     btn.title = "换一张二次元背景（每天最多 " + MAX_PER_DAY + " 次）";
     var last = 0;
     btn.addEventListener("click", function () {
@@ -143,9 +240,16 @@
 
   function init() {
     var url = currentCached();
-    if (!url) { url = pick(pickPool(), null); save(url); }   // 首次或缓存过期：按当前取向抽一张并固定 24h
-    setBg(url);
-    addBtn();
+    if (url) { setBg(url); addBtn(); ensureNext(); return; }
+    var nxt = read(KEY_NEXT);
+    if (nxt && LANDING.test(nxt)) {         // 今天没有固定的那张，但后台备着——直接用
+      store(KEY_NEXT, "");
+      setBg(nxt); save(nxt); addBtn(); ensureNext(); healIfDead(nxt); return;
+    }
+    loadPool(function () {
+      var p = pickFromPool(null);
+      setBg(p); save(p); addBtn(); ensureNext();
+    });
   }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
