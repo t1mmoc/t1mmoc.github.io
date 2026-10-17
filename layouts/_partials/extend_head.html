@@ -12,8 +12,8 @@
    每个标签只下发两个数，取色规则在 custom.css 的「tag 彩签」段：
      --th 色相 —— 由标签文字哈希得出，同名必同色，新增标签不会改动其他标签的颜色；
      --tw 权重 —— 该标签文章数 / 全站最大文章数，OKLCH 的亮度、彩度、发光、字重、字号都由它现算。
-   选择器用 href 后缀匹配，一处规则同时覆盖 /tags/ 页(.terms-tags)、文章顶部(.pm-tag)、
-   文章底部(.post-tags)，无需 fork 主题模板。 */ -}}
+   选择器用 href 后缀匹配，一处规则同时覆盖 /tags/ 页(.terms-tags)、文章顶部(.pm-tag)，
+   无需 fork 主题模板。文章底部那排彩签已隐藏（见 custom.css「文章底部不再展示 tag 列表」）。 */ -}}
 {{- $tags := partial "tag_cloud.html" (dict "taxonomy" "tags") -}}
 {{- if $tags -}}
 <style id="tag-palette">
