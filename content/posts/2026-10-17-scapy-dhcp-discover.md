@@ -3,7 +3,7 @@ title: "【AIGC】拿一个不存在的 MAC 去要 IP：用 scapy 手搓一个 D
 date: 2026-10-17T16:30:00+08:00
 lastmod: 2026-10-17T16:30:00+08:00
 draft: false
-tags: ["DHCP", "scapy", "网络", "协议分析", "Python", "折腾记录"]
+tags: ["DHCP", "scapy", "网络", "协议分析", "Python", "折腾记录", "AIGC"]
 categories: ["技术笔记"]
 description: "旧目录里躺着 20 行 Python：自己拼一个 DHCP Discover，用一个和本机 MAC 只差 2 的假地址去问路由器要 IP。拆开看才发现 DHCP 最妙的地方——我还没有 IP，却要发一个 IP 包，所以源地址只能是 0.0.0.0、目的地址只能是 255.255.255.255，而 SERVER 认我的唯一凭据是 chaddr 和那个随机 xid。顺带把 param_req_list 里 13 个代码逐条对上（1/3/6/15/31/43/44/46/47/119/121/249/252），以及为什么 requested_addr 只是建议、为什么 flags 要置 0x8000，还有这个脚本反过来能证明 DHCP 完全没有认证——谁先答谁算数。"
 ---

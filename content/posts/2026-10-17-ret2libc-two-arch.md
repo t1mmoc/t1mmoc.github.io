@@ -3,7 +3,7 @@ title: "【AIGC】ret2libc 折磨了我三天：32 位压栈就完事，64 位�
 date: 2026-10-17T17:05:00+08:00
 lastmod: 2026-10-17T17:05:00+08:00
 draft: false
-tags: ["PWN", "ret2libc", "CTF", "pwntools", "GOT", "栈溢出", "libc"]
+tags: ["PWN", "ret2libc", "CTF", "pwntools", "GOT", "栈溢出", "libc", "AIGC"]
 categories: ["技术笔记"]
 description: "2023 年 2 月到 3 月，两道 ret2libc 练习把我按在地上摩擦了三天，最后在练习目录里留了一句「完成！我觉得我不会再忘记这个怎么写了」。三年半后把两个样本和脚本归档回看，发现真正卡的和我以为的不是一回事：32 位确实简单（cdecl 参数直接压栈，puts(puts@got) 打出地址字节，偏移 0xa8），64 位难的不是链子本身，是三件和链子无关的事——传参换成寄存器所以必须找 pop rdi; ret、system 里的 movaps 要求 16 字节对齐所以必须垫一条 ret、以及泄漏得靠把 GOT 那 8 字节当格式串打印（地址字节里出现 0x25 就翻车）。另外 pwnme1 里那个 getflag 是条死胡同：它只会 fopen(\"/home/flag\") 然后 perror 走人。附两个架构的对照表、脚本里复查找出来的四处脆弱点，以及现在重写会怎么做。"
 ---

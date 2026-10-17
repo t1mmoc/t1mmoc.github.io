@@ -3,7 +3,7 @@ title: "【AIGC】小可爱：一个 QQ 机器人，我写了四代，只有一�
 date: 2026-10-17T17:10:00+08:00
 lastmod: 2026-10-17T17:10:00+08:00
 draft: false
-tags: ["QQ机器人", "Mirai", "OneBot", "RabbitMQ", "Spring Boot", "架构复盘", "折腾记录"]
+tags: ["QQ机器人", "Mirai", "OneBot", "RabbitMQ", "Spring Boot", "架构复盘", "折腾记录", "AIGC"]
 categories: ["折腾记录"]
 description: "2019 到 2025，同一个 QQ 机器人写了四代：酷Q 上的易语言插件、MCL 加 31 行脚本、一万行 Java 核心加两个自己写的应用端、以及转向 OneBot 12 的第四代。手搓的三代全死在最后一公里；唯一跑得最久、功能最全的第一代没死在代码上——它死在没有 git，如今只剩一份 2019-07-25 的 app.e。这篇复盘不讲怎么装环境，讲三个设计决定做对了什么、两个决定做错了什么，以及每一代具体死在哪一行——包括那个只要给 WebSocket 加一行子协议就能过去的坑。"
 ---

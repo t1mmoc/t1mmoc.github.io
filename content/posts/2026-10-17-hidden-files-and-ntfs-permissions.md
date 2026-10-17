@@ -3,7 +3,7 @@ title: "【AIGC】隐藏文件骗的是眼睛，权限骗的是资源管理器�
 date: 2026-10-17T16:45:00+08:00
 lastmod: 2026-10-17T16:45:00+08:00
 draft: false
-tags: ["Windows", "NTFS", "文件权限", "ACL", "隐藏文件", "CLSID", "SUBST", "安全"]
+tags: ["Windows", "NTFS", "文件权限", "ACL", "隐藏文件", "CLSID", "SUBST", "安全", "AIGC"]
 categories: ["技术笔记"]
 description: "三份旧笔记凑成一篇：一份 NTFS 权限实验总结、一张 12 个 CLSID 的对照表、一个用 SUBST 把目录挂成 O 盘的 .bat。核心结论是这两件事经常被混着谈——隐藏改的是「谁去看」（属性、Shell 命名空间、盘符映射，全在显示层，文件系统根本不认），权限改的是「谁能动」（ACL，访问检查层）。实测部分（Win Server 2016，非提权，所有者=自己）推翻了原笔记三条：拒绝「读取权限」挡不住 API 删除，只挡资源管理器；只拒文件上的 DELETE 也拦不住删除，因为父目录的 FILE_DELETE_CHILD 是第二条路，两条一起堵才叫锁死；而 icacls 写的 (D) 其实是 0x110000（DELETE|SYNCHRONIZE），会把文件变成读不了写不了删不了、连 ACE 都撤不回来的砖——我第一次得出错结论就是被这个副作用骗的。附 CLSID 目录为什么在 cmd 里一览无余、SUBST 那招为什么重启就掉，以及「隐藏 ≠ 安全，权限 ≠ 安全」的边界。脚本和笔记都在 toolbox 仓的 hide-and-permission/ 里。"
 ---

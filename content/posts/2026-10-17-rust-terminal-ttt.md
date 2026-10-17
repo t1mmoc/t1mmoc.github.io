@@ -3,7 +3,7 @@ title: "【AIGC】用 Rust 写了个 3 FPS 的终端井字棋，AI 最后靠八�
 date: 2026-10-17T16:48:00+08:00
 lastmod: 2026-10-17T16:48:00+08:00
 draft: false
-tags: ["Rust", "crossterm", "游戏", "AI", "终端", "折腾记录"]
+tags: ["Rust", "crossterm", "游戏", "AI", "终端", "折腾记录", "AIGC"]
 categories: ["技术笔记"]
 description: "整理旧 IdeaProjects，五个目录里只有两个是自己写的，剩下的都是上游源码快照。自写的那个是 2023 年的 Rust 终端井字棋：crossterm 画框线、3 FPS 的帧循环（注释原话「3帧电竞怎么你了」）、两种输入模式、胜场记在内存里。真正有意思的是电脑对手——不是 minimax，而是四层手写启发式：先查自己能不能赢、再查对方会不会赢、然后一个硬编码八个特殊局面、最后按四条线打分。第三层之所以存在，恰恰说明没有搜索树要付什么代价。顺带记三个小坑：usize 存不了 -1 只能用 4 当哨兵、rand 0.7 的 gen_range(0, 0) 会 panic、以及编译完 82 个警告全来自 camelCase。"
 ---

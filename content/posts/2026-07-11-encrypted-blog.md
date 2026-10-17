@@ -3,7 +3,7 @@ title: "【AIGC】给 Hugo 博客加一段「GitHub 登录才解密」的私货"
 date: 2026-07-11T00:50:00+08:00
 lastmod: 2026-07-12T00:04:00+08:00
 draft: false
-tags: ["Hugo", "Cloudflare Worker", "加密", "GitHub OAuth", "Git LFS", "TOC"]
+tags: ["Hugo", "Cloudflare Worker", "加密", "GitHub OAuth", "Git LFS", "TOC", "AIGC"]
 categories: ["折腾记录"]
 ---
 

@@ -3,7 +3,7 @@ title: "【AIGC】一眼认出假 PoC：一段只会 print 的代码，和一个
 date: 2026-10-16T19:40:00+08:00
 lastmod: 2026-10-16T19:40:00+08:00
 draft: false
-tags: ["漏洞分析", "PoC", "CVE-2025-31200", "iOS", "信息甄别", "方法论"]
+tags: ["漏洞分析", "PoC", "CVE-2025-31200", "iOS", "信息甄别", "方法论", "AIGC"]
 categories: ["技术笔记"]
 description: "归档里一条 350 字节的书签顺出来的东西。展品 A 是一段截图里的 CVE-2025-31200「PoC」：函数名叫 simulate、token 前缀 fake_、payload 是 1MB 空字节、所有战果都是 print 出来的，而 target_ip 填的是字符串 \"victim_device_ip\"，第一行 connect 就抛。展品 B 是被到处当成「PoC 已放出」转发的 GitHub 仓库：拉下来只有 2 个 markdown、11,920 字节、零代码，并且它自己写的三个十六进制互相减不出来。附一份能复用的判据清单，以及一个反面参照——同一个作者的另一个仓库里代码是真的，但判定方式是循环论证。"
 ---

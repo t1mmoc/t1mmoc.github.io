@@ -1,7 +1,7 @@
 ---
 title: "【AIGC】把 AI 当团队用：一个 Agent，八个角色，怎么分工"
 date: 2026-09-29
-tags: ["独立游戏", "AI", "WorkBuddy", "方法论"]
+tags: ["独立游戏", "AI", "WorkBuddy", "方法论", "AIGC"]
 draft: false
 ---
 

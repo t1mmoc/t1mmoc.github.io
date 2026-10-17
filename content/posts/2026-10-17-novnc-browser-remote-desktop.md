@@ -3,7 +3,7 @@ title: "【AIGC】在外想连家里的电脑？但是又完全不想下载应�
 date: 2026-10-17T16:30:00+08:00
 lastmod: 2026-10-17T16:30:00+08:00
 draft: false
-tags: ["noVNC", "VNC", "远程桌面", "websockify", "内网穿透", "折腾记录"]
+tags: ["noVNC", "VNC", "远程桌面", "websockify", "内网穿透", "折腾记录", "AIGC"]
 categories: ["折腾记录"]
 description: "在外面想连家里的 Windows，但别人的电脑不让装软件、手机也不想为这事多装一个 App。noVNC 把 VNC 客户端做成一个网页，配上 websockify 把裸 TCP 翻译成 WebSocket，浏览器打开一个 URL 就是桌面。附我实际在跑的隐藏窗口守护 bat、--file-only 这个容易看错名字的参数、以及 VNC 密码只能算 8 位这件事。"
 ---

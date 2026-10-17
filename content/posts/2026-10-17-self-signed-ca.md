@@ -3,7 +3,7 @@ title: "【AIGC】自建一个 CA，给自己的一堆内网服务签证书"
 date: 2026-10-17T16:48:00+08:00
 lastmod: 2026-10-17T16:48:00+08:00
 draft: false
-tags: ["OpenSSL", "CA", "HTTPS", "证书", "内网", "折腾记录"]
+tags: ["OpenSSL", "CA", "HTTPS", "证书", "内网", "折腾记录", "AIGC"]
 categories: ["折腾记录"]
 description: "内网里一堆服务要 HTTPS：NAS、frp 面板、noVNC、几个自己写的小后台。每张自签证书都要单独信任一次，换台设备又来一遍——那就自己当 CA，签一次根、永久复用。附 OpenSSL 配置文件的关键三段、SAN 和 EKU 为什么不能省、DNS:*.* 为什么是无效写法，以及一张 10 年的证书在 iPhone Safari 上无声翻车的真实原因（825 天）。"
 ---

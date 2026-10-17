@@ -3,7 +3,7 @@ title: "【AIGC】自己定一个 TCP 帧协议：魔数、长度前缀、粘包
 date: 2026-10-17T17:12:00+08:00
 lastmod: 2026-10-17T17:12:00+08:00
 draft: false
-tags: ["TCP", "协议设计", "粘包", "MINA", "Java", "C++", "折腾记录"]
+tags: ["TCP", "协议设计", "粘包", "MINA", "Java", "C++", "折腾记录", "AIGC"]
 categories: ["技术笔记"]
 description: "2023 年写了个 C/S 的东西，服务端 Java + Apache MINA，客户端 C++ DLL，嫌 HTTP 不合适就自己定了协议：4 字节魔数 + 4 字节长度 + JSON 正文。事后看协议部分才是真正学到东西的地方——TCP 是字节流不是消息流，所以解码器必须变成状态机；状态不能放字段（MINA 的 decoder 是单例），我用了静态 HashMap 代价是泄漏和并发；length 字段在编码侧是字节数、在对象构造里是字符数，ASCII 下看不出来、中文差三倍；还有一个为了让某个会话别卡住而加的 static 全局开关，它会误伤所有会话。"
 ---

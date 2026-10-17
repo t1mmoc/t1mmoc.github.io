@@ -3,7 +3,7 @@ title: "【AIGC】因为frp太贵，我自己租了一个服务器弄frpc"
 date: 2026-10-17T16:20:00+08:00
 lastmod: 2026-10-17T16:20:00+08:00
 draft: false
-tags: ["frp", "内网穿透", "自建服务", "Linux", "Windows", "systemd", "折腾记录"]
+tags: ["frp", "内网穿透", "自建服务", "Linux", "Windows", "systemd", "折腾记录", "AIGC"]
 categories: ["折腾记录"]
 description: "内网穿透服务商按隧道和带宽收月租，一年下来比一台轻量云服务器还贵。干脆自己租台机器跑 frps，Windows 这端 frpc 用 TOML 配置、bat 隐藏窗口加 300 秒守护重启，把 22 和 noVNC 的 5901 都捅到公网去。附 0.61 版本的配置格式变化、systemd 服务、以及 token 明文和 7500 面板裸奔这两个必须收的尾。"
 ---
