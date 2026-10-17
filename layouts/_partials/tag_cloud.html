@@ -12,6 +12,14 @@
        $weight=250 → 约 9/16 概率插队，头部还认得出主次，第二行起基本是色相秀。
      再小就是随机洗牌了。
 
+   w（权重）= 把对数曲线 g(c)=ln(1+c)/ln(1+$knee) 仿射挂回线性两端 [$min/$max, 1]。
+     为什么：实测 114 枚标签里 91 枚只有 1 篇、1~4 篇占了 109 枚，线性的每档 Δw=0.083
+     在这段几乎看不出差别；但纯对数又会把 1 篇自己抬到 0.289，整盘太艳。
+     仿射之后两头都对：1 篇仍是线性时代的 w=0.083（ΔL 0.022，一样淡），
+     而 1→2 的跨度拉到 +0.218（线性的 2.6 倍）、2→3 +0.155、3→4 +0.120，
+     往上递减到 7→8 只剩 +0.063，$knee=10 之上不再涨（8→12 一共 +0.108）。
+     $knee 调大 = 顶端还留着上升空间，调小 = 更早封顶。
+
    hue = 黄金角步进：先取 rank = FNV-1a(文字) % 2^21（纯文字派生 ⇒ 同名必同色，
      新增标签只多占一个 rank，不改别人的色相），再 hue = rank * 137.5072° mod 360。
      直接 hash % 360 会把 114 枚挤得疏密不均；黄金角铺满后全局 Δ<8° 的配对数
@@ -23,25 +31,37 @@
    注：Hugo 的 return 只能写在 partial 顶层，不能嵌在 if/range 里，故先算 $out 再返回。 */ -}}
 {{- $type := (.taxonomy | default "tags") -}}
 {{- $weight := 250 -}}
+{{- $knee := 10 -}}
 {{- $terms := index site.Taxonomies $type -}}
-{{- $max := 1 -}}
 {{- $scored := slice -}}
+{{- $min := 999999 -}}
+{{- $max := 1 -}}
 {{- range $key, $pages := $terms -}}
+{{- if lt (len $pages) $min }}{{ $min = len $pages }}{{ end -}}
 {{- if gt (len $pages) $max }}{{ $max = len $pages }}{{ end -}}
 {{- $rank := mod (hash.FNV32a (printf "%s|rank" $key)) 2097152 -}}
 {{- $scored = $scored | append (dict "name" $key "count" (len $pages)
     "hue" (math.Round (math.Mod (mul (float $rank) 137.5072) 360.0))
     "score" (add (mod (hash.FNV32a $key) 1000) (mul (len $pages) $weight))) -}}
 {{- end -}}
+{{- /* 权重曲线 g(c) = ln(1+c)/ln(1+$knee)，1+$knee 篇以上封顶 */ -}}
+{{- $gmin := div (math.Log (add 1.0 (float $min))) (math.Log (add 1.0 (float $knee))) -}}
+{{- $gmax := math.Min 1.0 (div (math.Log (add 1.0 (float $max))) (math.Log (add 1.0 (float $knee)))) -}}
+{{- $span := math.Max 0.001 (math.Sub $gmax $gmin) -}}
+{{- $wmin := div (float $min) (float $max) -}}
 {{- $out := slice -}}
 {{- if $scored }}{{ $scored = collections.Reverse (collections.Sort $scored "score") }}{{ end -}}
 {{- range $item := $scored -}}
 {{- $term := site.GetPage (printf "/%s/%s" $type $item.name) -}}
 {{- if $term -}}
+{{- /* 对数只借它的「间距形状」，端点仍挂回线性：w 把 g 仿射到 [$wmin, 1]，
+       $wmin = min/max 就是线性时代最低档的权重。这样 1 篇标签的淡度和引入对数前
+       完全一致（ΔL 0.022），而 1→2 的跨度从 0.083 拉成 0.218。 */ -}}
+{{- $g := math.Min 1.0 (div (math.Log (add 1.0 (float $item.count))) (math.Log (add 1.0 (float $knee)))) -}}
 {{- $out = $out | append (merge $item (dict
     "url" $term.RelPermalink
     "title" $term.LinkTitle
-    "w" (div (float $item.count) (float $max)))) -}}
+    "w" (add $wmin (mul (math.Sub 1.0 $wmin) (div (math.Sub $g $gmin) $span))))) -}}
 {{- end -}}
 {{- end -}}
 {{- return $out -}}
