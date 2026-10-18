@@ -857,6 +857,16 @@ a.pm-tag:hover,
 .header-nav .gh-identity:hover .gh-name{color:var(--primary,#4f46e5)}
 .header-nav{position:relative}
 #menu{margin-right:130px}             /* 全宽生效：给最右身份区留位，中间态放不下时导航自动换行 */
+/* ≤600px：菜单强制独占第二行（flex-basis:100% 决定换行，不赌字体宽窄），
+   身份区绝对定位在第一行，第二行右侧没有东西，130px 预留纯属浪费——
+   正是「友链被裁+右边空着一排」的根源 */
+@media (max-width: 600px){
+  #menu{flex-basis:100%; margin-right:0}
+}
+/* 601–768px：菜单可能与标题同行，身份区（登录钮/头像）仍在最右，保留窄预留 */
+@media (min-width: 601px) and (max-width: 768px){
+  #menu{margin-right:84px}
+}
 .header-nav .gh-login,.header-nav .gh-identity{position:absolute;right:var(--gap);top:calc(var(--header-height, 60px) / 2);transform:translateY(-50%)}  /* 中心对齐标题行中线，高度自适应（与主题切换按钮一致） */
 @media (max-width: 768px){
   .header-nav .gh-login{padding:0 14px}   /* 高度与 PC 一致（40px），只收窄内边距 */
