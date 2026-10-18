@@ -122,9 +122,50 @@ const cosine = (a, an, b, bn) => {
 
 /* ---------------- 渲染 ---------------- */
 
-const setStatus = (on) => {
+/* 「搜索中…」状态条：关键词同步、语义异步，两路都落定才收起。
+   只要还有一路在途就保持显示；都结束（成功/失败/跳过）后延迟 STATUS_MIN_MS 收起，
+   避免纯关键词查询时闪一下看不见。 */
+const STATUS_MIN_MS = 200;
+
+let kwPending = false;
+let semPending = false;
+let statusVisible = false;
+let statusShownAt = 0;
+let statusHideTimer = 0;
+
+const paintStatus = () => {
   if (!statusEl) return;
-  statusEl.hidden = !on;
+
+  if (kwPending || semPending) {
+    window.clearTimeout(statusHideTimer);
+    statusHideTimer = 0;
+    if (!statusVisible) {
+      statusVisible = true;
+      statusShownAt = performance.now();
+      statusEl.hidden = false;
+    }
+    return;
+  }
+
+  if (!statusVisible) return;
+  const wait = Math.max(0, STATUS_MIN_MS - (performance.now() - statusShownAt));
+  window.clearTimeout(statusHideTimer);
+  statusHideTimer = window.setTimeout(() => {
+    statusHideTimer = 0;
+    if (kwPending || semPending) return; // 期间又开了新一轮检索
+    statusVisible = false;
+    statusEl.hidden = true;
+  }, wait);
+};
+
+/** 清空输入/重置时立即收起，不等最小显示时长 */
+const hideStatusNow = () => {
+  kwPending = false;
+  semPending = false;
+  statusVisible = false;
+  window.clearTimeout(statusHideTimer);
+  statusHideTimer = 0;
+  if (statusEl) statusEl.hidden = true;
 };
 
 // 与 layouts/_partials/post_meta.html 同款图标，保证搜索结果卡片和首页一致
@@ -285,10 +326,16 @@ const paint = () => renderRows(mergedRows());
 /* ---------------- 关键词 ---------------- */
 
 const runKeyword = () => {
-  if (!fuse) return;
+  if (!fuse) {
+    kwPending = false;
+    paintStatus();
+    return;
+  }
   if (!curQuery) {
     kwHits = [];
     renderRows([]);
+    kwPending = false;
+    paintStatus();
     return;
   }
   kwHits = fuse
@@ -297,6 +344,8 @@ const runKeyword = () => {
     .filter(Boolean)
     .map((d) => ({ key: pathOf(d.permalink), href: d.permalink, title: d.title }));
   paint();
+  kwPending = false;
+  paintStatus();
 };
 
 /* ---------------- 语义 ---------------- */
@@ -316,9 +365,16 @@ const scoreAll = (v, n) => {
   return scored.sort((a, b) => b.cos - a.cos).slice(0, SEM_TOP);
 };
 
+/** 这次查询是否会有语义这一路（决定状态条要不要等它） */
+const semanticEligible = (q) =>
+  !!ENDPOINT && !FORCE_FAIL && q.length >= SEM_MIN_LEN && Date.now() >= semCooldownUntil;
+
 const runSemantic = async () => {
-  if (!semReady || !ENDPOINT || curQuery.length < SEM_MIN_LEN) return;
-  if (FORCE_FAIL || Date.now() < semCooldownUntil) return;
+  if (!semanticEligible(curQuery) || !semReady) {
+    semPending = false;
+    paintStatus();
+    return;
+  }
 
   const mySeq = ++seq;
   const myQuery = curQuery;
@@ -329,13 +385,17 @@ const runSemantic = async () => {
     semHits = scoreAll(cached.v, cached.n);
     semForQuery = myQuery;
     paint();
-    setStatus(false);
+    semPending = false;
+    paintStatus();
     return;
   }
 
   inflight?.abort();
   const ctrl = new AbortController();
   inflight = ctrl;
+  // 语义确实要发请求了：把状态条重新点亮（上一轮可能已收起）
+  semPending = true;
+  paintStatus();
   // 区分「超时」与「被新请求/清空输入取消」：后者不算失败，不该触发冷却
   let timedOut = false;
   const timer = window.setTimeout(() => {
@@ -343,7 +403,6 @@ const runSemantic = async () => {
     ctrl.abort();
   }, TIMEOUT_MS);
 
-  setStatus(true);
   try {
     const res = await fetch(ENDPOINT, {
       method: 'POST',
@@ -360,7 +419,8 @@ const runSemantic = async () => {
     if (vecCache.size > 50) vecCache.delete(vecCache.keys().next().value);
 
     const scored = scoreAll(v, n);
-    if (mySeq !== seq) return; // 期间又发了新请求，丢弃本次结果
+    // 期间又发了新请求、或输入已被改掉：本次结果作废
+    if (mySeq !== seq || myQuery !== curQuery) return;
     semHits = scored;
     semForQuery = myQuery;
     semFailStreak = 0;
@@ -374,7 +434,11 @@ const runSemantic = async () => {
     }
   } finally {
     window.clearTimeout(timer);
-    if (mySeq === seq) setStatus(false);
+    // 只有「仍是当前这一轮」才收起状态条，否则新一轮自己负责
+    if (mySeq === seq && myQuery === curQuery) {
+      semPending = false;
+      paintStatus();
+    }
   }
 };
 
@@ -394,10 +458,14 @@ const performSearch = () => {
     kwHits = [];
     semHits = [];
     semForQuery = '';
-    setStatus(false);
+    hideStatusNow();
     renderRows([]);
     return;
   }
+  // 两路一起来：关键词同步、语义异步；状态条从一开始就亮，直到两边都落定
+  kwPending = true;
+  semPending = semanticEligible(curQuery);
+  paintStatus();
   runKeyword();
   if (semReady) scheduleSemantic();
   else loadVectors(); // 索引还没就绪时兜底拉一次
@@ -423,6 +491,9 @@ const loadVectors = async () => {
     if (curQuery) scheduleSemantic(); // 索引晚到，补一次语义
   } catch (err) {
     console.warn('[search] 语义索引不可用，仅关键词:', String(err).slice(0, 120));
+    vecLoading = false; // 允许下次输入重试，否则这条路径会一直卡在"已加载中"
+    semPending = false; // 语义这路没了，状态条别再等
+    paintStatus();
   }
 };
 
@@ -473,7 +544,7 @@ const setActiveResult = (element) => {
 const reset = () => {
   inflight?.abort();
   inflight = null;
-  setStatus(false);
+  hideStatusNow();
   currentElement = null;
   firstResult = null;
   lastResult = null;
