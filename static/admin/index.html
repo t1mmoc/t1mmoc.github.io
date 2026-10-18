@@ -498,7 +498,9 @@ function renderOrgMembers(body) {
     // 诊断：区分「worker 没部署」「本人不是 org 成员」「scope/权限不足」三种情况
     let why;
     if (!meta) {
-      why = '当前 worker 还是旧版（响应里没有 org_meta 字段），不会写成员快照。部署新版后重新登录一次即可生成。';
+      why = selfOrg
+        ? '你已被判定为 org 成员，但这次登录发生在部署新版之前，所以还没生成快照 —— 退出后重新登录一次即可。'
+        : '还没有快照：退出后重新登录一次（抓取只发生在登录回调那一刻）。若重新登录后仍为空，说明当前账号不在 ' + org + ' 内。';
     } else if (!selfOrg) {
       why = '本次登录没有被判定为 org 成员，worker 因而不会去拉名单。若你确定自己在 ' + org + ' 里，请确认授权时勾选了组织访问（scope read:org），或成员关系是 private 需要额外的组织批准。';
     } else if (meta.status === 404) {
