@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>博客加密 · 管理后台</title>
+<title>技术小屋的管理后台</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <script>
 /* 主题跟随博客（PaperMod）：pref-theme = light|dark，未设置则跟系统。首屏前置，避免闪色 */
 (function () {
@@ -107,6 +108,7 @@
   .chip img { width: 24px; height: 24px; border-radius: 50%; background: var(--tertiary); flex: none; object-fit: cover; }
   .chip .cn { color: var(--primary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .chip .cg { color: var(--secondary); font-size: 12px; }
+  .chip .ctag { font-size: 10px; line-height: 16px; padding: 0 6px; border-radius: 999px; border: 1px solid var(--border); color: var(--secondary); background: var(--tertiary); }
   .chip .x { cursor: pointer; color: var(--danger); font-weight: 700; padding: 0 3px; line-height: 1; }
   .chip .x:hover { opacity: .75; }
   .chip.admin { border-color: var(--accent); }
@@ -165,7 +167,7 @@
         <div class="stat"><b id="stArt">–</b><span>加密文章</span></div>
         <div class="stat"><b id="stFriend">–</b><span>好友（手动名单）</span></div>
         <div class="stat"><b id="stOrgMem">–</b><span>org 成员</span></div>
-        <div class="stat"><b id="stReader">–</b><span>读者（ACL 去重）</span></div>
+        <div class="stat"><b id="stReader">–</b><span>读者（汇总）</span></div>
         <div class="stat"><b id="stOrg" style="font-size:16px;padding-top:5px">–</b><span>朋友 org</span></div>
       </div>
       <p class="muted" style="margin:10px 0 0">
@@ -173,39 +175,43 @@
       </p>
     </section>
 
-    <!-- 生成密钥 -->
+    <!-- ① 密钥 · 注册文章 -->
     <section class="card">
-      <h2 class="card-title">① 生成密钥 <span class="muted" style="font-weight:400">（web 流程 · 免 author token）</span></h2>
-      <p class="card-sub">填加密块 id（可留空自动生成 ULID）与允许解锁的 GitHub 用户名，点按即由服务端生成密钥并写入 KV。</p>
-      <div class="row"><input type="text" id="genId" placeholder="加密块 id（留空自动生成 ULID；填写则与 .bin 文件名一致）"></div>
-      <div class="row"><input type="text" id="genAcl" placeholder="允许解锁的 GitHub 用户名，逗号分隔，如 t1mmoc,alice"></div>
-      <div class="row"><button class="btn primary" id="genBtn">🔑 生成密钥 JSON</button><span id="genMsg" class="msg"></span></div>
-      <div class="row hidden" id="genOut"><textarea id="genJson" rows="5" readonly></textarea></div>
-      <div class="row hidden" id="genActions">
-        <button class="btn small" id="genCopy">复制 JSON</button>
-        <button class="btn small" id="genCopyOne">复制单行</button>
-        <button class="btn small" id="genDownload">下载 .json</button>
-        <span class="muted">把该 JSON 交给 <code>author.mjs --key-json</code> 本地加密即可。</span>
+      <h2 class="card-title">① 密钥 · 注册文章 <span class="muted" style="font-weight:400">（web 流程 · 免 author token）</span></h2>
+      <p class="card-sub">同一个 id 对应一条记录；下方两区共用此处 id 与 ACL。</p>
+      <div class="row"><input type="text" id="artId" placeholder="加密块 id（留空自动生成 ULID；填写则与 .bin 文件名一致）"></div>
+      <div class="row"><input type="text" id="artAcl" placeholder="允许解锁的 GitHub 用户名，逗号分隔，如 t1mmoc,alice"></div>
+
+      <!-- 无密钥：服务端生成 -->
+      <div class="sub">
+        <div class="row"><b class="muted">无密钥 · 生成</b>
+          <button class="btn primary" id="genBtn">🔑 生成密钥 JSON</button>
+          <span id="genMsg" class="msg"></span>
+        </div>
+        <div class="row hidden" id="genOut"><textarea id="genJson" rows="5" readonly></textarea></div>
+        <div class="row hidden" id="genActions">
+          <button class="btn small" id="genCopy">复制 JSON</button>
+          <button class="btn small" id="genCopyOne">复制单行</button>
+          <button class="btn small" id="genDownload">下载 .json</button>
+          <span class="muted">把该 JSON 交给 <code>author.mjs --key-json</code> 本地加密即可。</span>
+        </div>
+      </div>
+
+      <!-- 有密钥：注册 -->
+      <div class="sub">
+        <div class="row"><b class="muted">有密钥 · 注册（手动注册 / 迁移）</b></div>
+        <div class="row"><input type="text" id="artK" placeholder="k_article（base64，由 author 工具输出）"></div>
+        <div class="row"><input type="text" id="artIv" placeholder="iv（base64）"></div>
+        <div class="row"><button class="btn" id="addArt">注册文章</button><span id="regMsg" class="msg"></span></div>
       </div>
     </section>
 
     <!-- 文章管理 -->
     <section class="card">
       <h2 class="card-title">② 文章管理</h2>
-      <p class="card-sub">查看已注册的加密文章、增删其 ACL 读者、或手动注册/迁移。</p>
+      <p class="card-sub">查看已注册的加密文章、增删其 ACL 读者。</p>
 
-      <details>
-        <summary>注册新文章（密钥由发布工具生成；正常发文请用 author 工具，此表单用于手动注册/迁移）</summary>
-        <div class="sub">
-          <div class="row"><input type="text" id="newArtId" placeholder="文章 id（与 .bin 文件名一致，如 secret-note）"></div>
-          <div class="row"><input type="text" id="newArtK" placeholder="k_article（base64，由 author 工具输出）"></div>
-          <div class="row"><input type="text" id="newArtIv" placeholder="iv（base64）"></div>
-          <div class="row"><input type="text" id="newArtAcl" placeholder="acl，逗号分隔，如 t1mmoc,alice"></div>
-          <div class="row"><button class="btn primary" id="addArt">注册文章</button><span id="addArtMsg" class="msg"></span></div>
-        </div>
-      </details>
-
-      <div id="articleList" style="margin-top:12px"></div>
+      <div id="articleList"></div>
     </section>
 
     <!-- 好友名单 -->
@@ -225,7 +231,7 @@
     <!-- 读者名册 -->
     <section class="card">
       <h2 class="card-title">④ 读者名册 <span class="muted" style="font-weight:400">（自动汇总）</span></h2>
-      <p class="card-sub">由各文章 ACL 中的读者去重派生，纯前端浏览器内计算，不单独存储。</p>
+      <p class="card-sub">由各文章 ACL ∪ 手动好友 ∪ org 成员去重派生（纯前端计算，不单独存储）。标签：ACL／好友／org 表示来源。</p>
       <div class="row" id="rosterList"></div>
     </section>
 
@@ -237,6 +243,8 @@
 
 <script>
 const BLOG = 'https://blog.tmoc.qzz.io';
+let MANUAL_FRIENDS = [];   // ③ 手动好友名单（renderFriends 填充）
+let ORG_MEMBERS = [];      // org 成员快照（renderFriends 填充），④ 读者名册用
 const SKEY = 'blog_admin_session';
 const NAME_TTL = 7 * 24 * 3600 * 1000;
 
@@ -289,7 +297,7 @@ function fillName(gid, node) {
 }
 
 /* 生成一个「头像 + 名称 + @gid」芯片；onRemove 传入则带删除按钮 */
-function chip(gid, onRemove) {
+function chip(gid, onRemove, tag) {
   const c = el('<span class="chip"></span>');
   const img = document.createElement('img');
   img.src = avatarUrl(gid, 64); img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
@@ -301,6 +309,7 @@ function chip(gid, onRemove) {
   c.appendChild(name);
   const g = document.createElement('span'); g.className = 'cg'; g.textContent = '@' + gid;
   c.appendChild(g);
+  if (tag) { const t = document.createElement('span'); t.className = 'ctag'; t.textContent = tag; c.appendChild(t); }
   if (onRemove) {
     const x = document.createElement('span');
     x.className = 'x'; x.textContent = '×'; x.title = '移除';
@@ -357,9 +366,13 @@ async function renderArticles() {
   const items = (r.body && r.body.items) || [];
   al.innerHTML = '';
 
-  // 读者名册 + 自动补全（由 ACL 汇总）
-  const allReaders = new Set();
-  items.forEach(a => (a.acl || []).forEach(g => allReaders.add(g)));
+  // 读者名册 + 自动补全（ACL ∪ 手动好友 ∪ org 成员）
+  const lc = s => String(s || '').trim().toLowerCase();
+  const aclSet = new Set();
+  items.forEach(a => (a.acl || []).forEach(g => { if (g) aclSet.add(lc(g)); }));
+  const friendSet = new Set((MANUAL_FRIENDS || []).map(lc).filter(Boolean));
+  const orgSet = new Set((ORG_MEMBERS || []).map(lc).filter(Boolean));
+  const allReaders = new Set([...aclSet, ...friendSet, ...orgSet]);
   const dl = document.getElementById('userCandidates');
   if (dl) { dl.innerHTML = ''; [...allReaders].forEach(g => { const o = document.createElement('option'); o.value = g; dl.appendChild(o); }); }
   const fdl = document.getElementById('friendCandidates');
@@ -368,7 +381,13 @@ async function renderArticles() {
   if (rl) {
     rl.innerHTML = '';
     if (!allReaders.size) rl.innerHTML = '<span class="muted">暂无读者</span>';
-    else [...allReaders].forEach(g => rl.appendChild(chip(g)));
+    else [...allReaders].forEach(g => {
+      const tags = [];
+      if (aclSet.has(g)) tags.push('ACL');
+      if (friendSet.has(g)) tags.push('好友');
+      if (orgSet.has(g)) tags.push('org');
+      rl.appendChild(chip(g, null, tags.join('·')));
+    });
   }
   document.getElementById('stArt').textContent = items.length;
   document.getElementById('stReader').textContent = allReaders.size;
@@ -467,7 +486,10 @@ async function renderFriends() {
     fl.appendChild(c);
   });
 
+  MANUAL_FRIENDS = items.slice();
+  ORG_MEMBERS = (Array.isArray(body.org_members) ? body.org_members : []).slice();
   renderOrgMembers(body);
+  renderArticles();          // 好友 / org 变化后刷新 ④ 读者名册（现含 org 成员）
 }
 
 /* org 成员（只读快照：登录时顺带从 GitHub 拉，6h 内不重复拉）
@@ -590,8 +612,8 @@ async function addFriend() {
   document.getElementById('genBtn').onclick = async (e) => {
     const btn = e.currentTarget;
     const done = busy(btn, '生成中…');
-    const id = document.getElementById('genId').value.trim();
-    const acl = document.getElementById('genAcl').value.split(',').map(s => s.trim()).filter(Boolean);
+    const id = document.getElementById('artId').value.trim();
+    const acl = document.getElementById('artAcl').value.split(',').map(s => s.trim()).filter(Boolean);
     const m = document.getElementById('genMsg');
     let r;
     try {
@@ -634,11 +656,11 @@ async function addFriend() {
   document.getElementById('addArt').onclick = async (e) => {
     const btn = e.currentTarget;
     const done = busy(btn, '注册中…');
-    const id = document.getElementById('newArtId').value.trim();
-    const k = document.getElementById('newArtK').value.trim();
-    const iv = document.getElementById('newArtIv').value.trim();
-    const acl = document.getElementById('newArtAcl').value.split(',').map(s => s.trim()).filter(Boolean);
-    const m = document.getElementById('addArtMsg');
+    const id = document.getElementById('artId').value.trim();
+    const k = document.getElementById('artK').value.trim();
+    const iv = document.getElementById('artIv').value.trim();
+    const acl = document.getElementById('artAcl').value.split(',').map(s => s.trim()).filter(Boolean);
+    const m = document.getElementById('regMsg');
     if (!id || !k || !iv) { done(); return flash(m, 'id / k / iv 必填', false); }
     const r = await api('/api/admin/article', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -646,10 +668,10 @@ async function addFriend() {
     });
     done();
     if (r.ok) {
-      document.getElementById('newArtId').value = '';
-      document.getElementById('newArtK').value = '';
-      document.getElementById('newArtIv').value = '';
-      document.getElementById('newArtAcl').value = '';
+      document.getElementById('artId').value = '';
+      document.getElementById('artK').value = '';
+      document.getElementById('artIv').value = '';
+      document.getElementById('artAcl').value = '';
       renderArticles(); flash(m, '已注册', true);
     } else flash(m, '注册失败：' + ((r.body && r.body.error) || r.status), false);
   };
@@ -658,8 +680,7 @@ async function addFriend() {
   document.getElementById('friendAdd').onclick = addFriend;
   document.getElementById('friendInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') addFriend(); });
 
-  renderArticles();
-  renderFriends();
+  renderFriends();   // 内部会调用 renderArticles()，确保 org 成员就绪后再汇总读者名册
 })();
 </script>
 </body>
