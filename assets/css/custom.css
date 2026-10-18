@@ -869,7 +869,7 @@ a.pm-tag:hover,
   .header-nav #gh-identity,
   .header-nav #gh-login{top:calc(0.8rem + 21.6px)}
 }
-
+
 /* ===== 搜索无结果 → 沉浸观赏背景（JS 驱动翻页） =====
    条件：搜索页、结果为空（JS 给 html/body 打 .search-empty）。
    页面高度由 JS 精确收到「半屏」这个位置：滑到底即到底，末端没有多余空白，不会回弹。
@@ -886,3 +886,58 @@ body.zen .bg-switch { transform: translateX(calc(100% - 13px)); opacity: .42; }
 body.zen .bg-switch:hover,
 body.zen .bg-switch:focus-visible,
 body.zen.zen-reveal .bg-switch { transform: translateX(0); opacity: 1; }   /* 桌面 hover / 移动端点一下呼出 */
+
+/* ===== 头部身份 → 登出确认卡片 =====
+   点右上角头像/用户名弹出：遮罩 + 居中卡片，取消/登出并列，Esc、点遮罩、点取消都关闭。
+   卡片沿用站内的「半透明 + 模糊」语言，深浅色各一套；入场 180ms，位移+缩放一点点点缀。 */
+/* 滚动条位置常驻（scrollbar-gutter）：没有它，一锁滚动条就有 15px 宽度来回跳。
+   有了它，`overflow:hidden` 只是「禁滚」，滚动条那格一直留着，宽度一动不动 —— 两行 CSS，不用 JS。 */
+html { scrollbar-gutter: stable; }
+html.gh-modal-open { overflow: hidden; }            /* 卡片打开时锁住页面滚动（html 才是滚动容器） */
+.gh-modal { position: fixed; inset: 0; z-index: 220; display: grid; place-items: center; padding: 20px; }
+.gh-modal[hidden] { display: none; }
+.gh-modal-veil { position: absolute; inset: 0; background: rgba(16, 18, 22, 0.38); opacity: 0; transition: opacity .18s ease;
+  -webkit-backdrop-filter: blur(6px) saturate(1.05); backdrop-filter: blur(6px) saturate(1.05); }
+:root[data-theme="dark"] .gh-modal-veil { background: rgba(0, 0, 0, 0.55); }
+.gh-modal-card { position: relative; width: min(360px, 100%); box-sizing: border-box; padding: 20px 20px 18px; text-align: left;
+  border-radius: 16px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.9);
+  -webkit-backdrop-filter: blur(20px) saturate(1.1); backdrop-filter: blur(20px) saturate(1.1);
+  box-shadow: 0 24px 64px -24px rgba(16, 18, 22, 0.45), 0 2px 10px rgba(16, 18, 22, 0.06);
+  opacity: 0; transform: translateY(10px) scale(0.985);
+  transition: opacity .18s ease, transform .24s cubic-bezier(0.2, 0.8, 0.25, 1); }
+:root[data-theme="dark"] .gh-modal-card { background: rgba(36, 37, 41, 0.92); border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 24px 64px -22px rgba(0, 0, 0, 0.78), inset 0 1px 0 rgba(255, 255, 255, 0.04); }
+.gh-modal.open .gh-modal-veil { opacity: 1; }
+.gh-modal.open .gh-modal-card { opacity: 1; transform: none; }
+/* 头部：头像 + @名字 */
+.gh-modal-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.gh-modal-avatar { width: 38px; height: 38px; flex: none; display: block; border-radius: 50%; background: var(--tertiary);
+  box-shadow: 0 0 0 1.5px var(--border); }
+.gh-modal-avatar[hidden] { display: none; }
+.gh-modal-id { display: flex; flex-direction: column; min-width: 0; line-height: 1.32; }
+.gh-modal-name { font-size: .95rem; font-weight: 600; color: var(--primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gh-modal-sub { font-size: .76rem; color: var(--secondary); }
+/* 正文 */
+.gh-modal-title { margin: 0 0 6px; font-size: 1.05rem; line-height: 1.4; font-weight: 600; color: var(--primary); }
+.gh-modal-desc { margin: 0; font-size: .855rem; line-height: 1.65; color: var(--secondary); }
+/* 按钮：取消（描边）/ 登出（实心，克制的红） */
+.gh-modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+.gh-modal-btn { flex: 1 1 0; height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid transparent; cursor: pointer;
+  font-family: inherit; font-size: .9rem; font-weight: 500; line-height: 1; color: var(--primary); background: transparent;
+  transition: background .16s ease, border-color .16s ease, color .16s ease, transform .12s ease, filter .16s ease; }
+.gh-modal-btn:active { transform: scale(0.985); }
+.gh-modal-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.gh-modal-btn.gh-cancel { border-color: var(--tertiary); }   /* 浅色下 --border 太淡，取消按钮会糊在卡片里 */
+.gh-modal-btn.gh-cancel:hover { background: var(--tertiary); border-color: var(--tertiary); }
+.gh-modal-btn.gh-ok { background: #e5484d; color: #fff; }
+.gh-modal-btn.gh-ok:hover { background: #d93f44; }
+:root[data-theme="dark"] .gh-modal-btn.gh-ok { background: #d84348; }
+:root[data-theme="dark"] .gh-modal-btn.gh-ok:hover { background: #e5484d; }
+@media (max-width: 420px) {
+  .gh-modal { padding: 16px; }
+  .gh-modal-card { padding: 18px 16px 16px; border-radius: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gh-modal-veil, .gh-modal-card { transition: none; }
+  .gh-modal-card { transform: none; }
+}

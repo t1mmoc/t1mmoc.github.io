@@ -380,6 +380,13 @@ var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
     }
   }
 
+  // 登出钩子（头部头像卡片调用）：acg 是朋友专属，登出后退回 normal
+  window.__bgLogout = function () {
+    store(KEY_PREF, "normal");
+    if (window.__bgSyncTitle) window.__bgSyncTitle();
+    normalFlow();
+  };
+
   function init() {
     addBtn();
     if (pref() === "acg") { acgFlow(); return; }
@@ -390,7 +397,7 @@ var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
 else init();
 })();
-</script>
+</script>
 {{/* 搜索无结果 → 「翻页式」沉浸观赏背景（JS 驱动，滚轮与触摸同一套手感）。
      先蓄力不跟手（滚轮 220px / 触摸 140px 才开始动作），蓄够后页面一次滑到位
      （ease-in-out，慢-快-慢），页脚与「换背景」同步收起；回滑同一套逻辑反向走。
@@ -481,8 +488,10 @@ else init();
     else if (acc <= -th) flip(0);
   }
 
+  function modalOpen() { return document.documentElement.classList.contains("gh-modal-open"); }
+
   window.addEventListener("wheel", function (e) {
-    if (!active() || e.ctrlKey) return;
+    if (modalOpen() || !active() || e.ctrlKey) return;
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;   // 横向滚动不管
     e.preventDefault();                               // 页面怎么动完全由本脚本决定
     // deltaMode: 0=像素 1=行 2=页，统一折算成像素再算蓄力
@@ -491,7 +500,7 @@ else init();
   }, { passive: false });
 
   window.addEventListener("touchstart", function (e) {
-    touchY = (active() && e.touches.length === 1) ? e.touches[0].clientY : null;
+    touchY = (active() && !modalOpen() && e.touches.length === 1) ? e.touches[0].clientY : null;
   }, { passive: true });
 
   window.addEventListener("touchmove", function (e) {
@@ -520,7 +529,7 @@ else init();
   window.addEventListener("scroll", syncScroll, { passive: true });
 
   document.addEventListener("keydown", function (e) {
-    if (!active()) return;
+    if (!active() || modalOpen()) return;
     var t = e.target;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
     if (e.key === "PageDown" || e.key === "ArrowDown") { e.preventDefault(); flip(travel); }
@@ -565,42 +574,141 @@ else init();
   syncEmpty();
 })();
 </script>
-{{/* 头部 GitHub 身份（头像+用户名，登录常驻，无登出按钮）：数据与背景共用 /api/me 缓存（tmoc_bg_me），
-     未登录/接口异常时整体隐藏。头像直接用 github.com/<login>.png，无需额外接口。 */}}
+{{/* 头部 GitHub 身份（头像+用户名）：数据与背景共用 /api/me 缓存（tmoc_bg_me），未登录/接口异常时整体隐藏。
+     点用户名弹「登出」确认卡片（.gh-modal）：取消 / 点背景 / Esc 都关掉；Ctrl·⌘·Shift 点击仍走原链接去主页，
+     无 JS 时也是这个普通链接。 */}}
 <script>
 (function () {
-  var KEY_ME = "tmoc_bg_me", ME_TTL = 24 * 3600 * 1000, ME_URL = "https://blog.tmoc.qzz.io/api/me";
+  var KEY_ME = "tmoc_bg_me", KEY_SESS = "blog_session";
+  var ME_TTL = 24 * 3600 * 1000, ME_URL = "https://blog.tmoc.qzz.io/api/me";
   function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function forget(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
+  var idEl = null, modal = null, lastFocus = null;
+
   function render(m) {
-    var el = document.getElementById("gh-identity");
     var lg = document.getElementById("gh-login");
-    if (!el || !lg) return;
+    if (!idEl || !lg) return;
     if (m && m.gid) {
-      el.hidden = false;
+      idEl.hidden = false;
       lg.hidden = true;
-      el.href = "https://github.com/" + m.gid;
-      el.title = m.gid;
-      el.querySelector(".gh-avatar").src = "https://github.com/" + m.gid + ".png?size=44";
-      el.querySelector(".gh-name").textContent = m.gid;
+      idEl.href = "https://github.com/" + m.gid;
+      idEl.title = m.gid + "（点击可登出）";
+      idEl.querySelector(".gh-avatar").src = "https://github.com/" + m.gid + ".png?size=44";
+      idEl.querySelector(".gh-name").textContent = m.gid;
     } else {
-      el.hidden = true;
+      idEl.hidden = true;
       lg.hidden = false;                      // 未登录：显示「登录」，回跳当前页
       lg.href = "https://blog.tmoc.qzz.io/api/auth/authorize?redirect=" + encodeURIComponent(location.href) + "&admin=0";
     }
   }
+
+  function meCached() {
+    try { return JSON.parse(read(KEY_ME) || "null"); } catch (e) { return null; }
+  }
+
+  // ---------------- 登出确认卡片 ----------------
+  function buildModal() {
+    if (modal) return modal;
+    var d = document.createElement("div");
+    d.className = "gh-modal";
+    d.hidden = true;
+    d.innerHTML =
+      '<div class="gh-modal-veil" data-close></div>' +
+      '<div class="gh-modal-card" role="dialog" aria-modal="true" aria-labelledby="gh-modal-title" aria-describedby="gh-modal-desc">' +
+        '<div class="gh-modal-head">' +
+          '<img class="gh-modal-avatar" alt="" referrerpolicy="no-referrer">' +
+          '<div class="gh-modal-id"><span class="gh-modal-name"></span><span class="gh-modal-sub">已通过 GitHub 登录</span></div>' +
+        '</div>' +
+        '<h2 class="gh-modal-title" id="gh-modal-title">要登出吗？</h2>' +
+        '<p class="gh-modal-desc" id="gh-modal-desc">登出后这个浏览器不再保留你的身份。</p>' +
+        '<div class="gh-modal-actions">' +
+          '<button type="button" class="gh-modal-btn gh-cancel" data-close>取消</button>' +
+          '<button type="button" class="gh-modal-btn gh-ok" data-ok>登出</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(d);
+    d.addEventListener("click", function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      if (t.closest("[data-ok]")) { doLogout(); return; }
+      if (t.closest("[data-close]")) closeModal();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (d.hidden) return;
+      if (e.key === "Escape") { e.preventDefault(); closeModal(); return; }
+      if (e.key === "Tab") {                                  // 焦点锁在卡片里
+        var f = d.querySelectorAll("button");
+        if (!f.length) return;
+        var first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
+    modal = d;
+    return d;
+  }
+
+  function openModal() {
+    var d = buildModal();
+    var m = meCached();
+    var gid = (m && m.gid) || "";
+    var av = d.querySelector(".gh-modal-avatar");
+    if (gid) { av.src = "https://github.com/" + gid + ".png?size=88"; av.hidden = false; }
+    else { av.hidden = true; }
+    d.querySelector(".gh-modal-name").textContent = gid ? "@" + gid : "已登录";
+    lastFocus = document.activeElement;
+    d.hidden = false;
+    document.documentElement.classList.add("gh-modal-open");
+    void d.offsetWidth;                                       // 强制一次重排，让入场过渡真的跑
+    d.classList.add("open");
+    var cancel = d.querySelector("[data-close]");
+    try { cancel.focus(); } catch (e) {}
+    setTimeout(function () { try { cancel.focus(); } catch (e) {} }, 40);   // 过渡结束后再要一次焦点，个别浏览器首次会丢
+  }
+
+  function closeModal() {
+    if (!modal || modal.hidden) return;
+    modal.classList.remove("open");
+    document.documentElement.classList.remove("gh-modal-open");
+    setTimeout(function () { modal.hidden = true; }, 220);
+    // 焦点还回去：登出后身份元素已经藏起来了，就交给「登录」
+    try {
+      if (lastFocus && lastFocus.focus && !lastFocus.hidden) lastFocus.focus();
+      else { var lg = document.getElementById("gh-login"); if (lg && !lg.hidden) lg.focus(); }
+    } catch (e) {}
+  }
+
+  function doLogout() {
+    forget(KEY_SESS);
+    forget(KEY_ME);
+    window.__blogMeP = null;                                  // 身份结果作废，下次重新查
+    render(null);                                             // 头部立刻回到「登录」
+    if (window.__bgLogout) window.__bgLogout();               // 图池退回 normal
+    closeModal();
+    // 当前页有加密文章的 iframe，它的内存里还握着 session：刷新才算真登出
+    if (document.querySelector(".blog-protected")) setTimeout(function () { location.reload(); }, 260);
+  }
+
   function boot() {
+    idEl = document.getElementById("gh-identity");
     var lg = document.getElementById("gh-login");
     if (lg) {
       // 模板已写好 authorize 的静态 href（无 JS 也能登录）；这里只把 redirect 升级为「当前真实地址」，
       // 让 blog.tmoc.qzz.io 入口登录后留在主域、本地调试回跳本地。
-      var m0 = (lg.getAttribute("href") || "").match(/^https:\/\/blog\.tmoc\.qzz\.io\/api\/auth\/authorize/);
+      var m0 = (lg.getAttribute("href") || "").indexOf("https://blog.tmoc.qzz.io/api/auth/authorize") === 0;
       if (m0) lg.href = "https://blog.tmoc.qzz.io/api/auth/authorize?admin=0&redirect=" + encodeURIComponent(location.href);
     }
-    var m = null;
-    try { m = JSON.parse(read(KEY_ME) || "null"); } catch (e) {}
+    if (idEl) idEl.addEventListener("click", function (e) {
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;   // 组合键：照旧去 GitHub 主页
+      e.preventDefault();
+      openModal();
+    });
+    var m = meCached();
     if (m && m.t && Date.now() - m.t < ME_TTL) render(m);
     document.addEventListener("blog:me", function () {
-      try { var mm = JSON.parse(read(KEY_ME) || "null"); if (mm) render(mm); } catch (err) {}
+      var mm = meCached();
+      if (mm) render(mm);
     });
     if (!m || !m.t || Date.now() - m.t >= ME_TTL) {
       if (window.__blogMeP) {
@@ -608,7 +716,7 @@ else init();
           if (r) { try { localStorage.setItem(KEY_ME, JSON.stringify(r)); } catch (e) {} render(r); document.dispatchEvent(new Event("blog:me")); }
         });
       } else {
-        var sess = read("blog_session");
+        var sess = read(KEY_SESS);
         if (!sess) return;                      // 未登录：保持隐藏
         fetch(ME_URL, { headers: { "x-session": sess }, cache: "no-store" })
           .then(function (r) { return r.ok ? r.json() : { ok: false }; })
