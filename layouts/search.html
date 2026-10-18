@@ -1,0 +1,16 @@
+{{- define "main" }}
+
+{{- $sem := site.Params.semanticsearch | default dict -}}
+<div id="searchbox" class="searchbox searchbox--card"
+    data-semantic-endpoint="{{ $sem.endpoint | default "" }}"
+    data-semantic-timeout="{{ $sem.timeout | default 3000 }}">
+    {{- /* 不用 disabled：背景大图会把 window.load 拖到几秒后，届时才解锁会让人以为搜索框点不动 */ -}}
+    <input id="searchInput" placeholder="{{ .Params.placeholder | default (printf "%s ↵" .Title) }}"
+        aria-label="search" type="search" autocomplete="off" maxlength="64">
+    <div id="searchStatus" class="search-status" role="status" aria-live="polite" hidden>搜索中…</div>
+</div>
+
+{{- /* 结果卡片复用首页 post-entry 排版，所以放在输入卡片之外，直接排在背景上 */ -}}
+<div id="searchResults" class="searchResults" aria-label="search results"></div>
+
+{{- end }}{{/* end main */}}

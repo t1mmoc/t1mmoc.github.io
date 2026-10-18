@@ -3,7 +3,7 @@ title: "【AIGC】博客全站二次元背景改版 · 技术总结"
 date: 2026-07-09
 lastmod: 2026-07-09
 draft: false
-tags: ["Hugo", "前端", "二次元", "博客美化"]
+tags: ["Hugo", "前端", "二次元", "博客美化", "AIGC"]
 slug: "site-bg-redesign"
 ---
 

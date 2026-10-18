@@ -57,14 +57,20 @@
 
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener("click", function (e) {
+            var href = this.getAttribute("href") || "";
+            // 运行时 href 被改成了真实链接（如登录按钮）：立刻放行，别拦浏览器默认跳转
+            if (href.charAt(0) !== "#") return;
             e.preventDefault();
-            var id = this.getAttribute("href").substr(1);
+            var id = href.substr(1);
+            if (!id) return;   // href="#" 等空锚点（如未渲染的头部身份链接）
+            var target = document.querySelector(`[id='${decodeURIComponent(id)}']`);
+            if (!target) return;   // 目标不存在时静默，别抛错
             if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                target.scrollIntoView({
                     behavior: "smooth"
                 });
             } else {
-                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+                target.scrollIntoView();
             }
             if (id === "top") {
                 history.replaceState(null, null, " ");

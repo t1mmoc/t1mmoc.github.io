@@ -34,9 +34,9 @@
   width: 92px;
   height: 92px;
   border-radius: 50%;
-  border: 4px solid var(--theme, #fff);
-  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.3);
-  background: var(--theme, #fff);
+  border: 3px solid #e2e8f0;
+  box-shadow: none;
+  background: #fff;
 }
 .site-hero__meta {
   min-width: 0;
@@ -59,17 +59,22 @@
   background: rgba(29, 30, 32, 0.84) !important;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
+:root[data-theme="dark"] .site-hero__avatar img {
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 4px 16px rgba(255, 255, 255, 0.35),
+    0 0 32px rgba(255, 255, 255, 0.18);
+}
 @media (max-width: 600px) {
   .site-hero__card {
-    flex-direction: column;
-    align-items: flex-start;
-    text-align: left;
-    gap: 0.6rem;
+    align-items: center;
+    gap: 0.9rem;
     margin: 0;
-    padding: 1.4rem 1.2rem;
+    padding: 1.1rem 1.1rem;
   }
-  .site-hero__avatar img { width: 72px; height: 72px; }
-  .site-hero__title { font-size: 1.5rem; }
+  .site-hero__avatar img { width: 56px; height: 56px; border-width: 2px; }
+  .site-hero__title { font-size: 1.2rem; }
+  .site-hero__subtitle { font-size: 0.88rem; margin-top: 0.25rem; }
 }
 
 /* 评论区与正文之间留白 */
@@ -107,9 +112,15 @@
   border-style: dashed;
   opacity: 0.85;
 }
-.friend-avatar {
-  width: 48px;
-  height: 48px;
+/* 权重必须高于 .post-content img（width/height:auto、margin:1rem auto），
+   否则友链头像会按原图尺寸铺满整张卡片。
+   兜底那条要多带一层 .friend-grid：`.friend-card img` 只有 (0,1,1)，
+   与 .post-content img 同权重且位置更靠前，会静默输掉。 */
+.friend-card .friend-avatar,
+.friend-grid .friend-card img {
+  width: 3rem;
+  height: 3rem;
+  margin: 0;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
@@ -160,10 +171,11 @@ body.bg-ready::before { opacity: 1; }
 
 /* --- 中间内容区毛玻璃：半透明 + 模糊背后背景，保证正文可读 --- */
 /* 浅色：偏白半透明；深色：偏深半透明。透明度再上调 10% 让文字更清楚。 */
+/* .terms-tags：标签页整盘装进一张正文同款毛玻璃里，彩签不再直接铺在背景图上 */
 .post-entry,
 .page-header,
 .archive-month,
-.not-found,
+.terms-tags,
 .entry-content pre {
   background: rgba(255, 255, 255, 0.92) !important;
   backdrop-filter: blur(14px) saturate(1.1);
@@ -184,20 +196,21 @@ body.bg-ready::before { opacity: 1; }
 .post-single,
 .page-header,
 .archive-month,
-.not-found {
+.terms-tags {
   border-radius: 16px !important;
   border: 1px solid rgba(255, 255, 255, 0.45) !important;
 }
 /* 文章列表卡片加大内边距，让框更大更透气 */
 .post-entry,
-.page-header {
+.page-header,
+.terms-tags {
   padding: 1.6rem 1.9rem !important;
 }
 :root[data-theme="dark"] .post-entry,
 :root[data-theme="dark"] .post-single,
 :root[data-theme="dark"] .page-header,
 :root[data-theme="dark"] .archive-month,
-:root[data-theme="dark"] .not-found {
+:root[data-theme="dark"] .terms-tags {
   background: rgba(29, 30, 32, 0.84) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
@@ -214,6 +227,15 @@ body.bg-ready::before { opacity: 1; }
 :root[data-theme="dark"] .header {
   background: rgba(29, 30, 32, 0.72) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+/* 移动端顶栏：标题与菜单之间间距收紧 */
+@media (max-width: 600px) {
+  .header-nav {
+    line-height: 1.8;
+    row-gap: 0.5rem;
+    padding-top: 0.8rem;
+    padding-bottom: 0.8rem;
+  }
 }
 /* 代码块保持较高不透明度，避免花哨背景干扰阅读代码 */
 :root[data-theme="dark"] .entry-content pre {
@@ -271,15 +293,40 @@ details.toc.toc-fixed {
     backdrop-filter: blur(14px) saturate(1.1);
     -webkit-backdrop-filter: blur(14px) saturate(1.1);
     overflow: hidden auto;
-    scrollbar-width: thin;
+    /* 下滑连续上移（无 JS）：scroll-driven animation 把滚动距离线性映射到 top/max-height。
+       页顶：top=7rem（距顶条底部 7rem-60px=52px，底距 2rem）；
+       滚动 s∈[0,header-height] 期间 top=7rem-s → 与顶条底恒距 52px，几何上等价于随文档滚动；
+       顶条滚出视口瞬间（s=60px）恰好停在 top=52px，与窗口顶恒距 52px，此后不动。
+       max-height 同步从 100vh-9rem 长到 100vh-9rem+60px，底部与视口的 2rem 间距全程不变。
+       Firefox 暂不支持 scroll-timeline，回退为固定 top:7rem（无副作用）。 */
+    animation: toc-slide-up linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 var(--header-height);
+}
+@keyframes toc-slide-up {
+    from {
+        top: 7rem;
+        max-height: calc(100vh - 9rem);
+    }
+    to {
+        top: calc(7rem - var(--header-height));
+        max-height: calc(100vh - 9rem + var(--header-height));
+    }
 }
 [data-theme="dark"] details.toc.toc-fixed {
     background: rgba(29, 30, 32, 0.84);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
-details.toc.toc-fixed::-webkit-scrollbar { width: 10px; }
-details.toc.toc-fixed::-webkit-scrollbar-track { background: transparent; }
+/* 滚动条：贴卡片右缘、轨道上下留白缩短。注意不能写 scrollbar-width/scrollbar-color——
+   Chrome 121+ 一旦设置了标准属性就会整体禁用 ::-webkit-scrollbar 定制，回到原生丑滚动条；
+   Firefox 不认 webkit 伪元素，用 @supports 单独兜底 */
+details.toc.toc-fixed::-webkit-scrollbar { width: 8px; }
+details.toc.toc-fixed::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 1.5rem 0; /* 轨道上下各留 1.5rem：滚动条视觉缩短，也不被圆角裁切 */
+}
 details.toc.toc-fixed::-webkit-scrollbar-thumb {
+    border-radius: 8px;
     background: rgba(0, 0, 0, 0.18);
 }
 details.toc.toc-fixed::-webkit-scrollbar-thumb:hover {
@@ -291,8 +338,22 @@ details.toc.toc-fixed::-webkit-scrollbar-thumb:hover {
 [data-theme="dark"] details.toc.toc-fixed::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.38);
 }
+@supports (-moz-appearance: none) {
+    details.toc.toc-fixed {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+    }
+    [data-theme="dark"] details.toc.toc-fixed {
+        scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+    }
+}
 details.toc.toc-fixed .inner { padding: 0.3rem 0; }
 details.toc.toc-fixed ul { margin: 0; }
+
+/* ===== 标题锚点：h1 悬停不再显示「#」按钮（h2-h6 保持主题默认）===== */
+.md-content h1:hover .anchor {
+    display: none;
+}
 
 /* ===== medium-zoom：确保弹层在最顶层，覆盖侧边栏、按钮等一切元素 ===== */
 .medium-zoom-overlay {
@@ -310,3 +371,522 @@ details.toc.toc-fixed ul { margin: 0; }
   display: block;
   margin: 1rem auto;
 }
+
+/* ===== 搜索页：输入框+结果复用正文毛玻璃卡片样式，去掉大标题卡片 ===== */
+.searchbox--card {
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  border-radius: 16px !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  padding: 1.5rem 1.9rem;
+}
+:root[data-theme="dark"] .searchbox--card {
+  background: rgba(29, 30, 32, 0.84) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+.searchbox--card #searchInput {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  font-size: 1rem;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  background: var(--theme, #fff);
+  color: inherit;
+  box-sizing: border-box;
+}
+.searchbox--card #searchInput:focus {
+  outline: none;
+  border-color: var(--primary, #4f46e5);
+}
+/* 结果列表：每项都是首页同款 .post-entry 卡片，这里只负责竖排间距 */
+.searchResults {
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+.searchResults .post-entry {
+  margin-bottom: 0;
+}
+@media (max-width: 600px) {
+  .searchbox--card { padding: 1.2rem 1.2rem; }
+}
+
+/* ===== 文章 meta 行：左「日历 日期 + 标签」，右对齐「时钟 阅读时长」 =====
+   post_meta.html 的三个 span 直接做 flex 子项（纯空白文本不会生成 flex 项），
+   .pm-reading 靠 margin-left:auto 顶到行尾，右对齐只占掉剩余空间，不撑破行宽。 */
+.post-meta,
+.entry-footer,
+.archive-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.7rem;
+}
+.pm-date,
+.pm-tag,
+.pm-reading,
+.pm-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+}
+/* 第一行的固定成员一律不许被压缩：日期、阅读时长、| 编辑此页。
+   能换行的只有标签组，所以「编辑此页」要么留在第一行，要么整组一起挪，
+   不会因为某个项被挤窄而掉到第二行。 */
+.pm-date,
+.pm-reading,
+.pm-edit {
+  flex-shrink: 0;
+}
+.pm-icon {
+  width: 0.8rem;
+  height: 0.8rem;
+  flex-shrink: 0;
+}
+.pm-reading {
+  margin-left: auto;
+}
+a.pm-tag {
+  color: var(--secondary);
+  text-decoration: none;
+}
+a.pm-tag:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+/* 列表卡片/归档条目整块被 .entry-link 覆盖，标签链接抬到覆盖层之上才可点 */
+.entry-footer a.pm-tag,
+.archive-meta a.pm-tag {
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== 顶栏：标题与右侧菜单垂直居中 =====
+   ≤600px 时 .header-nav 的 line-height 改成 1.8，标题(24px)与菜单(16px)
+   行盒高度不再相等；.header-nav 默认 align-items:normal(=stretch)，
+   菜单被拉到整行高后文字按行盒顶部排，看起来比标题高半截。 */
+.header-nav,
+.header-nav .menu {
+  align-items: center;
+}
+
+/* ===== tag 彩签：五颜六色但同名必同色，数字越大越抢眼 =====
+   构建期只下发两个数（见 layouts/_partials/extend_head.html 的 #tag-palette）：
+     --th 色相(0~360) —— 只跟标签文字走，同名必同色，新增标签不会改别人的颜色；
+     --tw 权重(0~1)   —— 该标签文章数 / 全站最大文章数，所有「吸引力」通道都由它现算。
+   为什么不用 HSL：HSL 的 L 不是感知量，同样 L=58% 的黄绿比蓝紫亮一大截，
+   「数字大=更跳」会在色相之间失真（安装包⁴ 闷、逆向¹² 炸，一半是色相的锅）。
+   OKLCH 的 L 就是感知亮度、C 就是彩度，把权重直接映射到这两个量上，
+   任何色相的高数字标签都以同样幅度从毛玻璃底板里凸出来，也不用再给黄绿区打补丁。
+   吸引力通道（全部随 --tw 单调上升）：
+     与底板的感知亮度差 ΔL(0 → 0.30) → 彩度 C(0.045 → 0.18) → 填充实度(0.5 → 0.95)
+     → 描边不透明度 → 外发光 → 字重(500→800) → 字号(+0.22rem)。
+   字色固定在高对比一侧（min/max 跟着填充微调），保证 116 枚全部过 WCAG AA。
+   选择器写 a.pm-tag 而不是 .pm-tag，是为了压过上面那条同权重的 a.pm-tag{color:var(--secondary)}。 */
+a.pm-tag,
+.pm-tag-more,
+.terms-tags a,
+.post-tags a {
+  --tag-h: var(--th, 260);
+  --tag-w: var(--tw, 0.12);
+  --tag-c: calc(0.045 + var(--tag-w) * 0.135);
+  /* 浅色：越重越沉，离近白的底板越远。带的下端不是审美决定的，是「深色字要过 AA」决定的：
+     实测 ink=0.30 时 72 个色相 × 21 档权重里最差 4.56:1（落在 H5 橙红），刚好过线。 */
+  --tag-l: calc(0.95 - var(--tag-w) * 0.27);
+  --tag-fill: calc(0.5 + var(--tag-w) * 0.45);
+  /* 描边不能跟着权重一起变淡：淡标签本来就要和卡片贴在一起，边一虚就"化"进卡片里
+     （他截图里 #PoC / #漏洞分析 那种）。所以 alpha 下限抬到 .65，rim 比填充再深 0.28。 */
+  --tag-line: calc(0.65 + var(--tag-w) * 0.3);
+  --tag-rim: calc(var(--tag-l) - 0.28);
+  --tag-ink: 0.3;
+  --tag-ink-shift: 0.08;
+  /* 玻璃底：够透才能让背后的背景图被「磨」进来，可读性交给 blur + saturate */
+  --tag-glass: rgba(255, 255, 255, 0.42);
+  /* 下面两个只被「实体彩签」那条规则取用；行内 meta 标签走平涂，不引用它们 */
+  --tag-sheen: linear-gradient(155deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.05) 62%);
+  --tag-edge: inset 0 0.0625rem 0 rgba(255, 255, 255, 0.7);
+
+  background-color: var(--tag-glass);
+  background-image: linear-gradient(oklch(var(--tag-l) var(--tag-c) var(--tag-h) / var(--tag-fill)));
+  /* saturate 与正文卡片一致(1.1)：再高就会把背景图的颜色拧成荧光 */
+  backdrop-filter: blur(0.625rem) saturate(1.1);
+  -webkit-backdrop-filter: blur(0.625rem) saturate(1.1);
+  border: 0.0625rem solid oklch(var(--tag-rim) calc(var(--tag-c) * 1.15) var(--tag-h) / var(--tag-line));
+  border-radius: var(--radius);
+  color: oklch(var(--tag-ink) calc(var(--tag-c) * 0.8) var(--tag-h));
+  font-weight: calc(500 + var(--tag-w) * 300);
+  /* 刻意保持 2D 平涂：不加斜向高光、顶部内高光、外发光和投影——那几层会把小标签
+     渲染成鼓起的胶囊。层次感只靠「填充色 + 一圈描边」，注意力差全部走 ΔL/彩度/字重/字号。 */
+  box-shadow: none;
+  text-decoration: none;
+}
+:root[data-theme="dark"] a.pm-tag,
+:root[data-theme="dark"] .pm-tag-more,
+:root[data-theme="dark"] .terms-tags a,
+:root[data-theme="dark"] .post-tags a {
+  --tag-glass: rgba(29, 30, 32, 0.45);
+  --tag-sheen: linear-gradient(155deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.02) 62%);
+  --tag-edge: inset 0 0.0625rem 0 rgba(255, 255, 255, 0.22);
+  --tag-ink-shift: -0.08;
+  /* 深色：方向反过来，越重越亮，离近黑的底板越远；描边提亮当作受光边。
+     浅色字要压得住，填充只能走到 0.50（实测最差 5.11:1）——深色主题的可拉区间天生比浅色窄，
+     剩下的注意力差交给彩度、填充实度和字号来扛。 */
+  --tag-l: calc(0.32 + var(--tag-w) * 0.18);
+  --tag-rim: calc(var(--tag-l) + 0.26);
+  --tag-ink: 0.96;
+}
+
+/* ===== 两种厚度，按「站在哪儿」分 =====
+   实体彩签（标签盘 + 文章底部）单独摆在背景上，要玻璃的厚度：斜向高光 + 顶部内高光
+   + 随权重的外发光 + 托底投影。平涂版试过，整盘像贴纸，卡通。
+   行内 meta 标签（首页/归档/文章顶部那排 #xx）压在卡片上，必须 2D 平涂——
+   同一排里每颗都鼓起来，卡片就成了一排胶囊。 */
+.terms-tags a,
+.post-tags a {
+  background-image: var(--tag-sheen),
+    linear-gradient(oklch(var(--tag-l) var(--tag-c) var(--tag-h) / var(--tag-fill)));
+  box-shadow: var(--tag-edge),
+    0 0 calc(0.1rem + var(--tag-w) * 0.7rem) oklch(calc(var(--tag-l) + 0.06) var(--tag-c) var(--tag-h) / calc(var(--tag-w) * 0.5)),
+    0 0.1rem 0.5rem rgba(0, 0, 0, 0.14);
+}
+
+/* 文章顶部 meta 行里的标签：同一套色，但只做淡染色，不抢正文行的注意力 */
+a.pm-tag,
+.pm-tag-more {
+  --tag-fill: calc(0.28 + var(--tag-w) * 0.4);
+  /* meta 行的染色更淡，但描边不能跟着淡——淡边压在白卡片上就直接化掉了 */
+  --tag-line: calc(0.6 + var(--tag-w) * 0.32);
+  padding: 0.1rem 0.45rem;
+}
+/* 彩签一律等高、宽度由文字决定：权重不用字号和内边距表达（那会让一行里高低不齐、
+   长短不一），只走颜色与字重。 */
+.terms-tags a {
+  flex: 0 0 auto;
+  padding: 0.4rem 0.75rem;
+  line-height: 1.5;
+}
+/* 左右拉满靠「插间距」，不靠拉长标签：
+   justify-content:space-between 把每行的富余摊到标签之间，column-gap 是间距下限；
+   li 不再 flex-grow，标签宽度就只由文字决定。
+   末行同样两端对齐（他明确要末行也拉平，不沿用排印里"末行留白"的惯例），
+   所以这里不放 .terms-tags::after 那种吃余量的占位项。 */
+.terms-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem 1em;
+}
+.terms-tags li {
+  display: block;
+  flex: 0 0 auto;
+}
+/* 悬停统一加戏：只往「更实 + 更艳 + 字色更深」走，不引入阴影/高光，保持 2D */
+a.pm-tag:hover,
+.pm-tag-more:hover,
+.terms-tags a:hover,
+.post-tags a:hover {
+  --tag-fill: calc(0.7 + var(--tag-w) * 0.28);
+  --tag-line: 0.95;
+  --tag-c: calc(0.045 + var(--tag-w) * 0.135 + 0.03);
+  color: oklch(calc(var(--tag-ink) - var(--tag-ink-shift)) calc(var(--tag-c) * 0.8) var(--tag-h));
+  text-decoration: none;
+}
+/* 「#...」(还有 N 个标签) 不是标签本身：权重归零就是最淡的灰签，无需另写一套 */
+.pm-tag-more {
+  --th: 260;
+  --tw: 0;
+  /* 默认不出现：模板永远输出完整标签，只有 JS 真的折叠了尾部才点亮它。
+     没 JS 时整排标签本来就是完整的，不会留下一个假的 #... */
+  display: none;
+}
+.pm-tag-more.is-shown {
+  display: inline-flex;
+}
+/* meta 行的标签组：包一层便于运行时测量与折叠（逻辑见 extend_footer.html 的 fitTagRow）。
+   默认允许换行——只有需要折叠的容器才会被 JS 锁住。 */
+.pm-tags {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-width: 0;
+}
+/* 测量期才锁换行：.pm-nowrap 由 JS 只挂在会被折叠的容器上（卡片 .entry-footer、
+   归档 .archive-meta 及其 .pm-tags）。文章页的 .post-meta 拿不到这个类，
+   标签放不下就自己换第二行，永不截断。 */
+.pm-nowrap {
+  flex-wrap: nowrap;
+}
+/* 测量期标签组还不许收缩：否则它会自己缩窄换行，行的 scrollWidth 永远不超标，
+   折叠判定就永远不会触发（JS 会把 .pm-nowrap 同时挂到行和组上）。 */
+.pm-tags.pm-nowrap {
+  flex-shrink: 0;
+}
+.pm-tag.pm-hide {
+  display: none;
+}
+/* 测量期关掉阅读时长的 margin-left:auto：否则它会被顶到行尾，
+   「最后一个子项的右缘」就恒等于行右缘，量不出真实余量（只在 JS 加类的瞬间生效）。 */
+.pm-measure .pm-reading {
+  margin-left: 0;
+}
+/* 文章内 meta 行：标签放不下时不截断，整组另起一行 —— 第一行仍是「日期 … 阅读时长 | 编辑此页」。
+   order:9 把标签组挪到视觉末尾（否则它会插在日期和阅读时长之间，换行位置就错了），
+   flex-basis:100% 让它独占一行。是否另起一行由 extend_footer.html 量出来，不靠猜断点。 */
+.post-meta.pm-tags-below .pm-tags {
+  order: 9;
+  flex-basis: 100%;
+  margin-top: 0.35rem;
+}
+
+/* ===== 搜索页：语义检索状态提示（搜索栏下方，完成/失败后隐藏） ===== */
+.search-status {
+  margin: 8px 4px 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--secondary);
+  animation: search-status-pulse 1.4s ease-in-out infinite;
+}
+.search-status[hidden] {
+  display: none;
+}
+@keyframes search-status-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-status { animation: none; }
+}
+
+/* ===== 搜索结果：语义命中卡片的「Embed」礼物缎带（左上角，颜色由标题哈希决定） ===== */
+.searchResults .post-entry {
+  overflow: hidden; /* 让缎带贴着圆角裁切 */
+}
+.searchResults .post-entry.has-embed-ribbon {
+  padding-top: 2.45rem !important;
+}
+.embed-ribbon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6.4rem;
+  height: 6.4rem;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 3;
+}
+.embed-ribbon > span {
+  position: absolute;
+  display: block;
+  width: 10rem;
+  top: 0.95rem;
+  left: -2.92rem;
+  padding: 0.32rem 0 0.34rem;
+  transform: rotate(-45deg);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  background-image: linear-gradient(
+    100deg,
+    oklch(0.70 0.16 var(--h1, 250)) 0%,
+    oklch(0.63 0.19 var(--h2, 288)) 52%,
+    oklch(0.58 0.20 var(--h3, 326)) 100%
+  );
+  box-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+/* ===== 404 页：炫彩卡片 + 流光 =====
+   边框流光是「转角度」不是「转元素」：conic 色带铺满整条边框，靠 @property 注册的
+   --nf-angle 从 0deg 走到 360deg，色带才会沿边框流动；直接 rotate 一个矩形会把圆角转歪。
+   色带单独做成 .nf-ring 浮在卡片下沿，中心被遮罩挖空——
+   这样 .nf-body 的 backdrop-filter 采到的是全站背景图，而不是被彩虹糊成一片。
+   卡内是斜向彩虹光束（浅色亮粉彩、深色沉色），12s 走完一个周期；正文颜色照常继承。
+   动的三条：边框环 7s、卡内光束 12s、外发光换色 7s。 */
+@property --nf-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+.nf {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 0 3rem;
+}
+.nf-card {
+  position: relative;
+  width: 100%;
+  max-width: 42rem;
+  border-radius: 1.4rem;
+  box-shadow: 0 1.1rem 3rem rgba(139, 92, 255, 0.28);  /* 静止态兜底，减弱动效时保留光晕 */
+  animation: nf-glow 7s linear infinite;
+}
+.nf-ring {
+  position: absolute;
+  inset: 0;                         /* 绝对定位按卡片 padding box 算，卡片不留 padding，环才贴最外沿 */
+  --nf-angle: 0deg;                 /* 不支持 @property 的浏览器退化成静态彩虹边 */
+  padding: 0.18rem;                 /* 遮罩挖空后剩下的流光边圈厚度 */
+  border-radius: inherit;
+  background: conic-gradient(from var(--nf-angle), #ff4d8d, #ff9a3d, #ffd93d, #4dd97b, #3dc7ff, #8b5cff, #ff4d8d) border-box;
+  /* 两层遮罩相减：只留 padding 之外那一圈，中心透出背景 */
+  -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: nf-turn 7s linear infinite;
+  pointer-events: none;
+}
+.nf-card:hover .nf-ring {
+  animation-duration: 3s;           /* 悬停时流光加速 */
+}
+.nf-body {
+  position: relative;               /* 保证压在 .nf-ring 之上：遮罩不被支持时正文不会被彩虹盖住 */
+  margin: 0.18rem;                  /* 让正文退到流光边圈内侧 */
+  border-radius: 1.22rem;           /* = 卡片 1.4rem 减去 0.18rem 边圈 */
+  padding: 2.4rem 2rem 2.2rem;
+  text-align: center;
+  /* 卡内流光：斜向彩虹光束，会走，且没有接缝。
+     上一版的硬边来自「普通 linear-gradient 铺 200% 宽再滑」——每格平铺各自算 120deg 的轴，
+     接缝上下颜色对不齐，于是有一条边横扫过卡面。
+     改法：用 repeating-linear-gradient（它本身是无限周期图案），色标位置一律用 rem 定死，
+     周期就固定为 20rem、不随卡片尺寸变；它在水平方向的重复距离 = 20rem / sin(120°)，
+     把平铺宽度取成这个值，左右边缘天然咬合，滑满一格 = 回到原图。 */
+  background-image: repeating-linear-gradient(120deg,
+      rgba(255, 224, 236, 0.82) 0, rgba(255, 244, 214, 0.82) 5rem,
+      rgba(214, 240, 255, 0.82) 10rem, rgba(232, 220, 255, 0.82) 15rem,
+      rgba(255, 224, 236, 0.82) 20rem);
+  background-position: 0 0;
+  background-size: calc(20rem / 0.866) 200%;  /* 高度 2 倍卡高：竖向不做周期对齐，只露出一行平铺 */
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  animation: nf-beam 12s linear infinite;
+}
+:root[data-theme="dark"] .nf-body {
+  /* 深色：同一套几何，只换色标（用 background-image 而非简写，免得重置 background-size） */
+  background-image: repeating-linear-gradient(120deg,
+      rgba(58, 20, 74, 0.8) 0, rgba(16, 32, 74, 0.8) 5rem,
+      rgba(10, 60, 66, 0.8) 10rem, rgba(70, 22, 52, 0.8) 15rem,
+      rgba(58, 20, 74, 0.8) 20rem);
+}
+.nf-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--secondary);
+}
+.nf-code {
+  margin: 0.5rem 0 0;
+  font-size: clamp(5rem, 20vw, 9rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+.nf-title {
+  margin: 0.2rem 0 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+.nf-desc {
+  margin: 0.7rem auto 1.7rem;
+  max-width: 26rem;
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: var(--secondary);
+}
+.nf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.7rem;
+}
+.nf-btn {
+  padding: 0.5rem 1.15rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--entry);
+  color: var(--primary);
+  font-size: 0.92rem;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.nf-btn:hover {
+  transform: translateY(-2px);
+  border-color: transparent;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+}
+@keyframes nf-turn {
+  to { --nf-angle: 360deg; }
+}
+@keyframes nf-beam {
+  to { background-position: calc(20rem / 0.866) 0; }  /* 正好走完一格平铺 = 一个周期 */
+}
+@keyframes nf-glow {
+  0%, 100% { box-shadow: 0 1.1rem 3rem rgba(255, 77, 141, 0.30); }
+  33%      { box-shadow: 0 1.1rem 3rem rgba(61, 199, 255, 0.30); }
+  66%      { box-shadow: 0 1.1rem 3rem rgba(139, 92, 255, 0.30); }
+}
+@media (max-width: 600px) {
+  .nf-body { padding: 1.6rem 1rem 1.4rem; }
+  .nf-title { font-size: 1.1rem; }
+  .nf-desc { font-size: 0.86rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nf-card, .nf-ring, .nf-body { animation: none; }
+}
+
+/* ---------- 头部 GitHub 身份 / 登录按钮 ----------
+   注意：主题的 `.logo a{font-size:24px;font-weight:700;display:flex}` 会把里面的 <a> 顶成标题样式，
+   所以这里一律用 `.header-nav .gh-*` 提权（0,2,0 > 0,1,1），并显式归正字号/字重/块级行为。 */
+.header-nav .gh-login{display:inline-flex;align-items:center;width:auto;height:40px;min-height:0;box-sizing:border-box;padding:0 18px;border:1px solid var(--border,#e5e7eb);border-radius:8px;font-size:1rem;font-weight:400;color:var(--secondary,#6b7280);text-decoration:none;line-height:1}
+.header-nav .gh-login[hidden]{display:none}
+.header-nav .gh-login:hover{color:var(--primary,#4f46e5);border-color:var(--primary,#4f46e5)}
+.header-nav .gh-identity{display:inline-flex;align-items:center;width:auto;min-height:0;gap:7px;font-size:1rem;font-weight:400;text-decoration:none;line-height:1;vertical-align:middle}
+.header-nav .gh-identity[hidden]{display:none}
+.header-nav .gh-identity .gh-avatar{border-radius:50%;display:block;width:28px;height:28px;background:var(--border,#888);flex:none}
+.header-nav .gh-identity .gh-name{font-size:1.08rem;font-weight:400;color:var(--secondary,#6b7280);max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.header-nav .gh-identity:hover .gh-name{color:var(--primary,#4f46e5)}
+.header-nav{position:relative}
+#menu{margin-right:130px}             /* 全宽生效：给最右身份区留位，中间态放不下时导航自动换行 */
+.header-nav .gh-login,.header-nav .gh-identity{position:absolute;right:var(--gap);top:calc(var(--header-height, 60px) / 2);transform:translateY(-50%)}  /* 中心对齐标题行中线，高度自适应（与主题切换按钮一致） */
+@media (max-width: 768px){
+  .header-nav .gh-login{padding:0 14px}   /* 高度与 PC 一致（40px），只收窄内边距 */
+  .header-nav .gh-identity .gh-name{display:none}   /* 手机端只留头像 */
+}
+.bg-switch{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+/* 窄屏（≤600px）顶栏有 0.8rem 上下 padding、标题行盒 24px×1.8，
+   绝对定位的身份区要按标题中线（12.8 + 43.2/2 ≈ 34.4px）对齐，而不是整行 60px 中线 */
+@media (max-width: 600px){
+  .header-nav #gh-identity,
+  .header-nav #gh-login{top:calc(0.8rem + 21.6px)}
+}
+
+/* ===== 搜索无结果 → 沉浸观赏背景（原生 scroll-snap 翻页） =====
+   条件：搜索页、结果为空（JS 给 html/body 打 .search-empty）。
+   翻页手感交给 CSS scroll-snap：html 上只留两个吸附点 —— 页面顶端(0) 和
+   「搜索框刚滚出视野再多一点」；中间没有可停留的位置，所以轻滑会被吸回、
+   滑过一半会整段滑过去，一次到位；滚轮/触摸都由浏览器原生处理，移动端同样可滑。
+   JS 只做两件事：量出吸附点高度写进 --zen-h，按滚动位置切 body.zen 触发收起。 */
+html.search-empty { scroll-snap-type: y mandatory; }
+body.search-empty .main { min-height: calc(100vh + var(--zen-h, 40vh)); }  /* 撑出可下滑的空白（border-box 下 padding 不增加高度） */
+.zen-snap { position: absolute; top: 0; left: 0; width: 1px; height: 1px; pointer-events: none; }
+.zen-snap i { position: absolute; left: 0; display: block; width: 1px; height: 1px; scroll-snap-align: start; scroll-snap-stop: always; }
+.zen-snap .snap-top { top: 0; }
+.zen-snap .snap-zen { top: var(--zen-h, 240px); }   /* 由 JS 量出的「搜索框下沿 + 余量」 */
+.footer { transition: transform .4s cubic-bezier(.4, 0, .2, 1), opacity .4s cubic-bezier(.4, 0, .2, 1); }
+.bg-switch { transition: transform .4s cubic-bezier(.4, 0, .2, 1), opacity .25s ease; }
+body.zen .footer { transform: translateY(140%); opacity: 0; pointer-events: none; }
+body.zen { overflow-x: clip; }   /* clip 不创建滚动容器（hidden 会让 body 变第二滚动条） */
+body.zen .bg-switch { transform: translateX(calc(100% - 13px)); opacity: .42; }
+body.zen .bg-switch:hover,
+body.zen .bg-switch:focus-visible,
+body.zen.zen-reveal .bg-switch { transform: translateX(0); opacity: 1; }   /* 桌面 hover / 移动端点一下呼出 */

@@ -2,7 +2,7 @@
 title: "【AIGC】两天半，1 个人 + 1 个 AI，我造了一家游戏工作室"
 date: 2026-09-28
 categories: ["AIGC"]
-tags: ["独立游戏", "AI", "WorkBuddy", "Cloudflare", "一人工作室"]
+tags: ["独立游戏", "AI", "WorkBuddy", "Cloudflare", "一人工作室", "AIGC"]
 draft: false
 ---
 

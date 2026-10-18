@@ -53,9 +53,15 @@ summaryLength = 20
 
   # 首页站点头图 hero（头图 + 圆形头像 + 站点名 + 简介）
   [params.hero]
-    avatar = "/images/avatar.svg"
+    avatar = "/images/avatar.jpg"
     banner = "/images/banner.svg"
     subtitle = "这里记录技术笔记与日常思考，欢迎常来逛逛 👋"
+
+  # 站内语义检索：关键词(Fuse) + bge-m3 向量融合，查询向量接口见 worker/
+  # 接口不可用/超时时前端自动降级为纯关键词；endpoint 留空即整体关闭语义检索
+  [params.semanticSearch]
+    endpoint = 'https://search.tmoc.qzz.io/embed'
+    timeout = 3000
 
   # 网站图标
   [params.assets]

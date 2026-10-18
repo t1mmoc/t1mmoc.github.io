@@ -1,0 +1,27 @@
+{{- define "main" }}
+
+{{- /* 标签页不再渲染「Tags」大标题：整页就是一盘标签，标题占位不传递信息。
+       分类等其他分类法页仍保留标题。 */ -}}
+{{- if and .Title (ne .Type "tags") }}
+<header class="page-header">
+    <h1>{{ .Title }}</h1>
+    {{- if .Description }}
+    <div class="post-description">
+        {{ .Description }}
+    </div>
+    {{- end }}
+</header>
+{{- end }}
+
+{{- /* 顺序不再按字母，而是 partials/tag_cloud.html 的「哈希底分 + 文章数加权」：
+       数字大的大概率在前，同时保留错落感。 */ -}}
+{{- $cloud := partial "tag_cloud.html" (dict "taxonomy" .Type) }}
+<ul class="terms-tags">
+    {{- range $cloud }}
+    <li>
+        <a href="{{ .url | relURL }}">{{ .title }} <sup><strong><sup>{{ .count }}</sup></strong></sup> </a>
+    </li>
+    {{- end }}
+</ul>
+
+{{- end }}{{/* end main */ -}}

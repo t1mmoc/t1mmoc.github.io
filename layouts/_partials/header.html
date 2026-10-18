@@ -56,6 +56,14 @@
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                {{/* 静态直写 authorize URL：不依赖 JS 也能登录；JS 仅把 redirect 升级为「当前实际地址」
+                     （blog.tmoc.qzz.io 入口下可留在主域，静态兜底则回 GitHub Pages 同页） */}}
+                <a id="gh-login" class="gh-login" hidden rel="noopener"
+                   href="https://blog.tmoc.qzz.io/api/auth/authorize?admin=0&redirect={{ .Permalink | urlquery }}">登录</a>
+                <a id="gh-identity" class="gh-identity" hidden rel="me noopener">
+                    <img class="gh-avatar" alt="" width="28" height="28" referrerpolicy="no-referrer">
+                    <span class="gh-name"></span>
+                </a>
                 {{- end }}
                 
                 {{- if (not site.Params.disableLangToggle) }}

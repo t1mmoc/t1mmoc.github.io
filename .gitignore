@@ -4,3 +4,10 @@
 
 # Migration scratch (cnblogs HTML dumps, convert scripts)
 .migrate/
+
+# 本地留存，不入库
+tmp/
+
+# agent 工作目录（记忆/技能/临时产物），不入库
+.workbuddy/
+.vscode/

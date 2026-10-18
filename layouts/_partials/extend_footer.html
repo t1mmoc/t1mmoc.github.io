@@ -1,58 +1,149 @@
-{{/* 全站二次元背景：内置 uapis.cn 直链图池 + localStorage 固定 24h（切页不换图、不请求 API） */}}
+{{/* 全站背景双图池：acg（朋友默认，向 blogbg.tmoc.qzz.io 要随机落点）/ normal（风景，本地清单）。
+     前端首屏按 normal 渲染 → 后台查 blog-server /api/me（复用加密登录 session，不多一次登录）→
+     朋友切 acg 并写 tmoc_bg_pref，下次刷新零等待。localStorage 固定 24h，切页不换图。 */}}
 <script>
 (function () {
-  var POOL = [
-  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkg94nzbj31kw0w0hcf.jpg",
-  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjl0jx89j21hc0u0k5s.jpg",
-  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjcxohq6j21hc0u0qfo.jpg",
-  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxk3mu0ztj31hc0u07m5.jpg",
-  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkfgr4ckj31hc0u0h0r.jpg",
-  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjn0z1laj21hc0u0k0x.jpg",
+  // 登录回跳统一收割（任何页都能接住，以前只有加密文章页的 unlock shortcode 会接）：
+  // 新流程 = 一次性 code（?session_code=，5 分钟过期用后即焚）→ 换取 session token 存第一方 localStorage；
+  // 旧流程 ?session=（token 直接在 URL，有 Referer/历史泄露面）保留兼容但不再产生。
+  try {
+    var _sp = new URLSearchParams(location.search);
+    var _code = _sp.get("session_code");
+    if (_code) {
+      _sp.delete("session_code");
+      history.replaceState(null, "", location.pathname + (_sp.toString() ? "?" + _sp.toString() : "") + location.hash);
+      fetch("https://blog.tmoc.qzz.io/api/session?code=" + encodeURIComponent(_code), { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (d && d.ok && d.session) {
+            try { localStorage.setItem("blog_session", d.session); localStorage.removeItem("tmoc_bg_me"); } catch (e) {}
+            location.reload();            // 按已登录状态重渲染（身份 + 图池），登录后只多这一次加载
+          }
+        })
+        .catch(function () {});
+    } else if (_sp.has("session")) {
+      localStorage.setItem("blog_session", _sp.get("session"));
+      localStorage.removeItem("tmoc_bg_me");   // 身份缓存作废，强制重查
+      _sp.delete("session");
+      history.replaceState(null, "", location.pathname + (_sp.toString() ? "?" + _sp.toString() : "") + location.hash);
+    }
+  } catch (e) {}
+  var POOL_L = [
+  "https://uapis.cn/assets/acg/pc/005FzdTdgy1gegf7m1ungj31hc0u0ahu.jpg",
   "https://uapis.cn/assets/acg/pc/0072Vf1pgy1fodqnep3wpj31jk0ujnpd.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxk3mu0ztj31hc0u07m5.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkc8ob14j31hc0u016f.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkcf9mfnj31hc0u0h7p.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkf6k4jrj31hc0u0k6b.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkfgr4ckj31hc0u0h0r.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkg94nzbj31kw0w0hcf.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxki5aet4j31kw0w0kib.jpg",
   "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkifyvznj31hc0u0e1h.jpg",
-  "https://uapis.cn/assets/acg/pc/a15b4afely1fnt9lhboa7j21hc0u0alq.jpg",
-  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjjphlyyj21hc0u0h4m.jpg",
-  "https://uapis.cn/assets/acg/pc/107915727_p0.jpg",
+  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkijia91j31kw0w0e6g.jpg",
   "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkjjz8vbj31hc0u0k80.jpg",
-  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjy0951rj21hc0u0nay.jpg",
-  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvj3xv31fj21hc0u07wh.jpg",
   "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxlhvnh9qj31hc0u0tmu.jpg",
   "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxln98mdaj31hc0u018i.jpg",
-  "https://uapis.cn/assets/acg/mb/110394591_p2.jpg",
-  "https://uapis.cn/assets/acg/pc/005FzdTdgy1gegf7m1ungj31hc0u0ahu.jpg",
-  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkijia91j31kw0w0e6g.jpg",
-  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvizjlwi5j21hc0u0npd.jpg",
-  "https://uapis.cn/assets/acg/pc/110240189_p1_master1200.jpg",
-  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvj2mu43nj21hc0u0nca.jpg",
-  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvje4goq3j21hc0u0x1e.jpg",
-  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkcf9mfnj31hc0u0h7p.jpg",
-  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvk4kw38bj21hc0u0qiq.jpg",
-  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkc8ob14j31hc0u016f.jpg",
-  "https://uapis.cn/assets/acg/pc/110335000_p0_master1200.jpg",
-  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvj22mfbbj21hc0u0h3o.jpg",
-  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvj0v6ehqj21hc0u0aky.jpg",
-  "https://uapis.cn/assets/acg/pc/7f0c40d4gy1fqbfhg624uj21hc0u0adm.jpg",
-  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvj4872o5j21hc0u0b29.jpg",
-  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxki5aet4j31kw0w0kib.jpg",
   "https://uapis.cn/assets/acg/pc/0076R7yAgy1fq8ds3ulsmj31hc0u04i0.jpg",
-  "https://uapis.cn/assets/acg/mb/109686488_p0.jpg",
+  "https://uapis.cn/assets/acg/pc/107915727_p0.jpg",
+  "https://uapis.cn/assets/acg/pc/110240189_p1_master1200.jpg",
+  "https://uapis.cn/assets/acg/pc/110335000_p0_master1200.jpg",
+  "https://uapis.cn/assets/acg/pc/7f0c40d4gy1fqbfhg624uj21hc0u0adm.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvizjlwi5j21hc0u0npd.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvj0v6ehqj21hc0u0aky.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvj22mfbbj21hc0u0h3o.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvj2mu43nj21hc0u0nca.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvj3xv31fj21hc0u07wh.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvj4872o5j21hc0u0b29.jpg",
   "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjb5ej2uj21hc0u07se.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjcxohq6j21hc0u0qfo.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvje4goq3j21hc0u0x1e.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjjphlyyj21hc0u0h4m.jpg",
   "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjkvb5l3j21hc0u0wp9.jpg",
-  "https://uapis.cn/assets/acg/pc/0072Vf1pgy1foxkf6k4jrj31hc0u0k6b.jpg",
-  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvk8x6gadj21hc0u0kjl.jpg"
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjl0jx89j21hc0u0k5s.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvjy0951rj21hc0u0nay.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvk4kw38bj21hc0u0qiq.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afegy1fmvk8x6gadj21hc0u0kjl.jpg",
+  "https://uapis.cn/assets/acg/pc/a15b4afely1fnt9lhboa7j21hc0u0alq.jpg"
 ];
-  var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
+  var POOL_P = [
+  "https://uapis.cn/assets/acg/mb/107705109_p0.jpg",
+  "https://uapis.cn/assets/acg/mb/107705109_p1.jpg",
+  "https://uapis.cn/assets/acg/mb/107828161_p1.jpg",
+  "https://uapis.cn/assets/acg/mb/107828161_p2.jpg",
+  "https://uapis.cn/assets/acg/mb/108370712_p1.jpg",
+  "https://uapis.cn/assets/acg/mb/108539003_p0.jpg",
+  "https://uapis.cn/assets/acg/mb/109686488_p0.jpg",
+  "https://uapis.cn/assets/acg/mb/110195510_p0_master1200.jpg",
+  "https://uapis.cn/assets/acg/mb/110385638_p0.jpg",
+  "https://uapis.cn/assets/acg/mb/110387265_p0.jpg",
+  "https://uapis.cn/assets/acg/mb/110390651_p0.jpg",
+  "https://uapis.cn/assets/acg/mb/110390687_p1.jpg",
+  "https://uapis.cn/assets/acg/mb/110390806_p0.jpg",
+  "https://uapis.cn/assets/acg/mb/110393168_p0.jpg",
+  "https://uapis.cn/assets/acg/mb/110394591_p2.jpg",
+  "https://uapis.cn/assets/acg/mb/110394987_p5.jpg",
+  "https://uapis.cn/assets/acg/mb/110395185_p0.jpg"
+];
+var KEY_URL = "tmoc_bg_url", KEY_TS = "tmoc_bg_ts";
   var KEY_CNT = "tmoc_bg_cnt", KEY_DATE = "tmoc_bg_date";
-  var TTL = 24 * 3600 * 1000;   // 缓存 24 小时，期间切页复用同一张
-  var MAX_PER_DAY = 12;         // 每天手动换图上限
-  var COOLDOWN = 2500;          // 两次手动换图最小间隔(ms)
+  var KEY_NEXT = "tmoc_bg_next";            // 后台已经预取好、并且验过能加载的下一张
+  var KEY_FAIL = "tmoc_bg_api_fail";        // 最近一次取图端点失败的时间
+  var KEY_SEEN = "tmoc_bg_seen";            // 近期用过的，短期内不撞图
+  var KEY_PREF = "tmoc_bg_pref";            // 图池偏好：acg（朋友默认）| normal（默认）
+  var KEY_PREF_T = "tmoc_bg_pref_t";        // 手动切池的时间戳：身份检查(t)晚于它才自动覆盖用户选择
+  var KEY_ME = "tmoc_bg_me";                // /api/me 结果缓存 {f:is_friend,t:ts}，24h
+  var ME_TTL = 24 * 3600 * 1000;
+  var ME_URL = "https://blog.tmoc.qzz.io/api/me";
+  var LANDING_PIC = /^https:\/\/(?:fastly\.)?picsum\.photos\/id\/\d+\/\d+\/\d+(?:\.(?:jpg|webp))?(?:\?hmac=[\w-]+)?$/i;
+  var TTL = 24 * 3600 * 1000;               // 缓存 24 小时，期间切页复用同一张
+  var MAX_PER_DAY = 12;                     // 每天手动换图上限
+  var COOLDOWN = 2500;                      // 两次手动换图最小间隔(ms)
+  var API_URL = "https://blogbg.tmoc.qzz.io/";
+  var API_TIMEOUT = 4000;                   // 问一次端点最多等多久
+  var API_BACKOFF = 6 * 3600 * 1000;        // 端点失败后这么久内不再问，直接用本地清单
+  var POOL_FILE = "/bg-pool.json";
+  var POOL_WAIT = 1200;                     // 首屏最多等清单这么久，等不到先用内置池
+  var SEEN_MAX = 40;
+  // 端点回来的地址必须长成这样：只认这两个已知站点的图片落点形状
+  var LANDING = /^https:\/\/(?:t\.alcy\.cc\/pic\/(?:pc|mp)\/|uapis\.cn\/assets\/acg\/(?:pc|mb)\/)[\w.\-%]+\.(?:webp|jpe?g|png)$/i;
 
-  function pick(exclude) {
-    if (POOL.length <= 1) return POOL[0];
-    var u;
-    do { u = POOL[Math.floor(Math.random() * POOL.length)]; } while (u === exclude);
-    return u;
+  var live = null;                          // /bg-pool.json 加载到的 {pc,mb,land_pc,land_mb}；null = 还没拿到
+
+  // 取向只在「取新图」的那一刻判定，不监听 resize/orientationchange（沿用原有口径）
+  function bucket() { return window.innerHeight >= window.innerWidth ? "mb" : "pc"; }
+  function pref() { return read(KEY_PREF) === "acg" ? "acg" : "normal"; }
+  function poolOf(b) {
+    var acg = pref() === "acg";
+    var lk = acg ? b : ("land_" + b);
+    if (live && live[lk] && live[lk].length) return live[lk];
+    var fb = acg ? (b === "mb" ? POOL_P : POOL_L) : [];
+    return fb;                              // normal 池未配置时给空数组（宁缺毋滥），由调用方兜底
   }
+  function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+  function seenList() { try { return JSON.parse(read(KEY_SEEN) || "[]"); } catch (e) { return []; } }
+  function rememberSeen(u) {
+    var s = seenList();
+    if (s.indexOf(u) !== -1) return;
+    s.push(u);
+    if (s.length > SEEN_MAX) s.shift();
+    store(KEY_SEEN, JSON.stringify(s));
+  }
+  function isUsable(u) { return !!u && (LANDING.test(u) || LANDING_PIC.test(u) || POOL_L.indexOf(u) !== -1 || POOL_P.indexOf(u) !== -1); }
+
+  function pickFromPool(exclude) {
+    var list = poolOf(bucket()), seen = seenList(), cands = [], i;
+    for (i = 0; i < list.length; i++) {
+      if (list[i] !== exclude && seen.indexOf(list[i]) === -1) cands.push(list[i]);
+    }
+    if (!cands.length) {                    // 整池都翻过了就允许重复，别空转
+      for (i = 0; i < list.length; i++) if (list[i] !== exclude) cands.push(list[i]);
+    }
+    if (!cands.length) return null;         // 池子为空（如 normal 未配置）：宁可不设背景
+    return cands[Math.floor(Math.random() * cands.length)];
+  }
+
   function preload(url, cb) {
     var img = new Image();
     img.referrerPolicy = "no-referrer";
@@ -67,42 +158,111 @@
   function today() { return new Date().toISOString().slice(0, 10); }
 
   function currentCached() {
-    try {
-      var url = localStorage.getItem(KEY_URL);
-      var ts = parseInt(localStorage.getItem(KEY_TS) || "0", 10);
-      if (url && POOL.indexOf(url) !== -1 && Date.now() - ts < TTL) return url;
-    } catch (e) {}
-    return null;
+    var url = read(KEY_URL), ts = parseInt(read(KEY_TS) || "0", 10);
+    if (!(url && isUsable(url) && Date.now() - ts < TTL)) return null;
+    // 缓存的图必须属于当前偏好的池：normal 态不吃 acg 缓存（反之亦然），否则切池后 24h 内还是旧池的图
+    var inCur = (pref() === "acg") ? (LANDING.test(url) || POOL_L.indexOf(url) !== -1 || POOL_P.indexOf(url) !== -1)
+                                   : (LANDING_PIC.test(url));
+    return inCur ? url : null;
   }
   function save(url) {
+    store(KEY_URL, url);
+    store(KEY_TS, String(Date.now()));
+    rememberSeen(url);
+  }
+
+  function loadPool(cb) {
+    if (live) { cb(); return; }
+    var done = false;
+    function fin() { if (!done) { done = true; cb(); } }
     try {
-      localStorage.setItem(KEY_URL, url);
-      localStorage.setItem(KEY_TS, String(Date.now()));
-    } catch (e) {}
+      var x = new XMLHttpRequest();
+      x.open("GET", POOL_FILE, true);
+      x.timeout = POOL_WAIT;
+      x.onload = function () {
+        if (x.status === 200) {
+          try {
+            var j = JSON.parse(x.responseText);
+            if (j) { live = { pc: j.pc || [], mb: j.mb || [], land_pc: j.land_pc || [], land_mb: j.land_mb || [] }; }
+          } catch (e2) {}
+        }
+        fin();
+      };
+      x.ontimeout = x.onerror = fin;
+      x.send();
+    } catch (e) { fin(); }
+  }
+
+  // 后台预取一张存进 KEY_NEXT；失败则进冷却，期间完全不问端点。
+  // 端点（blog-bg Worker）只出 acg 池，normal 池纯走本地清单，不预取。
+  function ensureNext() {
+    if (pref() !== "acg") return;
+    if (read(KEY_NEXT)) return;
+    if (Date.now() - parseInt(read(KEY_FAIL) || "0", 10) < API_BACKOFF) return;
+    var ctl;
+    try { ctl = new AbortController(); } catch (e) { return; }
+    var timer = setTimeout(function () { try { ctl.abort(); } catch (e) {} }, API_TIMEOUT);
+    fetch(API_URL + "?type=" + bucket(), { signal: ctl.signal, cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("http" + r.status)); })
+      .then(function (j) {
+        clearTimeout(timer);
+        var u = j && j.url;
+        if (!u || !LANDING.test(u)) { store(KEY_FAIL, String(Date.now())); return; }
+        preload(u, function (ok) {
+          if (ok) store(KEY_NEXT, u); else store(KEY_FAIL, String(Date.now()));
+        });
+      })
+      .catch(function () { clearTimeout(timer); store(KEY_FAIL, String(Date.now())); });
+  }
+
+  // 预取那张是之前存的地址，第三方换素材后可能 404：先立刻用上（零延迟），
+  // 再在后台验一次，确实打不开就换成清单里的另一张，不留白底。
+  function healIfDead(u) {
+    preload(u, function (ok) {
+      if (ok || read(KEY_URL) !== u) return;
+      loadPool(function () {
+        var alt = pickFromPool(u);
+        if (!alt) return;
+        preload(alt, function (ok2) { if (ok2 && read(KEY_URL) === u) { setBg(alt); save(alt); } });
+      });
+      ensureNext();
+    });
+  }
+
+  // 换图优先用预取好的那张（网络早就走完了，点下立刻换）；没有才从清单挑
+  function takeNextOrPool(exclude, cb) {
+    var nxt = read(KEY_NEXT);
+    if (pref() === "acg" && nxt && LANDING.test(nxt)) {
+      store(KEY_NEXT, "");
+      cb(nxt, true);
+      ensureNext();
+      return;
+    }
+    loadPool(function () { cb(pickFromPool(exclude), false); });
   }
 
   function change(btn) {
-    var d = today(), cnt = 0, dt = "";
-    try {
-      cnt = parseInt(localStorage.getItem(KEY_CNT) || "0", 10);
-      dt = localStorage.getItem(KEY_DATE) || "";
-    } catch (e) {}
+    var d = today(), cnt = parseInt(read(KEY_CNT) || "0", 10), dt = read(KEY_DATE) || "";
     if (dt !== d) { cnt = 0; dt = d; }
     if (cnt >= MAX_PER_DAY) {
       btn.textContent = "今日已达上限";
-      setTimeout(function () { btn.textContent = "换背景 ❤"; }, 1500);
+      setTimeout(function () { btn.textContent = "换背景 \u2764"; }, 1500);
       return;
     }
-    var next = pick(currentCached());
     btn.disabled = true;
-    preload(next, function (ok) {
-      btn.disabled = false;
-      if (!ok) return;
-      setBg(next); save(next);
-      try {
-        localStorage.setItem(KEY_CNT, String(cnt + 1));
-        localStorage.setItem(KEY_DATE, dt);
-      } catch (e) {}
+    takeNextOrPool(currentCached(), function (next, prefetched) {
+      function show(ok) {
+        btn.disabled = false;
+        if (!ok) { btn.textContent = "没图可换"; setTimeout(function () { btn.textContent = "换背景 \u2764"; }, 1500); return; }
+        setBg(next); save(next);
+        store(KEY_CNT, String(cnt + 1));
+        store(KEY_DATE, dt);
+      }
+      if (prefetched) { show(true); healIfDead(next); }
+      else {
+        if (!next) { show(false); return; }
+        preload(next, show);
+      }
     });
   }
 
@@ -110,27 +270,290 @@
     var btn = document.createElement("button");
     btn.className = "bg-switch";
     btn.type = "button";
-    btn.textContent = "换背景 ❤";
-    btn.title = "换一张二次元背景（每天最多 " + MAX_PER_DAY + " 次）";
-    var last = 0;
+    btn.textContent = "换背景 \u2764";
+    function syncTitle() {
+      btn.title = "当前图池：" + (pref() === "acg" ? "acg" : "normal") + "（每天最多换 " + MAX_PER_DAY + " 次）";
+    }
+    syncTitle();
+    window.__bgSyncTitle = syncTitle;   // 图池变化（身份判定/长按切换）后刷新提示
+    var last = 0, lpTimer = 0, lpFired = false;
     btn.addEventListener("click", function () {
+      if (lpFired) { lpFired = false; return; }   // 长按结束后吞掉这次 click
+      if (document.body.classList.contains("zen")) { document.body.classList.remove("zen"); return; } // 收起的角：先呼出，不换图
       var now = Date.now();
       if (now - last < COOLDOWN) return;
       last = now;
       change(btn);
     });
+    // 长按 3 秒：手动切换图池偏好并锁定（未登录可看 acg，朋友可看 normal）
+    function togglePool() {
+      lpFired = true;
+      var next = pref() === "acg" ? "normal" : "acg";
+      store(KEY_PREF, next);
+      store(KEY_PREF_T, String(Date.now()));
+      btn.textContent = next === "acg" ? "已切到 acg 池" : "已切到 normal 池";
+      if (window.__bgSyncTitle) window.__bgSyncTitle();
+      setTimeout(function () { btn.textContent = "换背景 \u2764"; }, 1500);
+      if (next === "acg") acgFlow(); else normalFlow();
+    }
+    btn.addEventListener("pointerdown", function () {
+      lpTimer = setTimeout(togglePool, 3000);
+    });
+    btn.addEventListener("pointerup", function () { clearTimeout(lpTimer); });
+    btn.addEventListener("pointerleave", function () { clearTimeout(lpTimer); });
+    btn.addEventListener("pointercancel", function () { clearTimeout(lpTimer); });
+    btn.addEventListener("contextmenu", function (e) { e.preventDefault(); }); // 长按别弹菜单
     document.body.appendChild(btn);
   }
 
-  function init() {
+  // ---------- acg / normal 双池主流程 ----------
+  // 降级策略（宁快勿等）：首屏按 normal 渲染（当前=本地风景清单，池未配置则纯色底），
+  // 后台慢查 /api/me；查到朋友 → pref=acg 立即换上（本页生效），下次刷新零等待。
+  // pref 只决定背景图池，与加密/登录态完全无关；未登录或接口不可用 = 永远 normal。
+  function acgFlow() {
     var url = currentCached();
-    if (!url) { url = pick(null); save(url); }   // 首次或过期：池内随机选一张并固定
-    setBg(url);
+    if (url) { setBg(url); ensureNext(); return; }
+    var nxt = read(KEY_NEXT);
+    if (nxt && LANDING.test(nxt)) {
+      store(KEY_NEXT, "");
+      setBg(nxt); save(nxt); ensureNext(); healIfDead(nxt); return;
+    }
+    loadPool(function () {
+      var p = pickFromPool(null);
+      if (!p) return;
+      preload(p, function (ok) { if (ok) { setBg(p); save(p); } ensureNext(); });
+    });
+  }
+
+  function normalFlow() {
+    var url = currentCached();
+    if (url) { setBg(url); return; }
+    loadPool(function () {
+      var p = pickFromPool(null);
+      if (!p) return;                       // normal 池尚未配置：保持站点默认纯色底
+      preload(p, function (ok) { if (ok) { setBg(p); save(p); } });
+    });
+  }
+
+  // 统一的身份查询：结果缓存进 KEY_ME（{f,gid,t}），背景与头部身份共用，绝不重复请求
+  function mePromise() {
+    if (!window.__blogMeP) {
+      window.__blogMeP = new Promise(function (resolve) {
+        var sess = read("blog_session");
+        if (!sess) { resolve({ f: false, gid: "", t: Date.now() }); return; }
+        fetch(ME_URL, { headers: { "x-session": sess }, cache: "no-store" })
+          .then(function (r) { return r.ok ? r.json() : { ok: false }; })
+          .then(function (d) {
+            resolve({
+              f: !!(d && d.ok && d.logged_in && d.is_friend),
+              gid: (d && d.logged_in && d.github_id) || "",
+              t: Date.now()
+            });
+          })
+          .catch(function () { resolve(null); });
+      });
+    }
+    return window.__blogMeP;
+  }
+
+  function checkFriend() {
+    var cached = null;
+    try { cached = JSON.parse(read(KEY_ME) || "null"); } catch (e) {}
+    if (cached && typeof cached.t === "number" && Date.now() - cached.t < ME_TTL) { applyMe(!!cached.f, cached.t); return; }
+    mePromise().then(function (m) {
+      if (!m) return;                       // 网络失败：维持现状
+      store(KEY_ME, JSON.stringify(m));
+      applyMe(m.f, m.t);
+      document.dispatchEvent(new Event("blog:me"));
+    });
+  }
+
+  function applyMe(friend, meT) {
+    // 时间戳仲裁：身份检查（meT）晚于手动切池时间 → 以登录态自动切换；否则尊重手动选择
+    var mt = parseInt(read(KEY_PREF_T) || "0", 10);
+    if (meT && meT <= mt) return;
+    if (friend) {
+      if (pref() !== "acg") { store(KEY_PREF, "acg"); if (window.__bgSyncTitle) window.__bgSyncTitle(); acgFlow(); }
+    } else {
+      store(KEY_PREF, "normal");
+      if (window.__bgSyncTitle) window.__bgSyncTitle();
+    }
+  }
+
+  function init() {
     addBtn();
+    if (pref() === "acg") { acgFlow(); return; }
+    normalFlow();
+    checkFriend();
   }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
 else init();
+})();
+</script>
+{{/* 搜索无结果 → 「翻页式」进入沉浸观赏背景：翻页手感交给原生 CSS scroll-snap。
+     吸附点只有两个 —— 页面顶端，以及「搜索框刚滚出视野再多一点」；中间无处可停，
+     所以轻滑会被吸回、滑过一半整段滑过去，一次到位；滚轮与触摸都由浏览器处理，
+     移动端同样可滑。JS 只做三件事：量吸附点高度写 --zen-h、算吸附标记位置、
+     搜索框整体离开视口时切 body.zen 触发收起。 */}}
+<script>
+(function () {
+  var res = document.getElementById("searchResults");
+  var input = document.getElementById("searchInput");
+  if (!res || !input) return;                        // 非搜索页
+  var GAP = 56;                                      // 搜索框下沿之外再多留的余量
+  var root = document.documentElement;
+  var zen = false, target = 240, marker = null, io = null, scrollBound = false;
+
+  function active() { return document.body.classList.contains("search-empty"); }
+  function setZen(on) {
+    if (on === zen) return;
+    zen = on;
+    document.body.classList.toggle("zen", zen);
+  }
+
+  // 两个 1px 吸附标记（不可见、不占位）：一个钉在文档顶端，一个钉在 target 处
+  function ensureMarker() {
+    if (marker) return;
+    marker = document.createElement("div");
+    marker.className = "zen-snap";
+    marker.setAttribute("aria-hidden", "true");
+    marker.innerHTML = '<i class="snap-top"></i><i class="snap-zen"></i>';
+    document.body.appendChild(marker);
+  }
+  function measure() {
+    ensureMarker();
+    var box = document.getElementById("searchbox");
+    var bottom = box ? box.getBoundingClientRect().bottom + (window.scrollY || 0) : 0;
+    target = Math.max(140, Math.round(bottom + GAP));
+    root.style.setProperty("--zen-h", target + "px");  // 吸附位置与 .main 高度共用
+    fit();
+  }
+  // 把页面高度收到「刚好能翻到吸附点」：不留多余可滚空白，免得翻过去还能再拽一段被弹回
+  function fit() {
+    var main = document.querySelector(".main");
+    if (!main) return;
+    main.style.minHeight = "";                        // 先还原，再按其余内容反推
+    var rest = document.documentElement.scrollHeight - main.offsetHeight;
+    var want = target + window.innerHeight - rest;
+    if (want > 0) main.style.minHeight = want + "px";
+  }
+
+  // 搜索框整体离开视口 → 收起（IntersectionObserver 比逐帧读 scrollY 稳）
+  function syncScroll() {
+    if (!active()) return;
+    setZen((window.scrollY || 0) > target * 0.45);
+  }
+  function bindObserver() {
+    if (!scrollBound) { window.addEventListener("scroll", syncScroll, { passive: true }); scrollBound = true; }
+    syncScroll();
+    var box = document.getElementById("searchbox");
+    if (!("IntersectionObserver" in window) || !box) return;
+    if (io) io.disconnect();
+    io = new IntersectionObserver(function (entries) {
+      var e = entries[0];
+      setZen(!e.isIntersecting && e.boundingClientRect.bottom <= 0);
+    }, { threshold: 0 });
+    io.observe(box);
+    syncScroll();
+  }
+
+  // 收起的角：桌面有 hover，鼠标移上去 CSS 自动呼出、点击照常换背景；
+  // 移动端没有 hover，第一次点先呼出（body.zen-reveal），第二次点才换背景。
+  var canHover = window.matchMedia && window.matchMedia("(hover: hover)").matches;
+  var revealed = false, revealTimer = 0;
+  document.addEventListener("click", function (e) {
+    if (!zen || canHover) return;
+    if (!e.target.closest || !e.target.closest(".bg-switch")) return;
+    if (revealed) return;
+    e.preventDefault(); e.stopPropagation();
+    revealed = true;
+    document.body.classList.add("zen-reveal");
+    clearTimeout(revealTimer);
+    revealTimer = setTimeout(function () {
+      revealed = false;
+      document.body.classList.remove("zen-reveal");
+    }, 2600);
+  }, true);
+
+  function syncEmpty() {
+    var empty = res.children.length === 0;
+    var was = document.body.classList.contains("search-empty");
+    document.body.classList.toggle("search-empty", empty);
+    root.classList.toggle("search-empty", empty);
+    if (empty) { measure(); bindObserver(); return; }
+    setZen(false);
+    document.body.classList.remove("zen-reveal");
+    var main = document.querySelector(".main");
+    if (main) main.style.minHeight = "";              // 非空结果态交还给 CSS
+    if (was && (window.scrollY || 0) > 0) window.scrollTo(0, 0);   // 撤掉吸附后回顶，免停半路
+  }
+  new MutationObserver(syncEmpty).observe(res, { childList: true });
+  input.addEventListener("input", function () { setTimeout(syncEmpty, 80); });
+  window.addEventListener("resize", function () { if (!active()) return; measure(); syncScroll(); });
+  window.addEventListener("load", function () { if (active()) measure(); });
+  if (document.fonts && document.fonts.ready) { document.fonts.ready.then(function () { if (active()) measure(); }); }
+  syncEmpty();
+})();
+</script>
+{{/* 头部 GitHub 身份（头像+用户名，登录常驻，无登出按钮）：数据与背景共用 /api/me 缓存（tmoc_bg_me），
+     未登录/接口异常时整体隐藏。头像直接用 github.com/<login>.png，无需额外接口。 */}}
+<script>
+(function () {
+  var KEY_ME = "tmoc_bg_me", ME_TTL = 24 * 3600 * 1000, ME_URL = "https://blog.tmoc.qzz.io/api/me";
+  function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function render(m) {
+    var el = document.getElementById("gh-identity");
+    var lg = document.getElementById("gh-login");
+    if (!el || !lg) return;
+    if (m && m.gid) {
+      el.hidden = false;
+      lg.hidden = true;
+      el.href = "https://github.com/" + m.gid;
+      el.title = m.gid;
+      el.querySelector(".gh-avatar").src = "https://github.com/" + m.gid + ".png?size=44";
+      el.querySelector(".gh-name").textContent = m.gid;
+    } else {
+      el.hidden = true;
+      lg.hidden = false;                      // 未登录：显示「登录」，回跳当前页
+      lg.href = "https://blog.tmoc.qzz.io/api/auth/authorize?redirect=" + encodeURIComponent(location.href) + "&admin=0";
+    }
+  }
+  function boot() {
+    var lg = document.getElementById("gh-login");
+    if (lg) {
+      // 模板已写好 authorize 的静态 href（无 JS 也能登录）；这里只把 redirect 升级为「当前真实地址」，
+      // 让 blog.tmoc.qzz.io 入口登录后留在主域、本地调试回跳本地。
+      var m0 = (lg.getAttribute("href") || "").match(/^https:\/\/blog\.tmoc\.qzz\.io\/api\/auth\/authorize/);
+      if (m0) lg.href = "https://blog.tmoc.qzz.io/api/auth/authorize?admin=0&redirect=" + encodeURIComponent(location.href);
+    }
+    var m = null;
+    try { m = JSON.parse(read(KEY_ME) || "null"); } catch (e) {}
+    if (m && m.t && Date.now() - m.t < ME_TTL) render(m);
+    document.addEventListener("blog:me", function () {
+      try { var mm = JSON.parse(read(KEY_ME) || "null"); if (mm) render(mm); } catch (err) {}
+    });
+    if (!m || !m.t || Date.now() - m.t >= ME_TTL) {
+      if (window.__blogMeP) {
+        window.__blogMeP.then(function (r) {
+          if (r) { try { localStorage.setItem(KEY_ME, JSON.stringify(r)); } catch (e) {} render(r); document.dispatchEvent(new Event("blog:me")); }
+        });
+      } else {
+        var sess = read("blog_session");
+        if (!sess) return;                      // 未登录：保持隐藏
+        fetch(ME_URL, { headers: { "x-session": sess }, cache: "no-store" })
+          .then(function (r) { return r.ok ? r.json() : { ok: false }; })
+          .then(function (d) {
+            var m2 = { f: !!(d && d.ok && d.logged_in && d.is_friend), gid: (d && d.logged_in && d.github_id) || "", t: Date.now() };
+            try { localStorage.setItem(KEY_ME, JSON.stringify(m2)); } catch (e) {}
+            render(m2);
+          })
+          .catch(function () {});
+      }
+    }
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
 })();
 </script>
 {{/* TOC 固定左侧：动态检测间距，空间不足自动回退内嵌，避免与文章重叠 */}}
@@ -162,6 +585,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 window.addEventListener("resize",onResize);
 /* 文章内图片等异步加载后可能改变布局，再检一次 */
 window.addEventListener("load",fixToc);
+/* 下滑连续上移由 CSS scroll-driven animation 完成（custom.css toc-slide-up），此处无需 JS */
 })();
 </script>
 {{- /* medium-zoom: 文章图片点击放大，弹出独立全屏视图 */ -}}
@@ -172,4 +596,89 @@ window.addEventListener("load",fixToc);
     background: 'rgba(0, 0, 0, 0.85)',
     scrollOffset: 0,
   });
+</script>
+{{/* meta 行的标签排布，两种容器两种策略（都靠实测，不靠猜断点）：
+       · 卡片 / 归档 .entry-footer、.archive-meta —— 宽度不足时把尾部折进 #...，行高不变；
+       · 文章内 .post-meta —— 永不截断，宽度不足时标签整组另起一行。
+     判定都用 scrollWidth>clientWidth，所以测量期必须给行容器挂 .pm-nowrap——
+     默认的 flex-wrap:wrap 会靠换第二行消化宽度，那样永远测不出不足。 */}}
+<script>
+(function () {
+  var HIDE = "pm-hide", SHOW = "is-shown", NOWRAP = "pm-nowrap", STACK = "pm-tags-below", MEASURE = "pm-measure";
+  /* 判据要留 12px 安全边距：贴边算"放得下"的话，字体加载时序差几像素就会翻车。
+     注意 scrollWidth 永远不会小于 clientWidth（不溢出时两者相等），拿它做"余量"判定
+     会变成"永远放不下"——所以这里量的是真实剩余空间：测量期用 .pm-measure 关掉
+     .pm-reading 的 margin-left:auto 让子项靠左排，行右缘减最后一个子项右缘就是余量。 */
+  var SLACK = 12;
+
+  function measuring(row, on) {
+    row.classList.toggle(MEASURE, on);
+    row.classList.toggle(NOWRAP, on);
+    var g = row.querySelector(".pm-tags");
+    if (g) g.classList.toggle(NOWRAP, on);
+  }
+
+  function fits(row) {
+    var last = row.lastElementChild;
+    if (!last || !row.clientWidth) return true;   /* 页面不可见时视口宽度是 0，不能拿它判定 */
+    return row.getBoundingClientRect().right - last.getBoundingClientRect().right >= SLACK;
+  }
+
+  function fit(row) {
+    var g = row.querySelector(".pm-tags");
+    if (!g) return;
+    var tags = Array.prototype.slice.call(g.querySelectorAll("a.pm-tag"));
+    var more = g.querySelector(".pm-tag-more");
+    if (tags.length < 2 || !more) return;
+
+    tags.forEach(function (t) { t.classList.remove(HIDE); });
+    more.classList.remove(SHOW);
+    measuring(row, true);
+
+    if (!fits(row)) {
+      var n = tags.length;
+      more.classList.add(SHOW);
+      while (n > 1 && !fits(row)) {
+        tags[n - 1].classList.add(HIDE);
+        n--;
+        more.title = "还有 " + (tags.length - n) + " 个标签";
+      }
+      /* 折到只剩一枚还是放不下（超长标签名）：放弃折叠，让行自己换行，别横向溢出 */
+      if (!fits(row)) {
+        more.classList.remove(SHOW);
+        tags.forEach(function (t) { t.classList.remove(HIDE); });
+      }
+    }
+    measuring(row, false);
+  }
+
+  /* 文章内：整行（日期 + 标签 + 阅读时长 + | 编辑此页）余量不足时，把标签组整体挪到下一行。
+     先摘掉 STACK 再量，否则上一轮的换行结果会把这次的判定吃掉。 */
+  function stack(row) {
+    var g = row.querySelector(".pm-tags");
+    if (!g) return;
+    row.classList.remove(STACK);
+    measuring(row, true);
+    var over = !fits(row);
+    measuring(row, false);
+    if (over) row.classList.add(STACK);
+  }
+
+  function each(sel, fn) { Array.prototype.forEach.call(document.querySelectorAll(sel), fn); }
+
+  function fitAll() {
+    each(".entry-footer, .archive-meta", fit);
+    each(".post-single .post-meta", stack);
+  }
+
+  var raf = 0;
+  function onResize() { cancelAnimationFrame(raf); raf = requestAnimationFrame(fitAll); }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fitAll);
+  else fitAll();
+  window.addEventListener("resize", onResize);
+  window.addEventListener("load", fitAll);
+  /* 自定义字体加载完文字宽度会变，再算一次 */
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitAll);
+})();
 </script>
