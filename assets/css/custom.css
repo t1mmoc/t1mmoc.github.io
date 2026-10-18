@@ -870,21 +870,17 @@ a.pm-tag:hover,
   .header-nav #gh-login{top:calc(0.8rem + 21.6px)}
 }
 
-/* ===== 搜索无结果 → 沉浸观赏背景（原生 scroll-snap 翻页） =====
+/* ===== 搜索无结果 → 沉浸观赏背景（JS 驱动翻页） =====
    条件：搜索页、结果为空（JS 给 html/body 打 .search-empty）。
-   翻页手感交给 CSS scroll-snap：html 上只留两个吸附点 —— 页面顶端(0) 和
-   「搜索框刚滚出视野再多一点」；中间没有可停留的位置，所以轻滑会被吸回、
-   滑过一半会整段滑过去，一次到位；滚轮/触摸都由浏览器原生处理，移动端同样可滑。
-   JS 只做两件事：量出吸附点高度写进 --zen-h，按滚动位置切 body.zen 触发收起。 */
-html.search-empty { scroll-snap-type: y mandatory; }
-body.search-empty .main { min-height: calc(100vh + var(--zen-h, 40vh)); }  /* 撑出可下滑的空白（border-box 下 padding 不增加高度） */
-.zen-snap { position: absolute; top: 0; left: 0; width: 1px; height: 1px; pointer-events: none; }
-.zen-snap i { position: absolute; left: 0; display: block; width: 1px; height: 1px; scroll-snap-align: start; scroll-snap-stop: always; }
-.zen-snap .snap-top { top: 0; }
-.zen-snap .snap-zen { top: var(--zen-h, 240px); }   /* 由 JS 量出的「搜索框下沿 + 余量」 */
-.footer { transition: transform .4s cubic-bezier(.4, 0, .2, 1), opacity .4s cubic-bezier(.4, 0, .2, 1); }
-.bg-switch { transition: transform .4s cubic-bezier(.4, 0, .2, 1), opacity .25s ease; }
-body.zen .footer { transform: translateY(140%); opacity: 0; pointer-events: none; }
+   页面高度由 JS 精确收到「半屏」这个位置：滑到底即到底，末端没有多余空白，不会回弹。
+   滚轮/触摸在 JS 里蓄力，蓄够后页面一次滑到位（慢-快-慢），页脚与「换背景」同步收起。 */
+html.search-empty { overscroll-behavior-y: none; scroll-behavior: auto; }   /* 到底不橡皮筋；翻页靠 JS 逐帧驱动，别让浏览器再插一层平滑 */
+body.search-empty .footer { position: sticky; bottom: 0; }   /* 静止态把页脚钉在视口底部：翻回来那行字要能看见 */
+.footer { overflow: clip; }   /* 内层下滑的位移在这里被剪掉，否则会撑大文档可滚区域，末端多出一段空白就回弹 */
+.footer-inner { transition: transform .45s cubic-bezier(.4, 0, .2, 1), opacity .35s ease; }
+.bg-switch { transition: transform .45s cubic-bezier(.4, 0, .2, 1), opacity .25s ease; }
+body.zen .footer { pointer-events: none; }
+body.zen .footer-inner { transform: translateY(115%); opacity: 0; }
 body.zen { overflow-x: clip; }   /* clip 不创建滚动容器（hidden 会让 body 变第二滚动条） */
 body.zen .bg-switch { transform: translateX(calc(100% - 13px)); opacity: .42; }
 body.zen .bg-switch:hover,

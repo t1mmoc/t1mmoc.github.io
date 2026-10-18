@@ -391,19 +391,28 @@ if (document.readyState === "loading") document.addEventListener("DOMContentLoad
 else init();
 })();
 </script>
-{{/* 搜索无结果 → 「翻页式」进入沉浸观赏背景：翻页手感交给原生 CSS scroll-snap。
-     吸附点只有两个 —— 页面顶端，以及「搜索框刚滚出视野再多一点」；中间无处可停，
-     所以轻滑会被吸回、滑过一半整段滑过去，一次到位；滚轮与触摸都由浏览器处理，
-     移动端同样可滑。JS 只做三件事：量吸附点高度写 --zen-h、算吸附标记位置、
-     搜索框整体离开视口时切 body.zen 触发收起。 */}}
+{{/* 搜索无结果 → 「翻页式」沉浸观赏背景（JS 驱动，滚轮与触摸同一套手感）。
+     先蓄力不跟手（滚轮 220px / 触摸 140px 才开始动作），蓄够后页面一次滑到位
+     （ease-in-out，慢-快-慢），页脚与「换背景」同步收起；回滑同一套逻辑反向走。
+     翻页距离取「半屏」与「搜索框滚出视野」的较大值，并把页面可滚高度精确收到该距离 ——
+     滑到底就是底，末端没有可拽的空白，因此不会回弹。 */}}
 <script>
 (function () {
   var res = document.getElementById("searchResults");
   var input = document.getElementById("searchInput");
   if (!res || !input) return;                        // 非搜索页
-  var GAP = 56;                                      // 搜索框下沿之外再多留的余量
   var root = document.documentElement;
-  var zen = false, target = 240, marker = null, io = null, scrollBound = false;
+
+  var GAP = 56;              // 搜索框下沿之外再多留一点
+  var MIN_RATIO = 0.5;       // 翻页距离至少半屏
+  var TH_WHEEL = 220;        // 滚轮蓄力阈值（约两格）
+  var TH_TOUCH = 140;        // 触摸蓄力阈值
+  var TOUCH_GAIN = 1.3;      // 手指位移 → 蓄力的增益
+  var IDLE_MS = 260;         // 停手多久清空蓄力
+  var ANIM_MS = 620;         // 一次翻页的时长
+
+  var travel = 0, zen = false, busy = false, acc = 0;
+  var idleT = 0, settleT = 0, raf = 0, touchY = null;
 
   function active() { return document.body.classList.contains("search-empty"); }
   function setZen(on) {
@@ -412,56 +421,116 @@ else init();
     document.body.classList.toggle("zen", zen);
   }
 
-  // 两个 1px 吸附标记（不可见、不占位）：一个钉在文档顶端，一个钉在 target 处
-  function ensureMarker() {
-    if (marker) return;
-    marker = document.createElement("div");
-    marker.className = "zen-snap";
-    marker.setAttribute("aria-hidden", "true");
-    marker.innerHTML = '<i class="snap-top"></i><i class="snap-zen"></i>';
-    document.body.appendChild(marker);
-  }
-  function measure() {
-    ensureMarker();
-    var box = document.getElementById("searchbox");
-    var bottom = box ? box.getBoundingClientRect().bottom + (window.scrollY || 0) : 0;
-    target = Math.max(140, Math.round(bottom + GAP));
-    root.style.setProperty("--zen-h", target + "px");  // 吸附位置与 .main 高度共用
-    fit();
-  }
-  // 把页面高度收到「刚好能翻到吸附点」：不留多余可滚空白，免得翻过去还能再拽一段被弹回
-  function fit() {
+  // 把页面总高精确收到 innerHeight + want：滑到底即到底，末端没有可拽的空白，也就不会回弹。
+  function fit(want) {
     var main = document.querySelector(".main");
-    if (!main) return;
-    main.style.minHeight = "";                        // 先还原，再按其余内容反推
-    var rest = document.documentElement.scrollHeight - main.offsetHeight;
-    var want = target + window.innerHeight - rest;
-    if (want > 0) main.style.minHeight = want + "px";
+    if (!main) return 0;
+    main.style.minHeight = "";
+    for (var i = 0; i < 5; i++) {
+      var delta = (want + window.innerHeight) - root.scrollHeight;
+      if (Math.abs(delta) <= 1) break;
+      var next = main.offsetHeight + delta;
+      if (next <= 0) { main.style.minHeight = "0px"; break; }
+      main.style.minHeight = next + "px";
+      if (main.offsetHeight < next - 1) break;        // 内容本身更高，收不下去
+    }
+    return Math.max(0, root.scrollHeight - window.innerHeight);
   }
 
-  // 搜索框整体离开视口 → 收起（IntersectionObserver 比逐帧读 scrollY 稳）
-  function syncScroll() {
-    if (!active()) return;
-    setZen((window.scrollY || 0) > target * 0.45);
-  }
-  function bindObserver() {
-    if (!scrollBound) { window.addEventListener("scroll", syncScroll, { passive: true }); scrollBound = true; }
-    syncScroll();
+  function measure() {
     var box = document.getElementById("searchbox");
-    if (!("IntersectionObserver" in window) || !box) return;
-    if (io) io.disconnect();
-    io = new IntersectionObserver(function (entries) {
-      var e = entries[0];
-      setZen(!e.isIntersecting && e.boundingClientRect.bottom <= 0);
-    }, { threshold: 0 });
-    io.observe(box);
-    syncScroll();
+    var vh = window.innerHeight;
+    var base = box ? box.getBoundingClientRect().bottom + (window.scrollY || 0) + GAP : 0;
+    var want = Math.round(Math.max(vh * MIN_RATIO, base, 240));
+    travel = fit(want);                               // 实际可达高度才是真正的翻页距离
+    root.style.setProperty("--zen-h", travel + "px");
+    if ((window.scrollY || 0) > travel) window.scrollTo(0, travel);
   }
+
+  function ease(p) { return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; }
+
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function flip(to) {
+    if (busy) return;
+    var from = window.scrollY || 0;
+    if (Math.abs(to - from) < 2) { window.scrollTo(0, to); setZen(to > 0); return; }
+    busy = true; acc = 0;
+    setZen(to > 0);                                   // 收起/恢复与滑动同时发生
+    if (reduce) { window.scrollTo(0, to); busy = false; return; }   // 关闭动效偏好：直接到位
+    var dist = to - from, t0 = 0;
+    if (raf) cancelAnimationFrame(raf);
+    function step(now) {
+      if (!t0) t0 = now;
+      var p = Math.min(1, (now - t0) / ANIM_MS);
+      window.scrollTo(0, from + dist * ease(p));
+      if (p < 1) { raf = requestAnimationFrame(step); }
+      else { window.scrollTo(0, to); busy = false; raf = 0; }
+    }
+    raf = requestAnimationFrame(step);
+  }
+
+  function intent(delta, th) {                        // delta > 0 表示想往下翻
+    if (busy || !travel) return;
+    if (delta > 0 && zen) return;                     // 已翻过去，继续往下的输入直接吞掉
+    if (delta < 0 && !zen) return;                    // 已在顶部，继续往上的输入直接吞掉
+    acc += delta;
+    clearTimeout(idleT);
+    idleT = setTimeout(function () { acc = 0; }, IDLE_MS);
+    if (acc >= th) flip(travel);
+    else if (acc <= -th) flip(0);
+  }
+
+  window.addEventListener("wheel", function (e) {
+    if (!active() || e.ctrlKey) return;
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;   // 横向滚动不管
+    e.preventDefault();                               // 页面怎么动完全由本脚本决定
+    // deltaMode: 0=像素 1=行 2=页，统一折算成像素再算蓄力
+    var unit = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? window.innerHeight : 1);
+    intent(e.deltaY * unit, TH_WHEEL);
+  }, { passive: false });
+
+  window.addEventListener("touchstart", function (e) {
+    touchY = (active() && e.touches.length === 1) ? e.touches[0].clientY : null;
+  }, { passive: true });
+
+  window.addEventListener("touchmove", function (e) {
+    if (touchY === null || e.touches.length !== 1) return;
+    var y = e.touches[0].clientY;
+    var d = (touchY - y) * TOUCH_GAIN;                // 手指上滑 = 往下翻
+    touchY = y;
+    if (e.cancelable) e.preventDefault();
+    intent(d, TH_TOUCH);
+  }, { passive: false });
+
+  window.addEventListener("touchend", function () { touchY = null; }, { passive: true });
+  window.addEventListener("touchcancel", function () { touchY = null; }, { passive: true });
+
+  // 拖滚动条/键盘滚动的兜底：位置过半就切收起态，松手后归到两端
+  function syncScroll() {
+    if (!active() || busy) return;
+    setZen((window.scrollY || 0) > travel * 0.5);
+    clearTimeout(settleT);
+    settleT = setTimeout(function () {
+      if (!active() || busy || !travel) return;
+      var y = window.scrollY || 0;
+      if (y > 2 && y < travel - 2) flip(y > travel / 2 ? travel : 0);
+    }, 200);
+  }
+  window.addEventListener("scroll", syncScroll, { passive: true });
+
+  document.addEventListener("keydown", function (e) {
+    if (!active()) return;
+    var t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    if (e.key === "PageDown" || e.key === "ArrowDown") { e.preventDefault(); flip(travel); }
+    else if (e.key === "PageUp" || e.key === "ArrowUp") { e.preventDefault(); flip(0); }
+  });
 
   // 收起的角：桌面有 hover，鼠标移上去 CSS 自动呼出、点击照常换背景；
   // 移动端没有 hover，第一次点先呼出（body.zen-reveal），第二次点才换背景。
   var canHover = window.matchMedia && window.matchMedia("(hover: hover)").matches;
-  var revealed = false, revealTimer = 0;
+  var revealed = false, revealT = 0;
   document.addEventListener("click", function (e) {
     if (!zen || canHover) return;
     if (!e.target.closest || !e.target.closest(".bg-switch")) return;
@@ -469,8 +538,8 @@ else init();
     e.preventDefault(); e.stopPropagation();
     revealed = true;
     document.body.classList.add("zen-reveal");
-    clearTimeout(revealTimer);
-    revealTimer = setTimeout(function () {
+    clearTimeout(revealT);
+    revealT = setTimeout(function () {
       revealed = false;
       document.body.classList.remove("zen-reveal");
     }, 2600);
@@ -481,16 +550,16 @@ else init();
     var was = document.body.classList.contains("search-empty");
     document.body.classList.toggle("search-empty", empty);
     root.classList.toggle("search-empty", empty);
-    if (empty) { measure(); bindObserver(); return; }
+    if (empty) { measure(); return; }
     setZen(false);
     document.body.classList.remove("zen-reveal");
     var main = document.querySelector(".main");
-    if (main) main.style.minHeight = "";              // 非空结果态交还给 CSS
-    if (was && (window.scrollY || 0) > 0) window.scrollTo(0, 0);   // 撤掉吸附后回顶，免停半路
+    if (main) main.style.minHeight = "";              // 有结果时高度交还给 CSS
+    if (was && (window.scrollY || 0) > 0) window.scrollTo(0, 0);
   }
   new MutationObserver(syncEmpty).observe(res, { childList: true });
   input.addEventListener("input", function () { setTimeout(syncEmpty, 80); });
-  window.addEventListener("resize", function () { if (!active()) return; measure(); syncScroll(); });
+  window.addEventListener("resize", function () { if (!active()) return; measure(); });
   window.addEventListener("load", function () { if (active()) measure(); });
   if (document.fonts && document.fonts.ready) { document.fonts.ready.then(function () { if (active()) measure(); }); }
   syncEmpty();
