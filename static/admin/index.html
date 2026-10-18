@@ -3,85 +3,244 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>博客加密 · 管理</title>
+<title>博客加密 · 管理后台</title>
+<script>
+/* 主题跟随博客（PaperMod）：pref-theme = light|dark，未设置则跟系统。首屏前置，避免闪色 */
+(function () {
+  try {
+    var t = localStorage.getItem("pref-theme");
+    var dark = t === "dark" || (!t && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  } catch (e) {}
+})();
+</script>
 <style>
-  body { font-family: system-ui, -apple-system, "PingFang SC", sans-serif; max-width: 920px; margin: 24px auto; padding: 0 16px; color: #222; }
-  h1 { font-size: 20px; } h3 { margin: 0 0 10px; font-size: 15px; }
-  button { padding: 6px 12px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 6px; font-size: 13px; }
-  button.primary { background: #24292f; color: #fff; border-color: #24292f; }
-  button.danger { color: #c00; border-color: #e5b3b3; }
-  .card { border: 1px solid #ddd; border-radius: 8px; padding: 14px; margin: 14px 0; }
-  .sub { border: 1px solid #eee; border-radius: 6px; padding: 10px; margin-top: 10px; background: #fafafa; }
-  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
-  input[type=text] { padding: 6px; flex: 1; min-width: 160px; border: 1px solid #ccc; border-radius: 6px; }
-  .tag { display: inline-flex; align-items: center; gap: 6px; background: #eef; border: 1px solid #ccd; border-radius: 4px; padding: 3px 8px; margin: 3px; font-size: 13px; }
-  .tag .x { cursor: pointer; color: #c33; font-weight: bold; }
-  .muted { color: #999; font-size: 12px; }
-  .msg { font-size: 12px; }
-  .ok { color: #0a0; } .err { color: #c00; }
-  #login { text-align: center; padding: 60px 0; }
-  .hidden { display: none; }
-  details summary { cursor: pointer; color: #555; font-size: 13px; margin: 4px 0; }
+  * { box-sizing: border-box; }
+  /* PaperMod 主题变量（与 themes/PaperMod/assets/css/core/theme-vars.css 对齐） */
+  :root {
+    --gap: 24px; --radius: 8px;
+    --theme: rgb(255, 255, 255); --entry: rgb(255, 255, 255);
+    --primary: rgb(30, 30, 30); --secondary: rgb(108, 108, 108);
+    --tertiary: rgb(214, 214, 214); --content: rgb(31, 31, 31);
+    --code-bg: rgb(245, 245, 245); --border: rgb(238, 238, 238);
+    --accent: #4f46e5; --danger: #d84348;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --theme: rgb(29, 30, 32); --entry: rgb(46, 46, 51);
+    --primary: rgb(218, 218, 219); --secondary: rgb(155, 156, 157);
+    --tertiary: rgb(65, 66, 68); --content: rgb(196, 196, 197);
+    --code-bg: rgb(55, 56, 62); --border: rgb(51, 51, 51);
+    --accent: #8b93ff; --danger: #e5484d;
+    color-scheme: dark;
+  }
+  body {
+    margin: 0; background: var(--theme); color: var(--content);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 15px; line-height: 1.65; -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 820px; margin: 0 auto; padding: var(--gap) 16px 72px; }
+
+  /* 顶栏 */
+  .topbar {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--theme); border-bottom: 1px solid var(--border);
+  }
+  .topbar-in { max-width: 820px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .brand { font-weight: 600; font-size: 15px; color: var(--primary); }
+  .me { display: flex; align-items: center; gap: 10px; }
+  .ident { display: inline-flex; align-items: center; gap: 8px; }
+  .ident img { width: 30px; height: 30px; border-radius: 50%; background: var(--tertiary); display: block; object-fit: cover; }
+  .ident .nm { font-size: 14px; color: var(--secondary); }
+  .ident .nm b { color: var(--primary); font-weight: 600; }
+
+  /* 卡片：复刻 PaperMod .post-entry */
+  .card {
+    background: var(--entry); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: var(--gap); margin-bottom: var(--gap);
+    transition: transform .25s ease, border-color .25s ease;
+  }
+  .card:hover { transform: translateY(-2px); border-color: var(--tertiary); }
+  .card-title { font-size: 16px; font-weight: 600; margin: 0 0 4px; color: var(--primary); }
+  .card-sub { font-size: 13px; color: var(--secondary); margin: 0 0 14px; }
+  .muted { color: var(--secondary); font-size: 13px; }
+
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+  .row.between { justify-content: space-between; }
+  .grow { flex: 1; min-width: 180px; }
+
+  input[type=text], textarea {
+    width: 100%; font: inherit; font-size: 14px; color: var(--content);
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px;
+  }
+  input[type=text]::placeholder, textarea::placeholder { color: var(--secondary); opacity: .8; }
+  input[type=text]:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  textarea { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+
+  .btn {
+    font: inherit; font-size: 13px; line-height: 1; padding: 9px 13px; border-radius: 8px;
+    border: 1px solid var(--tertiary); background: transparent; color: var(--primary);
+    cursor: pointer; transition: .15s; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--secondary); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--theme); }
+  .btn.primary:hover { opacity: .88; }
+  .btn.danger { color: var(--danger); border-color: var(--danger); }
+  .btn.danger:hover { background: var(--danger); color: #fff; }
+  .btn.small { padding: 6px 9px; font-size: 12px; }
+
+  /* 统计块 */
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+  .stat { flex: 1; min-width: 110px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .stat b { display: block; font-size: 22px; line-height: 1.35; color: var(--primary); }
+  .stat span { font-size: 12px; color: var(--secondary); }
+
+  /* 头像+名号 芯片 */
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px; padding: 3px 8px 3px 3px;
+    border: 1px solid var(--border); background: var(--code-bg); border-radius: 999px;
+    font-size: 13px; margin: 3px; max-width: 100%;
+  }
+  .chip img { width: 24px; height: 24px; border-radius: 50%; background: var(--tertiary); flex: none; object-fit: cover; }
+  .chip .cn { color: var(--primary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip .cg { color: var(--secondary); font-size: 12px; }
+  .chip .x { cursor: pointer; color: var(--danger); font-weight: 700; padding: 0 3px; line-height: 1; }
+  .chip .x:hover { opacity: .75; }
+  .chip.admin { border-color: var(--accent); }
+
+  /* org 成员块（只读快照） */
+  .orghead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .orghead b { font-size: 14px; color: var(--primary); }
+  .orgtag { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--secondary); background: var(--entry); }
+
+  /* 好友条目（大一点，展示头像+名称） */
+  .friends { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+  .fcard {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+    border: 1px solid var(--border); background: var(--code-bg); border-radius: 10px; min-width: 200px; flex: 1 1 200px;
+  }
+  .fcard img { width: 38px; height: 38px; border-radius: 50%; background: var(--tertiary); flex: none; object-fit: cover; }
+  .fcard .fmeta { min-width: 0; flex: 1; }
+  .fcard .fname { font-size: 14px; font-weight: 600; color: var(--primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fcard .fgid { font-size: 12px; color: var(--secondary); }
+  .fcard .frm { flex: none; }
+
+  .sub { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-top: 12px; background: var(--code-bg); }
+  .msg { font-size: 12px; margin-left: 4px; }
+  .ok { color: #1a9d4b; } .err { color: var(--danger); }
+  .hidden { display: none !important; }
+  details { margin-top: 10px; }
+  details > summary { cursor: pointer; color: var(--secondary); font-size: 13px; }
+  code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; font-size: 12px; }
+  #login { text-align: center; padding: 56px 0; }
 </style>
 </head>
 <body>
-<h1>博客加密文章 · 管理后台</h1>
 
-<div id="login" class="hidden">
-  <p>请先以 <b>timmoc</b> 身份登录 GitHub。</p>
-  <button id="loginBtn">🔐 用 GitHub 登录（管理员）</button>
-  <p class="muted">登录态仅存于本域 localStorage，30 天有效。</p>
+<div class="topbar">
+  <div class="topbar-in">
+    <div class="brand">🔐 博客加密 · 管理后台</div>
+    <div class="me" id="meBox"></div>
+  </div>
 </div>
 
-<div id="app" class="hidden">
-  <div class="row" style="justify-content:space-between">
-    <span class="muted">已登录为 <b>管理员</b></span>
-    <button id="logout">退出</button>
+<div class="wrap">
+
+  <div id="login" class="hidden">
+    <p style="color:var(--secondary)">请先以 <b style="color:var(--primary)">t1mmoc</b> 身份登录 GitHub。</p>
+    <button id="loginBtn" class="btn primary">🔐 用 GitHub 登录（管理员）</button>
+    <p class="muted" style="margin-top:10px">登录态仅存于本域 localStorage，30 天有效。</p>
   </div>
 
-  <div class="card" style="border-color:#c4d4ff;background:#f5f8ff">
-    <h3>① 生成密钥（web 流程 · 免 author 工具 token）</h3>
-    <p class="muted">GitHub 登录后，填加密块 id 与允许解锁的 GitHub 用户名，点按即由服务端生成密钥并写入 KV，返回密钥 JSON。把该 JSON 交给 <code>author.mjs --key-json</code> 本地加密即可，无需 admin token。最省事：复制后直接 <code>Get-Clipboard | node author.mjs --file 正文.md --key-json</code>（从剪贴板管道读，无需存文件）；或点「复制单行」后内联粘贴 <code>--key-json '&lt;JSON&gt;'</code>。注意：服务端会回传明文密钥（仅经 HTTPS），请妥善保存该 JSON。</p>
-    <div class="row"><input type="text" id="genId" placeholder="加密块 id（留空则自动生成 ULID，如 01J9X...；填写则与 .bin 文件名一致）"></div>
-    <div class="row"><input type="text" id="genAcl" placeholder="允许解锁的 GitHub 用户名，逗号分隔，如 t1mmoc,alice"></div>
-    <div class="row"><button class="primary" id="genBtn">🔑 生成密钥 JSON</button><span id="genMsg" class="msg"></span></div>
-    <div class="row" id="genOut" style="display:none">
-      <textarea id="genJson" rows="5" readonly style="flex:1;font-family:monospace;font-size:12px;padding:8px"></textarea>
-    </div>
-    <div class="row" id="genActions" style="display:none">
-      <button id="genCopy">复制 JSON</button>
-      <button id="genCopyOne">复制单行</button>
-      <button id="genDownload">下载 .json</button>
-    </div>
-  </div>
+  <div id="app" class="hidden">
 
-  <div class="card">
-    <h3>文章列表</h3>
-    <div class="sub">
-      <h3 style="font-size:14px;margin:0 0 6px">读者名册（自动汇总）</h3>
-      <p class="muted" style="margin:0 0 8px">由下方各文章 ACL 中的读者去重汇总，纯前端浏览器内派生，不单独存储。</p>
-      <div id="rosterList" class="row"></div>
-    </div>
-    <details>
-      <summary>注册新文章（密钥由发布工具生成；正常发文请用 author 工具，此表单用于手动注册/迁移）</summary>
-      <div class="sub">
-        <div class="row"><input type="text" id="newArtId" placeholder="文章 id（与 .bin 文件名一致，如 secret-note）"></div>
-        <div class="row"><input type="text" id="newArtK" placeholder="k_article（base64，由 author 工具输出）"></div>
-        <div class="row"><input type="text" id="newArtIv" placeholder="iv（base64）"></div>
-        <div class="row"><input type="text" id="newArtAcl" placeholder="acl，逗号分隔，如 t1mmoc,alice"></div>
-        <div class="row"><button class="primary" id="addArt">注册文章</button><span id="addArtMsg" class="msg"></span></div>
+    <!-- 概览 -->
+    <section class="card">
+      <h2 class="card-title">概览</h2>
+      <p class="card-sub">后端 worker（<span class="muted">blog.tmoc.qzz.io</span>）当前的运行状态。</p>
+      <div class="stats">
+        <div class="stat"><b id="stArt">–</b><span>加密文章</span></div>
+        <div class="stat"><b id="stFriend">–</b><span>好友（手动名单）</span></div>
+        <div class="stat"><b id="stOrgMem">–</b><span>org 成员</span></div>
+        <div class="stat"><b id="stReader">–</b><span>读者（ACL 去重）</span></div>
+        <div class="stat"><b id="stOrg" style="font-size:16px;padding-top:5px">–</b><span>朋友 org</span></div>
       </div>
-    </details>
-    <div id="articleList"></div>
+      <p class="muted" style="margin:10px 0 0">
+        「朋友」= 管理员 ∪ 下方手动名单 ∪ org 成员（登录时缓存）。朋友看 acg 背景池，其余看 normal。
+      </p>
+    </section>
+
+    <!-- 生成密钥 -->
+    <section class="card">
+      <h2 class="card-title">① 生成密钥 <span class="muted" style="font-weight:400">（web 流程 · 免 author token）</span></h2>
+      <p class="card-sub">填加密块 id（可留空自动生成 ULID）与允许解锁的 GitHub 用户名，点按即由服务端生成密钥并写入 KV。</p>
+      <div class="row"><input type="text" id="genId" placeholder="加密块 id（留空自动生成 ULID；填写则与 .bin 文件名一致）"></div>
+      <div class="row"><input type="text" id="genAcl" placeholder="允许解锁的 GitHub 用户名，逗号分隔，如 t1mmoc,alice"></div>
+      <div class="row"><button class="btn primary" id="genBtn">🔑 生成密钥 JSON</button><span id="genMsg" class="msg"></span></div>
+      <div class="row hidden" id="genOut"><textarea id="genJson" rows="5" readonly></textarea></div>
+      <div class="row hidden" id="genActions">
+        <button class="btn small" id="genCopy">复制 JSON</button>
+        <button class="btn small" id="genCopyOne">复制单行</button>
+        <button class="btn small" id="genDownload">下载 .json</button>
+        <span class="muted">把该 JSON 交给 <code>author.mjs --key-json</code> 本地加密即可。</span>
+      </div>
+    </section>
+
+    <!-- 文章管理 -->
+    <section class="card">
+      <h2 class="card-title">② 文章管理</h2>
+      <p class="card-sub">查看已注册的加密文章、增删其 ACL 读者、或手动注册/迁移。</p>
+
+      <details>
+        <summary>注册新文章（密钥由发布工具生成；正常发文请用 author 工具，此表单用于手动注册/迁移）</summary>
+        <div class="sub">
+          <div class="row"><input type="text" id="newArtId" placeholder="文章 id（与 .bin 文件名一致，如 secret-note）"></div>
+          <div class="row"><input type="text" id="newArtK" placeholder="k_article（base64，由 author 工具输出）"></div>
+          <div class="row"><input type="text" id="newArtIv" placeholder="iv（base64）"></div>
+          <div class="row"><input type="text" id="newArtAcl" placeholder="acl，逗号分隔，如 t1mmoc,alice"></div>
+          <div class="row"><button class="btn primary" id="addArt">注册文章</button><span id="addArtMsg" class="msg"></span></div>
+        </div>
+      </details>
+
+      <div id="articleList" style="margin-top:12px"></div>
+    </section>
+
+    <!-- 好友名单 -->
+    <section class="card">
+      <h2 class="card-title">③ 好友名单 <span class="muted" style="font-weight:400">（手动 · 实时生效）</span></h2>
+      <p class="card-sub">手动指定「朋友」（不在 org 里的人也能享受 acg 背景池）。添加后立即生效，无需对方重新登录。</p>
+      <div class="row">
+        <input type="text" id="friendInput" class="grow" placeholder="GitHub 用户名，如 alice" list="friendCandidates">
+        <button class="btn primary" id="friendAdd">＋ 添加好友</button>
+        <span id="friendMsg" class="msg"></span>
+      </div>
+      <div class="friends" id="friendList"></div>
+
+      <div class="sub" id="orgBox" style="margin-top:16px"></div>
+    </section>
+
+    <!-- 读者名册 -->
+    <section class="card">
+      <h2 class="card-title">④ 读者名册 <span class="muted" style="font-weight:400">（自动汇总）</span></h2>
+      <p class="card-sub">由各文章 ACL 中的读者去重派生，纯前端浏览器内计算，不单独存储。</p>
+      <div class="row" id="rosterList"></div>
+    </section>
+
   </div>
 </div>
 
 <datalist id="userCandidates"></datalist>
+<datalist id="friendCandidates"></datalist>
 
 <script>
 const BLOG = 'https://blog.tmoc.qzz.io';
 const SKEY = 'blog_admin_session';
+const NAME_TTL = 7 * 24 * 3600 * 1000;
 
+/* ---------- 基础工具 ---------- */
 function api(path, opts) {
   opts = opts || {};
   opts.headers = Object.assign({ 'x-session': localStorage.getItem(SKEY) }, opts.headers || {});
@@ -90,15 +249,16 @@ function api(path, opts) {
     return { ok: r.ok, status: r.status, body: j };
   });
 }
+function el(html) { const d = document.createElement('div'); d.innerHTML = html; return d.firstChild; }
 function esc(s) {
   return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 }
-function flash(el, text, good) {
-  el.textContent = text;
-  el.className = 'msg ' + (good ? 'ok' : 'err');
-  setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 2500);
+function flash(node, text, good) {
+  if (!node) return;
+  node.textContent = text;
+  node.className = 'msg ' + (good ? 'ok' : 'err');
+  setTimeout(() => { if (node.textContent === text) node.textContent = ''; }, 2600);
 }
-// 按钮处理中态：禁用 + 改文案，返回还原函数。消除「点了没反应/卡了」的体感
 function busy(btn, label) {
   if (!btn) return () => {};
   const old = btn.textContent;
@@ -106,7 +266,51 @@ function busy(btn, label) {
   if (label) btn.textContent = label;
   return () => { btn.disabled = false; btn.textContent = old; };
 }
+function avatarUrl(gid, size) { return 'https://github.com/' + encodeURIComponent(gid) + '.png?size=' + (size || 64); }
 
+/* ---------- 头像 + 名称解析（名称走 GitHub API，本地缓存 7 天） ---------- */
+function nameCacheGet(gid) {
+  try {
+    const c = JSON.parse(localStorage.getItem('ghname:' + gid.toLowerCase()) || 'null');
+    if (c && c.name && Date.now() - c.ts < NAME_TTL) return c.name;
+  } catch (e) {}
+  return null;
+}
+function nameCacheSet(gid, name) {
+  try { localStorage.setItem('ghname:' + gid.toLowerCase(), JSON.stringify({ name, ts: Date.now() })); } catch (e) {}
+}
+function fillName(gid, node) {
+  const cached = nameCacheGet(gid);
+  if (cached) { node.textContent = cached; return; }
+  fetch('https://api.github.com/users/' + encodeURIComponent(gid), { headers: { Accept: 'application/vnd.github+json' } })
+    .then(r => r.ok ? r.json() : null)
+    .then(j => { if (j && j.name) { nameCacheSet(gid, j.name); node.textContent = j.name; } })
+    .catch(() => {});
+}
+
+/* 生成一个「头像 + 名称 + @gid」芯片；onRemove 传入则带删除按钮 */
+function chip(gid, onRemove) {
+  const c = el('<span class="chip"></span>');
+  const img = document.createElement('img');
+  img.src = avatarUrl(gid, 64); img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+  img.onerror = function () { this.style.display = 'none'; };
+  c.appendChild(img);
+  const name = document.createElement('span');
+  name.className = 'cn'; name.textContent = gid;      // 先占位为用户名，解析到显示名后替换
+  fillName(gid, name);
+  c.appendChild(name);
+  const g = document.createElement('span'); g.className = 'cg'; g.textContent = '@' + gid;
+  c.appendChild(g);
+  if (onRemove) {
+    const x = document.createElement('span');
+    x.className = 'x'; x.textContent = '×'; x.title = '移除';
+    x.onclick = onRemove;
+    c.appendChild(x);
+  }
+  return c;
+}
+
+/* ---------- 登录 / 身份 ---------- */
 function showLogin() {
   document.getElementById('login').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');
@@ -116,60 +320,90 @@ function showLogin() {
   };
 }
 
-// ---------- 文章列表：查 / 删 + 注册(增) + 派生读者名册 ----------
+async function renderMe() {
+  const r = await api('/api/me');
+  const box = document.getElementById('meBox');
+  box.innerHTML = '';
+  const b = r.body || {};
+  if (b.logged_in && b.github_id) {
+    const ident = el('<span class="ident"></span>');
+    const img = document.createElement('img');
+    img.src = avatarUrl(b.github_id, 44); img.alt = ''; img.referrerPolicy = 'no-referrer';
+    ident.appendChild(img);
+    const nm = el('<span class="nm"></span>');
+    nm.innerHTML = '<b></b> <span class="muted">· 管理员</span>';
+    nm.querySelector('b').textContent = b.github_id;
+    ident.appendChild(nm);
+    box.appendChild(ident);
+  }
+  const out = document.createElement('button');
+  out.className = 'btn small'; out.textContent = '退出';
+  out.onclick = () => { localStorage.removeItem(SKEY); location.reload(); };
+  box.appendChild(out);
+}
+
+async function renderHealth() {
+  try {
+    const r = await fetch(BLOG + '/health');
+    const j = await r.json();
+    document.getElementById('stOrg').textContent = j.friend_org || '—';
+  } catch (e) { document.getElementById('stOrg').textContent = '—'; }
+}
+
+/* ---------- 文章列表 ---------- */
 async function renderArticles() {
   const al = document.getElementById('articleList');
   const r = await api('/api/admin/articles');
   const items = (r.body && r.body.items) || [];
   al.innerHTML = '';
-  if (!items.length) { al.innerHTML = '<p class="muted">暂无文章（用 author 工具发布后会出现）。</p>'; return; }
 
-  // 由所有文章 ACL 去重派生读者名册，填充自动补全 datalist 与展示区
+  // 读者名册 + 自动补全（由 ACL 汇总）
   const allReaders = new Set();
   items.forEach(a => (a.acl || []).forEach(g => allReaders.add(g)));
   const dl = document.getElementById('userCandidates');
   if (dl) { dl.innerHTML = ''; [...allReaders].forEach(g => { const o = document.createElement('option'); o.value = g; dl.appendChild(o); }); }
+  const fdl = document.getElementById('friendCandidates');
+  if (fdl) { fdl.innerHTML = ''; [...allReaders].forEach(g => { const o = document.createElement('option'); o.value = g; fdl.appendChild(o); }); }
   const rl = document.getElementById('rosterList');
   if (rl) {
     rl.innerHTML = '';
     if (!allReaders.size) rl.innerHTML = '<span class="muted">暂无读者</span>';
-    else [...allReaders].forEach(g => { const t = document.createElement('span'); t.className = 'tag'; t.textContent = g; rl.appendChild(t); });
+    else [...allReaders].forEach(g => rl.appendChild(chip(g)));
   }
+  document.getElementById('stArt').textContent = items.length;
+  document.getElementById('stReader').textContent = allReaders.size;
+
+  if (!items.length) { al.innerHTML = '<p class="muted">暂无文章（用 author 工具发布后会出现）。</p>'; return; }
 
   items.forEach(art => {
-    const card = document.createElement('div');
-    card.className = 'card';
+    const card = el('<div class="card"></div>');
     card.innerHTML =
-      '<div class="row" style="justify-content:space-between">' +
+      '<div class="row between" style="margin-top:0">' +
         '<b>' + esc(art.id) + '</b>' +
         '<span><span class="muted">' + (art.acl || []).length + ' 人可读</span> ' +
-        '<button class="danger" data-del>删除文章</button></span>' +
+        '<button class="btn danger small" data-del>删除文章</button></span>' +
       '</div>' +
       '<div class="row">ACL 读者：<span class="aclTags"></span></div>' +
       '<div class="row">' +
-        '<input type="text" placeholder="添加 GitHub 用户名到本文" list="userCandidates">' +
-        '<button class="primary" data-add>添加读者</button>' +
+        '<input type="text" class="grow" placeholder="添加 GitHub 用户名到本文" list="userCandidates">' +
+        '<button class="btn primary small" data-add>添加读者</button>' +
         '<span class="msg"></span>' +
       '</div>';
     const aclTags = card.querySelector('.aclTags');
     (art.acl || []).forEach(g => {
-      const t = document.createElement('span');
-      t.className = 'tag';
-      t.innerHTML = esc(g) + ' <span class="x" title="移除">×</span>';
-      t.querySelector('.x').onclick = async (e) => {
+      aclTags.appendChild(chip(g, async (e) => {
         if (!confirm('移除 ' + g + ' 对本文的访问？')) return;
-        const btn = e.currentTarget;
-        const done = busy(btn, '×');
+        const x = e.currentTarget;
+        x.style.opacity = '.4';
         const d = await api('/api/admin/article/' + encodeURIComponent(art.id) + '/acl', {
           method: 'PATCH', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ op: 'remove', github_id: g })
         });
-        done();
-        if (d.ok) renderArticles(); else alert('移除失败');
-      };
-      aclTags.appendChild(t);
+        if (d.ok) renderArticles(); else { x.style.opacity = '1'; alert('移除失败'); }
+      }));
     });
     if (!(art.acl || []).length) aclTags.innerHTML = '<span class="muted">无</span>';
+
     card.querySelector('[data-add]').onclick = async (e) => {
       const btn = e.currentTarget;
       const done = busy(btn, '添加中…');
@@ -182,7 +416,7 @@ async function renderArticles() {
         body: JSON.stringify({ op: 'add', github_id: v })
       });
       done();
-      if (d.ok) { inp.value = ''; renderArticles(); flash(m, '已添加', true); }
+      if (d.ok) { inp.value = ''; renderArticles(); }
       else flash(m, '添加失败', false);
     };
     card.querySelector('[data-del]').onclick = async (e) => {
@@ -197,44 +431,181 @@ async function renderArticles() {
   });
 }
 
+/* ---------- 好友名单 ---------- */
+async function renderFriends() {
+  const fl = document.getElementById('friendList');
+  const r = await api('/api/admin/friends');
+  const body = r.body || {};
+  const items = body.items || [];
+  document.getElementById('stFriend').textContent = items.length;
+  fl.innerHTML = '';
+  if (!items.length) { fl.innerHTML = '<span class="muted">暂无手动好友（org 成员自动算朋友，见下方）。</span>'; }
+  else items.forEach(g => {
+    const c = el('<div class="fcard"></div>');
+    const img = document.createElement('img');
+    img.src = avatarUrl(g, 80); img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+    img.onerror = function () { this.style.visibility = 'hidden'; };
+    c.appendChild(img);
+    const meta = el('<div class="fmeta"><div class="fname"></div><div class="fgid"></div></div>');
+    meta.querySelector('.fname').textContent = g;
+    fillName(g, meta.querySelector('.fname'));
+    meta.querySelector('.fgid').textContent = '@' + g;
+    c.appendChild(meta);
+    const rm = document.createElement('button');
+    rm.className = 'btn danger small frm'; rm.textContent = '移除';
+    rm.onclick = async () => {
+      if (!confirm('把 ' + g + ' 从手动好友名单移除？')) return;
+      const done = busy(rm, '…');
+      const d = await api('/api/admin/friends', {
+        method: 'PATCH', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ op: 'remove', github_id: g })
+      });
+      done();
+      if (d.ok) renderFriends(); else alert('移除失败');
+    };
+    c.appendChild(rm);
+    fl.appendChild(c);
+  });
+
+  renderOrgMembers(body);
+}
+
+/* org 成员（只读快照：登录时顺带从 GitHub 拉，6h 内不重复拉）
+   body 里带诊断字段：self_org（本人是否 org 成员）/ org_meta（最近一次抓取状态） */
+function renderOrgMembers(body) {
+  const box = document.getElementById('orgBox');
+  const org = body.org;
+  const members = Array.isArray(body.org_members) ? body.org_members : [];
+  const updatedAt = body.org_updated_at;
+  const meta = body.org_meta;
+  const selfOrg = !!body.self_org;
+  document.getElementById('stOrgMem').textContent = members.length;
+  box.innerHTML = '';
+
+  const head = el('<div class="orghead"></div>');
+  head.innerHTML = '<b>org 成员</b><span class="orgtag" id="orgName"></span>' +
+    '<span class="orgtag" id="orgSelf"></span><span class="muted" id="orgTime"></span>';
+  head.querySelector('#orgName').textContent = org || '—';
+  const selfTag = head.querySelector('#orgSelf');
+  if (meta) selfTag.textContent = selfOrg ? '你本人：org 成员' : '你本人：非 org 成员';
+  else selfTag.remove();                       // 旧版 worker 无法判断，不显示以免误导
+  head.querySelector('#orgTime').textContent = updatedAt
+    ? '快照 ' + new Date(updatedAt).toLocaleString() + '（成员登录时自动刷新）'
+    : '尚无快照';
+  box.appendChild(head);
+
+  if (!members.length) {
+    // 诊断：区分「worker 没部署」「本人不是 org 成员」「scope/权限不足」三种情况
+    let why;
+    if (!meta) {
+      why = '当前 worker 还是旧版（响应里没有 org_meta 字段），不会写成员快照。部署新版后重新登录一次即可生成。';
+    } else if (!selfOrg) {
+      why = '本次登录没有被判定为 org 成员，worker 因而不会去拉名单。若你确定自己在 ' + org + ' 里，请确认授权时勾选了组织访问（scope read:org），或成员关系是 private 需要额外的组织批准。';
+    } else if (meta.status === 404) {
+      why = 'GitHub 返回 404：token 看不到 ' + org + ' 的成员列表（scope 缺 read:org，或组织启用了 SAML/成员可见性限制）。';
+    } else if (meta.status === 403) {
+      why = 'GitHub 返回 403：权限不足或被限流。';
+    } else if (meta.status === 200 && meta.count === 0) {
+      why = 'GitHub 返回成功但成员数为 0。';
+    } else {
+      why = '最近一次抓取未成功（' + (meta.note || ('HTTP ' + meta.status)) + '）。';
+    }
+    box.appendChild(el('<p class="muted" style="margin:0">还没有成员快照。' + esc(why) + '</p>'));
+    if (meta && meta.t) box.appendChild(el('<p class="muted" style="margin:6px 0 0">最近尝试：' + esc(new Date(meta.t).toLocaleString()) + ' · ' + esc(meta.note || ('HTTP ' + meta.status)) + '</p>'));
+    return;
+  }
+
+  const wrap = el('<div class="friends"></div>');
+  members.slice().sort((a, b) => a.localeCompare(b)).forEach(g => {
+    const c = el('<div class="fcard"></div>');
+    const img = document.createElement('img');
+    img.src = avatarUrl(g, 80); img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+    img.onerror = function () { this.style.visibility = 'hidden'; };
+    c.appendChild(img);
+    const meta = el('<div class="fmeta"><div class="fname"></div><div class="fgid"></div></div>');
+    meta.querySelector('.fname').textContent = g;
+    fillName(g, meta.querySelector('.fname'));
+    meta.querySelector('.fgid').textContent = '@' + g;
+    c.appendChild(meta);
+    const tag = el('<span class="orgtag">自动</span>');
+    tag.style.flex = 'none';
+    c.appendChild(tag);
+    wrap.appendChild(c);
+  });
+  box.appendChild(wrap);
+  box.appendChild(el('<p class="muted" style="margin:8px 0 0">这些成员由 org 身份自动判为朋友，无需加入手动名单，也不能在此移除（需在 GitHub 组织里移出）。</p>'));
+}
+
+async function addFriend() {
+  const inp = document.getElementById('friendInput');
+  const btn = document.getElementById('friendAdd');
+  const m = document.getElementById('friendMsg');
+  const v = inp.value.trim();
+  if (!v) return;
+  const done = busy(btn, '添加中…');
+  const r = await api('/api/admin/friends', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ op: 'add', github_id: v })
+  });
+  done();
+  if (r.ok) { inp.value = ''; flash(m, '已添加', true); renderFriends(); }
+  else flash(m, '添加失败：' + ((r.body && r.body.error) || r.status), false);
+}
+
+/* ---------- 初始化 ---------- */
 (async function init() {
   const params = new URLSearchParams(location.search);
-  if (params.has('session')) {
+  // ① 一次性 session_code（GitHub 登录回跳）：拿 code 向 worker 换取真正 session，用后即焚
+  if (params.has('session_code')) {
+    const code = params.get('session_code');
+    history.replaceState({}, '', location.pathname);
+    try {
+      const r = await fetch(BLOG + '/api/session?code=' + encodeURIComponent(code));
+      const j = await r.json();
+      if (j && j.ok && j.session) localStorage.setItem(SKEY, j.session);
+      else return showLogin();
+    } catch (e) { return showLogin(); }
+  } else if (params.has('session')) {
+    // ② 兼容旧的直传 session 参数
     localStorage.setItem(SKEY, params.get('session'));
     history.replaceState({}, '', location.pathname);
   }
+
   const sess = localStorage.getItem(SKEY);
   if (!sess) return showLogin();
+
+  // 校验登录态
+  const probe = await api('/api/admin/articles');
+  if (probe.status === 403) { localStorage.removeItem(SKEY); return showLogin(); }
+
   document.getElementById('login').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
-  document.getElementById('logout').onclick = () => { localStorage.removeItem(SKEY); location.reload(); };
 
-  // ---------- 生成密钥（web 流程）：填 id+人员 → worker 生成密钥 JSON ----------
+  renderMe();
+  renderHealth();
+
+  // 生成密钥
   document.getElementById('genBtn').onclick = async (e) => {
     const btn = e.currentTarget;
     const done = busy(btn, '生成中…');
     const id = document.getElementById('genId').value.trim();
     const acl = document.getElementById('genAcl').value.split(',').map(s => s.trim()).filter(Boolean);
     const m = document.getElementById('genMsg');
-    // id 允许留空：留空时 worker 自动生成 ULID 并在返回 JSON 中带回
     let r;
     try {
       r = await api('/api/admin/article', {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ id, acl })
       });
-    } catch (err) {
-      done();
-      return flash(m, '网络错误：' + err.message, false);
-    }
+    } catch (err) { done(); return flash(m, '网络错误：' + err.message, false); }
     done();
     if (r.ok && r.body && r.body.k_article) {
       const out = { id: r.body.id, k_article: r.body.k_article, iv: r.body.iv, acl: r.body.acl || [] };
       document.getElementById('genJson').value = JSON.stringify(out, null, 2);
-      document.getElementById('genOut').style.display = '';
-      document.getElementById('genActions').style.display = '';
+      document.getElementById('genOut').classList.remove('hidden');
+      document.getElementById('genActions').classList.remove('hidden');
       flash(m, '已生成（密钥已写入 KV），复制/下载后交给 author.mjs --key-json', true);
-      renderArticles(); // 生成即注册了文章，刷新列表与读者名册
+      renderArticles();
     } else flash(m, '生成失败：' + ((r.body && r.body.error) || r.status), false);
   };
   document.getElementById('genCopy').onclick = () => {
@@ -243,7 +614,6 @@ async function renderArticles() {
   };
   document.getElementById('genCopyOne').onclick = () => {
     const t = document.getElementById('genJson').value;
-    // 压缩成单行紧凑 JSON（去缩进/换行），方便直接 --key-json '<粘贴>' 内联使用
     let compact;
     try { compact = JSON.stringify(JSON.parse(t)); } catch (e) { compact = t.replace(/\s+/g, ' '); }
     navigator.clipboard.writeText(compact).then(() => flash(document.getElementById('genMsg'), '已复制单行（可内联粘贴）', true), () => alert('复制失败，请手动选择'));
@@ -258,10 +628,7 @@ async function renderArticles() {
     URL.revokeObjectURL(a.href);
   };
 
-  // 接口若未授权则退回登录
-  const probe = await api('/api/admin/articles');
-  if (probe.status === 403) { localStorage.removeItem(SKEY); return showLogin(); }
-
+  // 注册文章
   document.getElementById('addArt').onclick = async (e) => {
     const btn = e.currentTarget;
     const done = busy(btn, '注册中…');
@@ -285,7 +652,12 @@ async function renderArticles() {
     } else flash(m, '注册失败：' + ((r.body && r.body.error) || r.status), false);
   };
 
+  // 好友
+  document.getElementById('friendAdd').onclick = addFriend;
+  document.getElementById('friendInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') addFriend(); });
+
   renderArticles();
+  renderFriends();
 })();
 </script>
 </body>
