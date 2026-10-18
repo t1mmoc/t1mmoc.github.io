@@ -2,7 +2,7 @@
 title: "【AIGC】没人砌的那堵墙，砌好了：点击即用的 shamir 文件分片上线"
 date: 2026-10-18T22:43:21+08:00
 lastmod: 2026-10-18T22:43:21+08:00
-description = '上一篇说"砖头齐了，墙没人砌"。两天后墙砌好了：任意文件进、n 个分片 + 1 个密文出、凑齐 k 片原文件回来。纯前端单 HTML、零后端、默认零外发，还塞进了多层嵌套和"永远解不开的假文件"。'
+description : '上一篇说"砖头齐了，墙没人砌"。两天后墙砌好了：任意文件进、n 个分片 + 1 个密文出、凑齐 k 片原文件回来。纯前端单 HTML、零后端、默认零外发，还塞进了多层嵌套和"永远解不开的假文件"。'
 draft: false
 tags: ['shamir', 'secret-sharing', 'github-pages', 'cryptography', 'privacy', 'AIGC']
 categories: ['折腾记录']
