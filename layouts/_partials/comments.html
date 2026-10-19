@@ -144,7 +144,8 @@
         if (d && d.ok) {
           bodyEl.value = '';
           if (window.turnstile && turnstile.reset) turnstile.reset();
-          setMsg('✅ 已发布，评论区刷新中…');
+          setMode('github');
+          setMsg('✅ 已发布，正在刷新评论区…');
           setTimeout(reloadGiscus, 700);
         } else {
           setMsg('发布失败：' + ((d && d.error) || 'unknown'));
