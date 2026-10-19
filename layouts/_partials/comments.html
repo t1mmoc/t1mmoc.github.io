@@ -1,5 +1,5 @@
 <!-- AI生成 -->
-{{/* Giscus 评论区（基于 GitHub Discussions，无后端、无追踪） + 匿名发帖开关（配置 .Site.Params.giscus.siteKey 后启用） */}}
+{{/* Giscus 评论区（基于 GitHub Discussions，无后端、无追踪） + 匿名发帖开关（配置 .Site.Params.giscus.anon = true 后启用；siteKey 仅控 Turnstile） */}}
 {{ with .Site.Params.giscus }}
 {{/* 守卫：categoryId 为空时不渲染，避免线上出现加载失败的破框 */}}
 {{ if .categoryId }}
@@ -7,8 +7,10 @@
   {{/* giscus 参数注入给 JS（匿名发帖后重建 giscus 用） */}}
   <script type="application/json" id="giscus-cfg">{{ . | jsonify }}</script>
 
+  {{ if .anon }}
   {{ if .siteKey }}
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  {{ end }}
   <div class="anon-switch" role="tablist">
     <button type="button" class="anon-tab active" data-mode="github">🐙 GitHub 登录发帖</button>
     <button type="button" class="anon-tab" data-mode="anon">🕶️ 匿名发帖</button>
@@ -34,13 +36,15 @@
     </script>
   </div>
 
-  {{ if .siteKey }}
+  {{ if .anon }}
   <form id="anon-form" hidden>
     <input id="anon-nick" type="text" maxlength="24" required
            placeholder="昵称（必填，本浏览器会记住）" autocomplete="nickname">
     <textarea id="anon-body" maxlength="5000" required rows="5"
               placeholder="说点什么……（匿名模式：内容以站方机器人身份发布，署名用上面昵称）"></textarea>
+    {{ if .siteKey }}
     <div class="cf-turnstile" data-sitekey="{{ .siteKey }}" data-theme="auto"></div>
+    {{ end }}
     <div class="anon-actions">
       <button type="submit" id="anon-submit">发布匿名评论</button>
       <span id="anon-msg" class="anon-msg"></span>
@@ -74,7 +78,7 @@
   })();
   </script>
 
-  {{ if .siteKey }}
+  {{ if .anon }}
   <script>
   (function () {
     var API = 'https://blog.tmoc.qzz.io';   // blog-server Worker（/api/comment 只在此入口存在）
@@ -126,8 +130,9 @@
       e.preventDefault();
       var n = nick.value.trim();
       if (!n) { setMsg('昵称必填'); return; }
+      var needTs = !!JSONcfg.siteKey;   // 仅在配置 siteKey（启用 Turnstile）时才要求人机验证
       var token = (window.turnstile && turnstile.getResponse) ? turnstile.getResponse() : '';
-      if (!token) { setMsg('请先完成人机验证'); return; }
+      if (needTs && !token) { setMsg('请先完成人机验证'); return; }
       try { localStorage.setItem('tmoc_anon_nick', n); } catch (e2) {}
 
       btn.disabled = true; setMsg('发布中…');
