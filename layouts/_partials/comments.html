@@ -1,27 +1,56 @@
-{{/* Giscus 评论区（基于 GitHub Discussions，无后端、无追踪） */}}
+<!-- AI生成 -->
+{{/* Giscus 评论区（基于 GitHub Discussions，无后端、无追踪） + 匿名发帖开关（配置 .Site.Params.giscus.siteKey 后启用） */}}
 {{ with .Site.Params.giscus }}
 {{/* 守卫：categoryId 为空时不渲染，避免线上出现加载失败的破框 */}}
 {{ if .categoryId }}
 <section class="giscus-comments">
-  <script src="https://giscus.app/client.js"
-          data-repo="{{ .repo }}"
-          data-repo-id="{{ .repoId }}"
-          data-category="{{ .category }}"
-          data-category-id="{{ .categoryId }}"
-          data-mapping="{{ .mapping | default "pathname" }}"
-          data-strict="{{ if .strict }}1{{ else }}0{{ end }}"
-          data-reactions-enabled="{{ if .reactionsEnabled }}1{{ else }}0{{ end }}"
-          data-emit-metadata="{{ if .emitMetadata }}1{{ else }}0{{ end }}"
-          data-input-position="{{ .inputPosition | default "top" }}"
-          data-theme="preferred_color_scheme"
-          data-lang="{{ .lang | default "zh-CN" }}"
-          data-loading="eager"
-          crossorigin="anonymous"
-          async>
-  </script>
+  {{/* giscus 参数注入给 JS（匿名发帖后重建 giscus 用） */}}
+  <script type="application/json" id="giscus-cfg">{{ . | jsonify }}</script>
+
+  {{ if .siteKey }}
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <div class="anon-switch" role="tablist">
+    <button type="button" class="anon-tab active" data-mode="github">🐙 GitHub 登录发帖</button>
+    <button type="button" class="anon-tab" data-mode="anon">🕶️ 匿名发帖</button>
+  </div>
+  {{ end }}
+
+  <div id="giscus-wrap">
+    <script src="https://giscus.app/client.js"
+            data-repo="{{ .repo }}"
+            data-repo-id="{{ .repoId }}"
+            data-category="{{ .category }}"
+            data-category-id="{{ .categoryId }}"
+            data-mapping="{{ .mapping | default "pathname" }}"
+            data-strict="{{ if .strict }}1{{ else }}0{{ end }}"
+            data-reactions-enabled="{{ if .reactionsEnabled }}1{{ else }}0{{ end }}"
+            data-emit-metadata="{{ if .emitMetadata }}1{{ else }}0{{ end }}"
+            data-input-position="{{ .inputPosition | default "top" }}"
+            data-theme="preferred_color_scheme"
+            data-lang="{{ .lang | default "zh-CN" }}"
+            data-loading="eager"
+            crossorigin="anonymous"
+            async>
+    </script>
+  </div>
+
+  {{ if .siteKey }}
+  <form id="anon-form" hidden>
+    <input id="anon-nick" type="text" maxlength="24" required
+           placeholder="昵称（必填，本浏览器会记住）" autocomplete="nickname">
+    <textarea id="anon-body" maxlength="5000" required rows="5"
+              placeholder="说点什么……（匿名模式：内容以站方机器人身份发布，署名用上面昵称）"></textarea>
+    <div class="cf-turnstile" data-sitekey="{{ .siteKey }}" data-theme="auto"></div>
+    <div class="anon-actions">
+      <button type="submit" id="anon-submit">发布匿名评论</button>
+      <span id="anon-msg" class="anon-msg"></span>
+    </div>
+  </form>
+  {{ end }}
+
   <script>
   (function () {
-    // 跟随 PaperMod 的主题切换（<html data-theme="light|dark">）
+    // 跟随 PaperMod 的主题切换（<html data-theme="light|dark">）—— 始终运行
     function currentTheme() {
       var t = document.documentElement.getAttribute('data-theme');
       return (t === 'dark') ? 'dark' : 'light';
@@ -35,18 +64,95 @@
       );
     }
     var observer = new MutationObserver(function (records) {
-      records.forEach(function (r) {
-        if (r.attributeName === 'data-theme') syncGiscus();
-      });
+      records.forEach(function (r) { if (r.attributeName === 'data-theme') syncGiscus(); });
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    // giscus 加载/resize 完成后应用一次当前主题
     window.addEventListener('message', function (e) {
       if (e.origin !== 'https://giscus.app') return;
       if (e.data && e.data.giscus && e.data.giscus.resizeHeight) syncGiscus();
     });
   })();
   </script>
+
+  {{ if .siteKey }}
+  <script>
+  (function () {
+    var API = 'https://blog.tmoc.qzz.io';   // blog-server Worker（/api/comment 只在此入口存在）
+    var JSONcfg = JSON.parse(document.getElementById('giscus-cfg').textContent || '{}');
+    function currentTheme() {
+      var t = document.documentElement.getAttribute('data-theme');
+      return (t === 'dark') ? 'dark' : 'light';
+    }
+    // 匿名发帖成功后重建 giscus，让新评论立刻出现
+    function reloadGiscus() {
+      var w = document.getElementById('giscus-wrap');
+      var old = document.querySelector('.giscus'); if (old) old.remove();
+      w.innerHTML = '';
+      var cfg = JSONcfg, s = document.createElement('script');
+      s.src = 'https://giscus.app/client.js';
+      s.async = true; s.crossOrigin = 'anonymous';
+      var a = {
+        'data-repo': cfg.repo, 'data-repo-id': cfg.repoId,
+        'data-category': cfg.category, 'data-category-id': cfg.categoryId,
+        'data-mapping': cfg.mapping || 'pathname',
+        'data-strict': cfg.strict ? '1' : '0',
+        'data-reactions-enabled': cfg.reactionsEnabled ? '1' : '0',
+        'data-emit-metadata': cfg.emitMetadata ? '1' : '0',
+        'data-input-position': cfg.inputPosition || 'top',
+        'data-theme': currentTheme(), 'data-lang': cfg.lang || 'zh-CN', 'data-loading': 'eager'
+      };
+      for (var k in a) s.setAttribute(k, a[k]);
+      w.appendChild(s);
+    }
+
+    var tabs = document.querySelectorAll('.anon-tab');
+    var wrap = document.getElementById('giscus-wrap');
+    var form = document.getElementById('anon-form');
+    function setMode(mode) {
+      tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.mode === mode); });
+      wrap.hidden = (mode === 'anon');
+      form.hidden = (mode !== 'anon');
+    }
+    tabs.forEach(function (t) { t.addEventListener('click', function () { setMode(t.dataset.mode); }); });
+
+    var nick = document.getElementById('anon-nick');
+    var bodyEl = document.getElementById('anon-body');
+    var msg = document.getElementById('anon-msg');
+    var btn = document.getElementById('anon-submit');
+    try { nick.value = localStorage.getItem('tmoc_anon_nick') || ''; } catch (e) {}
+    function setMsg(s) { msg.textContent = s || ''; }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var n = nick.value.trim();
+      if (!n) { setMsg('昵称必填'); return; }
+      var token = (window.turnstile && turnstile.getResponse) ? turnstile.getResponse() : '';
+      if (!token) { setMsg('请先完成人机验证'); return; }
+      try { localStorage.setItem('tmoc_anon_nick', n); } catch (e2) {}
+
+      btn.disabled = true; setMsg('发布中…');
+      fetch(API + '/api/comment', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ article: location.pathname, nickname: n, body: bodyEl.value, turnstile: token })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d && d.ok) {
+          bodyEl.value = '';
+          if (window.turnstile && turnstile.reset) turnstile.reset();
+          setMsg('✅ 已发布，评论区刷新中…');
+          setTimeout(reloadGiscus, 700);
+        } else {
+          setMsg('发布失败：' + ((d && d.error) || 'unknown'));
+          if (window.turnstile && turnstile.reset) turnstile.reset();
+        }
+      }).catch(function () {
+        setMsg('网络错误，请重试');
+        if (window.turnstile && turnstile.reset) turnstile.reset();
+      }).then(function () { btn.disabled = false; });
+    });
+  })();
+  </script>
+  {{ end }}
 </section>
 {{ end }}
 {{ end }}
