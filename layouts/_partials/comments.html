@@ -1,5 +1,6 @@
-{{/* Giscus 评论区（自托管 fork：评论框右上角带匿名/GitHub 切换） */}}
+{{/* Giscus 评论区（自托管 fork：评论框右上角带「TD 账号 / 匿名 / GitHub」切换） */}}
 {{ $giscusHost := "https://giscus.tmoc.qzz.io" }}
+{{ $blogApi := "https://blog.tmoc.qzz.io" }}
 {{ with .Site.Params.giscus }}
 {{/* 守卫：categoryId 为空时不渲染，避免线上出现加载失败的破框 */}}
 {{ if .categoryId }}
@@ -22,28 +23,66 @@
   </script>
   <script>
   (function () {
+    var GISCUS_HOST = '{{ $giscusHost }}';
+    var BLOG_API = '{{ $blogApi }}';
+
     // 跟随 PaperMod 的主题切换（<html data-theme="light|dark">）
     function currentTheme() {
       var t = document.documentElement.getAttribute('data-theme');
       return (t === 'dark') ? 'dark' : 'light';
     }
-    function syncGiscus() {
-      var frame = document.querySelector('iframe.giscus-frame');
-      if (!frame || !frame.contentWindow) return;
-      frame.contentWindow.postMessage(
-        { giscus: { setConfig: { theme: currentTheme() } } },
-        '{{ $giscusHost }}'
-      );
+
+    // iframe 是第三方域，localStorage 按「顶层站点 + 帧源」分区，giscus 读不到这篇页面的
+    // blog_session，只能由父页面显式下发。空串也照发 —— 让 iframe 知道「确认未登录」。
+    function tdPayload() {
+      var sess = '';
+      try { sess = localStorage.getItem('blog_session') || ''; } catch (e) {}
+      var login = '';
+      try {
+        login = BLOG_API + '/api/auth/authorize?redirect=' + encodeURIComponent(location.href);
+      } catch (e) {}
+      return { giscus: { tdSession: sess, tdLoginUrl: login } };
     }
+
+    function frameWindow() {
+      var frame = document.querySelector('iframe.giscus-frame');
+      return frame && frame.contentWindow;
+    }
+
+    function postTdSession() {
+      var w = frameWindow();
+      if (!w) return;
+      try { w.postMessage(tdPayload(), GISCUS_HOST); } catch (e) {}
+    }
+
+    function syncGiscus() {
+      var w = frameWindow();
+      if (!w) return;
+      try {
+        w.postMessage({ giscus: { setConfig: { theme: currentTheme() } } }, GISCUS_HOST);
+      } catch (e) {}
+      // 主题同步顺带补一次身份：登录态可能在页面停留期间才写入（授权回跳换 session）
+      postTdSession();
+    }
+
+    // iframe 是 client.js 异步插入的，加载完成时间不确定 → 几次重试直到发出去
+    var tries = 0;
+    var timer = setInterval(function () {
+      tries += 1;
+      if (frameWindow()) postTdSession();
+      if (tries >= 8) clearInterval(timer);
+    }, 600);
+
     var observer = new MutationObserver(function (records) {
       records.forEach(function (r) {
         if (r.attributeName === 'data-theme') syncGiscus();
       });
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    // giscus 加载/resize 完成后应用一次当前主题
+
+    // giscus 每次 resize / 加载完成都会发消息，此时它的 message 监听已就绪 → 再补发一次身份
     window.addEventListener('message', function (e) {
-      if (e.origin !== '{{ $giscusHost }}') return;
+      if (e.origin !== GISCUS_HOST) return;
       if (e.data && e.data.giscus && e.data.giscus.resizeHeight) syncGiscus();
     });
   })();
