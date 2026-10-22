@@ -91,6 +91,13 @@
   min-height: 420px;
 }
 
+/* 高度过渡：评论加载完成、切换发表身份时，iframe 高度是连续微调的几帧。
+   直接跳变会让文档高度瞬间变短，移动端滚动位置被浏览器夹紧（页面自己往上弹）。
+   0.16s 缓动不足以掩盖大落差，但足以让「加载中 → 内容」这一下衔接得自然。 */
+.giscus-comments .giscus iframe.giscus-frame {
+  transition: height 0.16s ease;
+}
+
 /* ===== 友链卡片网格 ===== */
 .friend-grid {
   display: grid;

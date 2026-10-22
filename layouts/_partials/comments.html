@@ -80,10 +80,17 @@
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-    // giscus 每次 resize / 加载完成都会发消息，此时它的 message 监听已就绪 → 再补发一次身份
+    // giscus 第一次回传高度，说明它的 message 监听已经就绪 → 这时候补发一次身份。
+    // 不能每次 resizeHeight 都补发：那会形成「高度上报 → 重发身份 → iframe 重渲染 →
+    // 尺寸又变 → 再上报」的回环，几轮下来评论框持续抖动，手机端的滚动位置还会被反复夹紧。
+    // 主题切换走上面的 MutationObserver，不需要靠这里重发。
+    var identitySent = false;
     window.addEventListener('message', function (e) {
       if (e.origin !== GISCUS_HOST) return;
-      if (e.data && e.data.giscus && e.data.giscus.resizeHeight) syncGiscus();
+      if (e.data && e.data.giscus && e.data.giscus.resizeHeight && !identitySent) {
+        identitySent = true;
+        syncGiscus();
+      }
     });
   })();
   </script>
