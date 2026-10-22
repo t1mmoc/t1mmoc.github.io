@@ -84,6 +84,13 @@
   border-top: 1px solid var(--border, #e5e7eb);
 }
 
+/* giscus 的高度由 iframe 内部测量后回传（style.height）。回传之前只剩 default.css 的 150px，
+   露出半个「正在加载评论」很难看 —— 只在尚未回传时给个像样的占位高度。
+   一旦 client.js 写上 style="height: Npx"，下面的选择器就不再命中。 */
+.giscus-comments .giscus iframe.giscus-frame:not([style*='height']) {
+  min-height: 420px;
+}
+
 /* ===== 友链卡片网格 ===== */
 .friend-grid {
   display: grid;
