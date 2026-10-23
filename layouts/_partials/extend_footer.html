@@ -690,6 +690,11 @@ else init();
     if (document.querySelector(".blog-protected")) setTimeout(function () { location.reload(); }, 260);
   }
 
+  // 评论区（giscus iframe）的「退出登录」也走这里：iframe 在第三方域，碰不到
+  // localStorage 里的 blog_session，只能 postMessage 出来由父页代劳。
+  // 和点头像卡片的「退出登录」共用同一套逻辑，两处行为不会分叉。
+  window.__tdSignOut = doLogout;
+
   function boot() {
     idEl = document.getElementById("gh-identity");
     var lg = document.getElementById("gh-login");

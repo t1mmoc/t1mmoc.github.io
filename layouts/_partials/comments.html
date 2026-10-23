@@ -7,7 +7,7 @@
 <section class="giscus-comments">
   {{/* ?v= 是 client.js 的缓存开关：worker 给它的 Cache-Control 带
        stale-while-revalidate=604800，改完脚本不加版本号，读者 7 天内还会跑旧代码。 */}}
-  <script src="{{ $giscusHost }}/client.js?v=20261023"
+  <script src="{{ $giscusHost }}/client.js?v=20261023c"
           data-repo="{{ .repo }}"
           data-repo-id="{{ .repoId }}"
           data-category="{{ .category }}"
@@ -94,6 +94,14 @@
         syncGiscus();
       }
     });
+
+    // 登出钩子：iframe 会被 client.js 重建，需要把身份重新下发一次。
+    // 此刻 localStorage 里的 blog_session 已经被清掉，发出去的是空串 = 确认未登录。
+    // 同时把 identitySent 复位，否则重载后的 iframe 不会再触发上面那次补发。
+    window.__giscusRefresh = function () {
+      identitySent = false;
+      syncGiscus();
+    };
   })();
   </script>
 </section>
